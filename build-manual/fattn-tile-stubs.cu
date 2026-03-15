@@ -15,3 +15,9 @@ template void ggml_cuda_flash_attn_ext_tile_case<112, 112>(ggml_backend_cuda_con
 template void ggml_cuda_flash_attn_ext_tile_case<128, 128>(ggml_backend_cuda_context &, ggml_tensor *);
 template void ggml_cuda_flash_attn_ext_tile_case<256, 256>(ggml_backend_cuda_context &, ggml_tensor *);
 template void ggml_cuda_flash_attn_ext_tile_case<576, 512>(ggml_backend_cuda_context &, ggml_tensor *);
+
+// WMMA flash attention stub (requires Volta+ CC >= 700)
+void ggml_cuda_flash_attn_ext_wmma_f16(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    GGML_UNUSED(ctx); GGML_UNUSED(dst);
+    GGML_ABORT("fattn-wmma kernel not available on Kepler");
+}

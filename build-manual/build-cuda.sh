@@ -84,6 +84,11 @@ for cu_file in $CU_FILES; do
     compile_cu "$cu_file"
 done
 
+# Compile fattn-tile stubs (tile kernel needs constexpr config unavailable in nvcc 7.5)
+echo "  NVCC: build-manual/fattn-tile-stubs.cu"
+$NVCC $NVCC_FLAGS $NVCC_DEFINES $NVCC_INCLUDES -I./ggml/src/ggml-cuda \
+    -c build-manual/fattn-tile-stubs.cu -o ${BUILDDIR}/cuda_fattn-tile-stubs.o
+
 echo ""
 echo "=== Step 2: Compiling ggml core (C files) ==="
 
