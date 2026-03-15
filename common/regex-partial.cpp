@@ -158,7 +158,7 @@ std::string regex_to_reversed_partial_regex(const std::string & pattern) {
                     throw std::runtime_error("Unmatched '(' in pattern");
                 }
                 ++it;
-                auto & part = sequence->emplace_back("(?:");
+                sequence->emplace_back("(?:"); auto & part = sequence->back();
                 part += sub;
                 part += ")";
             } else if (*it == ')') {
@@ -182,7 +182,7 @@ std::string regex_to_reversed_partial_regex(const std::string & pattern) {
         // We'll do the outermost capturing group and final .* in the enclosing function.
         std::vector<std::string> res_alts;
         for (const auto & parts : alternatives) {
-            auto & res = res_alts.emplace_back();
+            res_alts.emplace_back(); auto & res = res_alts.back();
             for (size_t i = 0; i < parts.size() - 1; i++) {
                 res += "(?:";
             }

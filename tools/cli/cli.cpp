@@ -38,7 +38,7 @@ const char * LLAMA_ASCII_LOGO = R"(
                                     ▀▀    ▀▀
 )";
 
-static std::atomic<bool> g_is_interrupted = false;
+static std::atomic<bool> g_is_interrupted{false};
 static bool should_stop() {
     return g_is_interrupted.load();
 }
@@ -452,8 +452,8 @@ int main(int argc, char ** argv) {
     atexit([]() { console::cleanup(); });
 
     console::set_display(DISPLAY_TYPE_RESET);
-    console::set_completion_callback([](std::string_view sv, size_t pos) {
-        return auto_completion_callback(std::string(sv.data(), sv.size()), pos);
+    console::set_completion_callback([](const std::string & sv, size_t pos) {
+        return auto_completion_callback(sv, pos);
     });
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))

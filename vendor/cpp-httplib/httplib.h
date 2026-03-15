@@ -2101,10 +2101,10 @@ public:
   // Socket ownership is transferred to StreamHandle for true streaming
   // Supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, etc.)
   StreamHandle open_stream(const std::string &method, const std::string &path,
-                           const Params &params = {},
-                           const Headers &headers = {},
-                           const std::string &body = {},
-                           const std::string &content_type = {});
+                           const Params &params = Params(),
+                           const Headers &headers = Headers(),
+                           const std::string &body = std::string(),
+                           const std::string &content_type = std::string());
 
   bool send(Request &req, Response &res, Error &error);
   Result send(const Request &req);
@@ -2483,10 +2483,10 @@ public:
   // Supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, etc.)
   ClientImpl::StreamHandle open_stream(const std::string &method,
                                        const std::string &path,
-                                       const Params &params = {},
-                                       const Headers &headers = {},
-                                       const std::string &body = {},
-                                       const std::string &content_type = {});
+                                       const Params &params = Params(),
+                                       const Headers &headers = Headers(),
+                                       const std::string &body = std::string(),
+                                       const std::string &content_type = std::string());
 
   bool send(Request &req, Response &res, Error &error);
   Result send(const Request &req);
@@ -3353,7 +3353,7 @@ inline Result Get(ClientType &cli, const std::string &path,
 template <typename ClientType>
 inline Result Get(ClientType &cli, const std::string &path,
                   const Headers &headers, size_t chunk_size = 8192) {
-  return Result{cli.open_stream("GET", path, {}, headers), chunk_size};
+  return Result{cli.open_stream("GET", path, Params(), headers), chunk_size};
 }
 
 template <typename ClientType>
@@ -3484,7 +3484,7 @@ inline Result Delete(ClientType &cli, const std::string &path,
 template <typename ClientType>
 inline Result Delete(ClientType &cli, const std::string &path,
                      const Headers &headers, size_t chunk_size = 8192) {
-  return Result{cli.open_stream("DELETE", path, {}, headers), chunk_size};
+  return Result{cli.open_stream("DELETE", path, Params(), headers), chunk_size};
 }
 
 template <typename ClientType>
@@ -3547,7 +3547,7 @@ inline Result Head(ClientType &cli, const std::string &path,
 template <typename ClientType>
 inline Result Head(ClientType &cli, const std::string &path,
                    const Headers &headers, size_t chunk_size = 8192) {
-  return Result{cli.open_stream("HEAD", path, {}, headers), chunk_size};
+  return Result{cli.open_stream("HEAD", path, Params(), headers), chunk_size};
 }
 
 template <typename ClientType>
@@ -3573,7 +3573,7 @@ inline Result Options(ClientType &cli, const std::string &path,
 template <typename ClientType>
 inline Result Options(ClientType &cli, const std::string &path,
                       const Headers &headers, size_t chunk_size = 8192) {
-  return Result{cli.open_stream("OPTIONS", path, {}, headers), chunk_size};
+  return Result{cli.open_stream("OPTIONS", path, Params(), headers), chunk_size};
 }
 
 template <typename ClientType>
@@ -3743,7 +3743,7 @@ private:
 class WebSocketClient {
 public:
   explicit WebSocketClient(const std::string &scheme_host_port_path,
-                           const Headers &headers = {});
+                           const Headers &headers = Headers());
 
   ~WebSocketClient();
   WebSocketClient(const WebSocketClient &) = delete;

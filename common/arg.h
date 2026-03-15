@@ -18,7 +18,7 @@
 
 struct common_arg {
     std::set<enum llama_example> examples = {LLAMA_EXAMPLE_COMMON};
-    std::set<enum llama_example> excludes = {};
+    std::set<enum llama_example> excludes;
     std::vector<const char *> args;
     std::vector<const char *> args_neg;  // for negated args like --no-xxx
     const char * value_hint   = nullptr; // help text or example for arg value

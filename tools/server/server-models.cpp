@@ -264,8 +264,8 @@ void server_models::load_models() {
         SRV_INF("Loaded %zu local model presets from %s\n", local_models.size(), base_params.models_dir.c_str());
     }
     // 3. custom-path models from presets
-    common_preset global = {};
-    common_presets custom_presets = {};
+    common_preset global;
+    common_presets custom_presets;
     if (!base_params.models_preset.empty()) {
         custom_presets = ctx_preset.load_from_ini(base_params.models_preset, global);
         SRV_INF("Loaded %zu custom model presets from %s\n", custom_presets.size(), base_params.models_preset.c_str());
@@ -307,8 +307,8 @@ void server_models::load_models() {
         server_model_meta meta{
             /* preset       */ preset.second,
             /* name         */ preset.first,
-            /* aliases      */ {},
-            /* tags         */ {},
+            /* aliases      */ std::set<std::string>(),
+            /* tags         */ std::set<std::string>(),
             /* port         */ 0,
             /* status       */ SERVER_MODEL_STATUS_UNLOADED,
             /* last_used    */ 0,
@@ -806,7 +806,7 @@ server_http_res_ptr server_models::proxy_request(const server_http_req & req, co
             base_params.timeout_read,
             base_params.timeout_write
             );
-    return proxy;
+    return server_http_res_ptr(proxy.release());
 }
 
 std::thread server_models::setup_child_server(const std::function<void(int)> & shutdown_handler) {
@@ -1157,7 +1157,9 @@ server_http_proxy::server_http_proxy(
     httplib::ContentReceiverWithProgress content_receiver = [pipe](const char * data, size_t data_length, size_t, size_t) {
         // send data chunks
         // returns false if pipe is closed / broken (signal to stop receiving)
-        return pipe->write({{}, 0, std::string(data, data_length), ""});
+        msg_t chunk;
+        chunk.data = std::string(data, data_length);
+        return pipe->write(std::move(chunk));
     };
 
     // prepare the request to destination server
@@ -1188,8 +1190,8 @@ server_http_proxy::server_http_proxy(
         if (result.error() != httplib::Error::Success) {
             auto err_str = httplib::to_string(result.error());
             SRV_ERR("http client error: %s\n", err_str.c_str());
-            pipe->write({{}, 500, "", ""}); // header
-            pipe->write({{}, 0, "proxy error: " + err_str, ""}); // body
+            { msg_t h; h.status = 500; pipe->write(std::move(h)); } // header
+            { msg_t b; b.data = "proxy error: " + err_str; pipe->write(std::move(b)); } // body
         }
         pipe->close_write(); // signal EOF to reader
         SRV_DBG("%s", "client request thread ended\n");

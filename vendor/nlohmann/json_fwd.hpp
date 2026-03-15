@@ -10,7 +10,7 @@
 #define INCLUDE_NLOHMANN_JSON_FWD_HPP_
 
 #include <cstdint> // int64_t, uint64_t
-#include <map> // map
+// #include <map> // map -- removed for macOS 10.9 libc++ compat (ordered_map is default now)
 #include <memory> // allocator
 #include <string> // string
 #include <vector> // vector
@@ -146,10 +146,15 @@ for serialization.
 template<typename T = void, typename SFINAE = void>
 struct adl_serializer;
 
+/// @brief a minimal map-like container that preserves insertion order
+/// @sa https://json.nlohmann.me/api/ordered_map/
+template<class Key, class T, class IgnoredLess, class Allocator>
+struct ordered_map;
+
 /// a class to store JSON values
 /// @sa https://json.nlohmann.me/api/basic_json/
 template<template<typename U, typename V, typename... Args> class ObjectType =
-         std::map,
+         ordered_map,
          template<typename U, typename... Args> class ArrayType = std::vector,
          class StringType = std::string, class BooleanType = bool,
          class NumberIntegerType = std::int64_t,
@@ -173,14 +178,8 @@ class json_pointer;
 */
 using json = basic_json<>;
 
-/// @brief a minimal map-like container that preserves insertion order
-/// @sa https://json.nlohmann.me/api/ordered_map/
-template<class Key, class T, class IgnoredLess, class Allocator>
-struct ordered_map;
-
-/// @brief specialization that maintains the insertion order of object keys
-/// @sa https://json.nlohmann.me/api/ordered_json/
-using ordered_json = basic_json<nlohmann::ordered_map>;
+/// @brief ordered_json is now the same as json (default uses ordered_map)
+using ordered_json = json;
 
 NLOHMANN_JSON_NAMESPACE_END
 

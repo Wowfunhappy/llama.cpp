@@ -58,3 +58,6 @@ size_t common_ngram_mod::size() const {
 size_t common_ngram_mod::size_bytes() const {
     return entries.size() * sizeof(entries[0]);
 }
+
+#include "ngram-mod.h"
+constexpr common_ngram_mod::entry_t common_ngram_mod::EMPTY;

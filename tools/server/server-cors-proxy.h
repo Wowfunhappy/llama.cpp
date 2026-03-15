@@ -45,7 +45,7 @@ static server_http_res_ptr proxy_request(const server_http_req & req, std::strin
             600  // timeout_write (default to 10 minutes)
             );
 
-    return proxy;
+    return server_http_res_ptr(proxy.release());
 }
 
 static server_http_context::handler_t proxy_handler_post = [](const server_http_req & req) -> server_http_res_ptr {

@@ -260,7 +260,7 @@ struct common_speculative_state_draft : public common_speculative_state {
             GGML_ASSERT(n_chars < 0 && "failed to detokenize id_last");
 
             text.resize(-n_chars);
-            llama_detokenize(vocab_tgt, &id_last, 1, text.data(), text.size(), false, false);
+            llama_detokenize(vocab_tgt, &id_last, 1, &text[0], text.size(), false, false);
             text = replace_to_dft(text);
 
             LOG_DBG("main->draft detokenized id_last(%d): '%s'\n", id_last, text.c_str());

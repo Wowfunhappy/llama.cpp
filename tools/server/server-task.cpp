@@ -1986,7 +1986,7 @@ server_prompt * server_prompt_cache::alloc(const server_prompt & prompt, size_t 
         return nullptr;
     }
 
-    auto & cur = states.emplace_back();
+    states.emplace_back(); auto & cur = states.back();
     cur = {
         /*.tokens      =*/ prompt.tokens.clone(),
         /*.data        =*/ std::move(state_data),

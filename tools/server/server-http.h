@@ -55,7 +55,7 @@ struct server_http_context {
     std::unique_ptr<Impl> pimpl;
 
     std::thread thread; // server thread
-    std::atomic<bool> is_ready = false;
+    std::atomic<bool> is_ready{false};
 
     std::string path_prefix;
     std::string hostname;

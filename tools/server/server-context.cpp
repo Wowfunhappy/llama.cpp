@@ -2628,12 +2628,13 @@ private:
                         const size_t checkpoint_size =
                             llama_state_seq_get_size_ext(ctx, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
 
-                        auto & cur = slot.prompt.checkpoints.emplace_back(server_prompt_checkpoint{
+                        slot.prompt.checkpoints.emplace_back(server_prompt_checkpoint{
                             /*.pos_min  = */ pos_min,
                             /*.pos_max  = */ pos_max,
                             /*.n_tokens = */ slot.prompt.n_tokens() - n_tokens_cur,
                             /*.data     = */ std::vector<uint8_t>(checkpoint_size),
                         });
+                        auto & cur = slot.prompt.checkpoints.back();
 
                         llama_state_seq_get_data_ext(ctx, cur.data.data(), checkpoint_size, slot.id,
                                                      LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);

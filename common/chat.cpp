@@ -156,11 +156,11 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
 
     // TODO: these can become expensive for long messages - how to optimize?
     if (msg_prv.reasoning_content != msg_new.reasoning_content) {
-        auto & diff                  = diffs.emplace_back();
+        diffs.emplace_back(); auto & diff = diffs.back();
         diff.reasoning_content_delta = string_diff(msg_prv.reasoning_content, msg_new.reasoning_content);
     }
     if (msg_prv.content != msg_new.content) {
-        auto & diff        = diffs.emplace_back();
+        diffs.emplace_back(); auto & diff = diffs.back();
         diff.content_delta = string_diff(msg_prv.content, msg_new.content);
     }
 
@@ -195,7 +195,7 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
         }
         const auto args_diff = string_diff(pref.arguments, newf.arguments);
         if (!args_diff.empty() || pref.id != newf.id || pref.name != newf.name) {
-            auto & diff          = diffs.emplace_back();
+            diffs.emplace_back(); auto & diff = diffs.back();
             diff.tool_call_index = idx;
             if (pref.id != newf.id || pref.name != newf.name) {
                 diff.tool_call_delta.id   = newf.id;
@@ -205,7 +205,7 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
         }
     }
     for (size_t idx = msg_prv.tool_calls.size(); idx < msg_new.tool_calls.size(); ++idx) {
-        auto & diff          = diffs.emplace_back();
+        diffs.emplace_back(); auto & diff = diffs.back();
         diff.tool_call_index = idx;
         diff.tool_call_delta = msg_new.tool_calls[idx];
     }

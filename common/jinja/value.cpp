@@ -1006,7 +1006,7 @@ const func_builtins & value_array_t::get_builtins() const {
 
 const func_builtins & value_object_t::get_builtins() const {
     if (!has_builtins) {
-        static const func_builtins no_builtins = {};
+        static const func_builtins no_builtins;
         return no_builtins;
     }
 

@@ -15,14 +15,14 @@ NVCC_INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./sr
 CXX=clang++
 CC=clang
 COMPAT="-include ./build-manual/compat-macos109.h"
-COMMON_FLAGS="-O3 -DNDEBUG -DGGML_USE_CPU -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE -DGGML_USE_CUDA"
+COMMON_FLAGS="-O3 -DNDEBUG -DGGML_USE_CPU -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE -DGGML_USE_CUDA -DJSON_HAS_CPP_11 -DSTBI_NO_THREAD_LOCALS"
 COMMON_FLAGS="$COMMON_FLAGS -mavx2 -mfma -mf16c -mbmi -mbmi2 -msse4.2 -mpopcnt"
 COMMON_FLAGS="$COMMON_FLAGS $COMPAT"
 COMMON_FLAGS="$COMMON_FLAGS -DGGML_VERSION='\"0.9.7-manual\"' -DGGML_COMMIT='\"manual\"'"
 CFLAGS="-std=c11 $COMMON_FLAGS"
 CXXFLAGS="-std=c++1y $COMMON_FLAGS"
 INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./src"
-INCLUDES="$INCLUDES -I./ggml/src/ggml-cpu -I./ggml/src/ggml-cuda -I./common -I./vendor"
+INCLUDES="$INCLUDES -I./ggml/src/ggml-cpu -I./ggml/src/ggml-cuda -I./common -I./vendor -I./tools/mtmd"
 
 compile_cu() {
     local cu_file="$1"
@@ -154,31 +154,84 @@ for src in $(ls src/models/*.cpp); do
 done
 
 echo ""
-echo "=== Step 7: Compiling llama-simple ==="
+echo "=== Step 7: Compiling common library ==="
 
-compile_cpp build-manual/build-info.cpp
+COMMON_INCLUDES="-I./common -I./vendor -I./tools/server"
+
+compile_cpp build-manual/build-info.cpp "$COMMON_INCLUDES"
+
+for src in \
+    arg.cpp chat-auto-parser-generator.cpp chat-auto-parser-helpers.cpp \
+    chat-diff-analyzer.cpp chat-peg-parser.cpp chat.cpp common.cpp \
+    console.cpp debug.cpp download.cpp json-partial.cpp \
+    json-schema-to-grammar.cpp llguidance.cpp log.cpp \
+    ngram-cache.cpp ngram-map.cpp ngram-mod.cpp \
+    peg-parser.cpp preset.cpp reasoning-budget.cpp regex-partial.cpp \
+    sampling.cpp speculative.cpp unicode.cpp; do
+    compile_cpp "common/${src}" "$COMMON_INCLUDES"
+done
+
+# Jinja template engine
+for src in lexer.cpp parser.cpp runtime.cpp value.cpp string.cpp caps.cpp; do
+    compile_cpp "common/jinja/${src}" "$COMMON_INCLUDES"
+done
+
+echo ""
+echo "=== Step 8a: Compiling mtmd library ==="
+
+MTMD_INCLUDES="-I./tools/mtmd -I./tools/mtmd/models -I./common -I./vendor"
+for src in clip.cpp mtmd.cpp mtmd-audio.cpp mtmd-helper.cpp; do
+    compile_cpp "tools/mtmd/${src}" "$MTMD_INCLUDES"
+done
+for src in $(ls tools/mtmd/models/*.cpp); do
+    compile_cpp "$src" "$MTMD_INCLUDES"
+done
+
+echo ""
+echo "=== Step 8: Compiling server-context library ==="
+
+SERVER_INCLUDES="-I./tools/server -I./common -I./vendor"
+
+for src in \
+    server-common.cpp server-context.cpp server-http.cpp \
+    server-models.cpp server-queue.cpp server-task.cpp; do
+    compile_cpp "tools/server/${src}" "$SERVER_INCLUDES"
+done
+# server.cpp has its own main() - compiled separately, not linked into llama-cli
+
+echo ""
+echo "=== Step 9: Compiling llama-cli ==="
+
+compile_cpp tools/cli/cli.cpp "-I./tools/server -I./common -I./vendor"
 compile_cpp examples/simple/simple.cpp
 
 echo ""
-echo "=== Step 8: Linking llama-simple ==="
+echo "=== Step 10: Linking ==="
 
-HOST_OBJS=$(ls ${BUILDDIR}/host_ggml_src_*.o \
-               ${BUILDDIR}/host_src_*.o \
-               ${BUILDDIR}/host_examples_simple_simple_cpp.o \
-               ${BUILDDIR}/host_build-manual_build-info_cpp.o 2>/dev/null)
+ALL_HOST=$(ls ${BUILDDIR}/host_*.o 2>/dev/null)
 CUDA_OBJS=$(ls ${BUILDDIR}/cuda_*.o 2>/dev/null)
 
-$CXX -o ${BUILDDIR}/llama-simple \
-    $HOST_OBJS \
-    $CUDA_OBJS \
+# llama-cli
+CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple')
+$CXX -o ${BUILDDIR}/llama-cli \
+    $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
-    -L/usr/local/cuda/lib \
-    -Wl,-rpath,/usr/local/cuda/lib \
+    -L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib \
+    -lcudart -lcublas \
+    /usr/local/lib/libMacportsLegacySupport.a \
+    -lpthread
+
+# llama-simple
+SIMPLE_OBJS=$(echo "$ALL_HOST" | grep -v 'tools_\|common_')
+$CXX -o ${BUILDDIR}/llama-simple \
+    $SIMPLE_OBJS $CUDA_OBJS \
+    -framework Accelerate \
+    -L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib \
     -lcudart -lcublas \
     /usr/local/lib/libMacportsLegacySupport.a \
     -lpthread
 
 echo ""
 echo "=== Build complete ==="
-echo "Binary: ${BUILDDIR}/llama-simple"
-otool -L ${BUILDDIR}/llama-simple | head -10
+echo "Binaries:"
+ls -la ${BUILDDIR}/llama-cli ${BUILDDIR}/llama-simple

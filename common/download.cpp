@@ -152,14 +152,14 @@ std::pair<std::string, std::string> common_download_split_repo_tag(const std::st
 }
 
 class ProgressBar {
-    static inline std::mutex mutex;
-    static inline std::map<const ProgressBar *, int> lines;
-    static inline int max_line = 0;
+    static std::mutex & mutex_() { static std::mutex m; return m; }
+    static std::map<const ProgressBar *, int> & lines_() { static std::map<const ProgressBar *, int> l; return l; }
+    static int & max_line_() { static int m = 0; return m; }
 
     static void cleanup(const ProgressBar * line) {
-        lines.erase(line);
-        if (lines.empty()) {
-            max_line = 0;
+        lines_().erase(line);
+        if (lines_().empty()) {
+            max_line_() = 0;
         }
     }
 
@@ -175,7 +175,7 @@ public:
     ProgressBar() = default;
 
     ~ProgressBar() {
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex_());
         cleanup(this);
     }
 
@@ -188,13 +188,13 @@ public:
             return;
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex_());
 
-        if (lines.find(this) == lines.end()) {
-            lines[this] = max_line++;
+        if (lines_().find(this) == lines_().end()) {
+            lines_()[this] = max_line_()++;
             std::cout << "\n";
         }
-        int lines_up = max_line - lines[this];
+        int lines_up = max_line_() - lines_()[this];
 
         size_t width = 50;
         size_t pct = (100 * current) / total;

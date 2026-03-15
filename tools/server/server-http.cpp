@@ -260,7 +260,7 @@ bool server_http_context::init(const common_params & params) {
                     res.set_header("Cross-Origin-Opener-Policy", "same-origin");
                     res.set_content(reinterpret_cast<const char*>(index_html_gz), index_html_gz_len, "text/html; charset=utf-8");
                 }
-                return false;
+                // return false; -- removed for C++14 compat
             });
         }
     }
