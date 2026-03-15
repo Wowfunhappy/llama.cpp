@@ -61,7 +61,9 @@ static __global__ void mm_ids_helper(
     } else {
         // Implementation optimized for specific numbers of experts used:
         static_assert(n_expert_used_template == 0 || n_expert_used_template == 6 || WARP_SIZE % n_expert_used_template == 0, "bad n_expert_used");
-        const int neu_padded = n_expert_used == 6 ? 8 : n_expert_used; // Padded to next higher power of 2.
+        // neu_padded must be compile-time for template arg in warp_reduce_any
+        // n_expert_used_template is a template parameter, so this is compile-time when != 0
+        const int neu_padded = n_expert_used_template == 6 ? 8 : n_expert_used_template;
         for (int it0 = 0; it0 < n_tokens; it0 += warp_size/neu_padded) {
             const int it = it0 + threadIdx.x / neu_padded;
 

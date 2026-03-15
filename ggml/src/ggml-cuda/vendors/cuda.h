@@ -29,6 +29,7 @@
 #define __all_sync(mask, predicate) __all((predicate))
 #define __any_sync(mask, predicate) __any((predicate))
 #define __ballot_sync(mask, predicate) __ballot((predicate))
+static __device__ __forceinline__ void __syncwarp(unsigned mask = 0xFFFFFFFF) { (void)mask; /* implicit on Kepler */ }
 
 /* CUBLAS_TENSOR_OP_MATH and cublasSetMathMode don't exist before CUDA 9.0 */
 #define CUBLAS_TENSOR_OP_MATH 0

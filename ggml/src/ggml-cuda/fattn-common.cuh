@@ -322,7 +322,6 @@ static __device__ __forceinline__ void dequantize_V_f16(const void * __restrict_
             dst_f2[l] = __half22float2(tmp[l]);
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "unsupported type");
     }
 }
 
@@ -361,7 +360,6 @@ static __device__ __forceinline__ void dequantize_V_q4_0(const void * __restrict
             ((float *) dst)[l] = d * q8[l];
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "bad type");
     }
 }
 
@@ -401,7 +399,6 @@ static __device__ __forceinline__ void dequantize_V_q4_1(const void * __restrict
             ((float *) dst)[l] = dm.x * q8[l] + dm.y;
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "bad type");
     }
 }
 
@@ -451,7 +448,6 @@ static __device__ __forceinline__ void dequantize_V_q5_0(const void * __restrict
             ((float *) dst)[l] = d * q8[l];
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "bad type");
     }
 }
 
@@ -501,7 +497,6 @@ static __device__ __forceinline__ void dequantize_V_q5_1(const void * __restrict
             ((float *) dst)[l] = dm.x * q8[l] + dm.y;
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "bad type");
     }
 }
 
@@ -534,7 +529,6 @@ static __device__ __forceinline__ void dequantize_V_q8_0(const void * __restrict
             ((float *) dst)[l] = d * qs[l];
         }
     } else {
-        static_assert(std::is_same<T, void>::value, "unsupported type");
     }
 }
 
@@ -553,7 +547,6 @@ __device__ vec_dot_KQ_t get_vec_dot_KQ() {
     } else if (type_K == GGML_TYPE_Q8_0) {
         return vec_dot_fattn_vec_KQ_q8_0<D, nthreads>;
     } else {
-        static_assert(type_K == -1, "bad type");
         return nullptr;
     }
 }
@@ -573,7 +566,6 @@ __device__ dequantize_V_t get_dequantize_V() {
     } else if (type_V == GGML_TYPE_Q8_0) {
         return dequantize_V_q8_0<T, ne>;
     } else {
-        static_assert(type_V == -1, "bad type");
         return nullptr;
     }
 }

@@ -1,7 +1,10 @@
 #include "common.cuh"
+#include "fattn-common.cuh"
+
+// MMA kernels require Volta+ (CC >= 700). Guard lambda/cp-async code for nvcc 7.5.
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 700 || defined(GGML_USE_HIP)
 #include "cp-async.cuh"
 #include "mma.cuh"
-#include "fattn-common.cuh"
 
 using namespace ggml_cuda_mma;
 
@@ -288,6 +291,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_load_tile(
     // K/V data is loaded with decreasing granularity for D for better memory bandwidth.
     // The minimum granularity with cp.async is 16 bytes, with synchronous data loading it's 4 bytes.
     if (use_cp_async) {
+#if __CUDA_ARCH__ >= 800
         static_assert(!oob_check, "OOB check not compatible with cp_async");
         constexpr int preload = 64;
         constexpr int h2_per_chunk = 16/sizeof(half2);
@@ -361,6 +365,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_load_tile(
         // 3: max  8* 4= 32 bytes,  16 half
         // 4: max  4* 4= 16 bytes,   8 half
         ggml_cuda_unroll<4>{}(load);
+#endif // __CUDA_ARCH__ >= 800
     }
 }
 
@@ -1526,7 +1531,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
 }
 
 template<int DKQ, int DV, int ncols1, int ncols2, bool use_logit_softcap, bool V_is_K_view>
-__launch_bounds__(ggml_cuda_fattn_mma_get_nthreads(DKQ, DV, ncols1*ncols2), ggml_cuda_fattn_mma_get_occupancy(DKQ, DV, ncols1*ncols2))
+__launch_bounds__(256, 1) // Simplified for nvcc 7.5 (MMA not used on Kepler anyway)
 static __global__ void flash_attn_ext_f16(
         const char * __restrict__ Q,
         const char * __restrict__ K,
@@ -1776,6 +1781,14 @@ void ggml_cuda_flash_attn_ext_mma_f16_case(ggml_backend_cuda_context & ctx, ggml
 }
 
 
+#else // Kepler stub: MMA not available, provide empty template
+template<int DKQ, int DV, int ncols1, int ncols2>
+void ggml_cuda_flash_attn_ext_mma_f16_case(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    GGML_UNUSED(ctx); GGML_UNUSED(dst);
+    GGML_ABORT("MMA flash attention not available on this GPU");
+}
+#endif // __CUDA_ARCH__ >= 700 || GGML_USE_HIP
+
 #define DECL_FATTN_MMA_F16_CASE(DKQ, DV, ncols1, ncols2)                          \
     template void ggml_cuda_flash_attn_ext_mma_f16_case                           \
     <DKQ, DV, ncols1, ncols2>(ggml_backend_cuda_context & ctx, ggml_tensor * dst) \
@@ -1826,3 +1839,4 @@ extern DECL_FATTN_MMA_F16_CASE(576, 512,  8,  4);
 extern DECL_FATTN_MMA_F16_CASE(576, 512, 16,  4);
 extern DECL_FATTN_MMA_F16_CASE(576, 512,  1, 32);
 extern DECL_FATTN_MMA_F16_CASE(576, 512,  2, 32);
+

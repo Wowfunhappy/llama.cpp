@@ -109,7 +109,7 @@ namespace ggml_cuda_mma {
         static constexpr data_layout dl = DATA_LAYOUT_I_MAJOR;
 
 #if defined(AMD_MFMA_AVAILABLE)
-        static constexpr int ne = I * J / 64;
+        static const int ne = I * J / 64;
         T x[ne] = {0};
 
         static __device__ bool supported() {
@@ -155,7 +155,7 @@ namespace ggml_cuda_mma {
             }
         }
 #elif __CUDA_ARCH__ == GGML_CUDA_CC_VOLTA
-        static constexpr int ne = I * J / 32;
+        static const int ne = I * J / 32;
         T x[ne] = {0};
 
         static __device__ bool supported() {
@@ -185,7 +185,7 @@ namespace ggml_cuda_mma {
             }
         }
 #elif defined(AMD_WMMA_AVAILABLE)
-        static constexpr int ne = I * J / 32;
+        static const int ne = I * J / 32;
         T x[ne] = {0};
 
         static __device__ bool supported() {
@@ -229,7 +229,7 @@ namespace ggml_cuda_mma {
             }
         }
 #else
-        static constexpr int ne = I * J / 32;
+        static const int ne = I * J / 32;
         T x[ne] = {0};
 
         static __device__ bool supported() {
@@ -284,7 +284,7 @@ namespace ggml_cuda_mma {
         static constexpr data_layout dl = DATA_LAYOUT_I_MAJOR;
 
 #if __CUDA_ARCH__ == GGML_CUDA_CC_VOLTA
-        static constexpr int ne = I * J / WARP_SIZE;
+        static const int ne = I * J / WARP_SIZE;
         half2 x[ne] = {{0.0f, 0.0f}};
 
         static __device__ bool supported() {
@@ -314,7 +314,7 @@ namespace ggml_cuda_mma {
             }
         }
 #elif defined(AMD_WMMA_AVAILABLE)
-        static constexpr int ne = I * J / 32;
+        static const int ne = I * J / 32;
         half2 x[ne] = {{0.0f, 0.0f}};
 
         static __device__ bool supported() {
@@ -340,7 +340,7 @@ namespace ggml_cuda_mma {
             }
         }
 #elif defined(AMD_MFMA_AVAILABLE)
-        static constexpr int ne = I * J / 64;
+        static const int ne = I * J / 64;
         half2 x[ne] = {{0.0f, 0.0f}};
 
         static __device__ bool supported() {
@@ -366,7 +366,7 @@ namespace ggml_cuda_mma {
             }
         }
 #else
-        static constexpr int ne = I * J / WARP_SIZE;
+        static const int ne = I * J / WARP_SIZE;
         half2 x[ne] = {{0.0f, 0.0f}};
 
         static __device__ bool supported() {
@@ -417,8 +417,8 @@ namespace ggml_cuda_mma {
         static constexpr data_layout dl = DATA_LAYOUT_I_MAJOR;
 
 #if defined(AMD_WMMA_AVAILABLE)
-        static constexpr int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
-        nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
+        static const int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
+        nv_bfloat162 x[ne] = {};
 
         static __device__ bool supported() {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::supported();
@@ -432,8 +432,8 @@ namespace ggml_cuda_mma {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::get_j(l);
         }
 #elif defined(AMD_MFMA_AVAILABLE)
-        static constexpr int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
-        nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
+        static const int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
+        nv_bfloat162 x[ne] = {};
 
         static __device__ bool supported() {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::supported();
@@ -447,8 +447,8 @@ namespace ggml_cuda_mma {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::get_j(l);
         }
 #else
-        static constexpr int ne = I * J / WARP_SIZE;
-        nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
+        static const int ne = I * J / WARP_SIZE;
+        nv_bfloat162 x[ne] = {};
 
         static __device__ bool supported() {
             if (I ==  8 && J ==  8) return true;
@@ -491,7 +491,7 @@ namespace ggml_cuda_mma {
         static constexpr int         J  = J_;
         static constexpr data_layout dl = DATA_LAYOUT_J_MAJOR;
 
-        static constexpr int ne = tile<I_, J_, T, DATA_LAYOUT_I_MAJOR>::ne;
+        static const int ne = tile<I_, J_, T, DATA_LAYOUT_I_MAJOR>::ne;
         T x[ne] = {0};
 
         static __device__ bool supported() {
@@ -602,7 +602,7 @@ namespace ggml_cuda_mma {
         static constexpr data_layout dl = DATA_LAYOUT_I_MAJOR_MIRRORED;
         static constexpr int         ne = tile<I_, J_, float, DATA_LAYOUT_I_MAJOR_MIRRORED>::ne;
 
-        nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
+        nv_bfloat162 x[ne] = {};
 
         static __device__ bool supported() {
             return tile<I_, J_, float, DATA_LAYOUT_I_MAJOR_MIRRORED>::supported();

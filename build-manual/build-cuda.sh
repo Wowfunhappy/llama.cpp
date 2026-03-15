@@ -8,7 +8,7 @@ BUILDDIR=build-manual
 # CUDA compiler
 NVCC=/usr/local/cuda/bin/nvcc
 NVCC_FLAGS="-std=c++11 -arch=sm_35 -expt-extended-lambda --use_fast_math"
-NVCC_DEFINES="-DNDEBUG -DGGML_USE_CUDA -DGGML_CUDA_NO_VMM -DGGML_CUDA_NO_FA"
+NVCC_DEFINES="-DNDEBUG -DGGML_USE_CUDA -DGGML_CUDA_NO_VMM"
 NVCC_INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./src"
 
 # Host compiler flags (clang/clang++ on macOS 10.9)
@@ -70,12 +70,15 @@ compile_cpp() {
 
 echo "=== Step 1: Compiling CUDA files ==="
 
-# Skip fattn files (flash attention disabled via GGML_CUDA_NO_FA, won't compile on nvcc 7.5)
-# Skip mmid.cu (runtime-dependent template args)
+# All CUDA files + template instances (FA enabled, all kernels)
 CU_FILES=$(ls ggml/src/ggml-cuda/*.cu \
               ggml/src/ggml-cuda/template-instances/mmq-instance-*.cu \
               ggml/src/ggml-cuda/template-instances/mmf-instance-*.cu \
-           | grep -v 'fattn' | grep -v 'mmid' | grep -v 'mmq\.cu' | grep -v 'mmvq\.cu' | grep -v 'quantize\.cu')
+              ggml/src/ggml-cuda/template-instances/fattn-mma-*.cu \
+              ggml/src/ggml-cuda/template-instances/fattn-vec-instance-f16-f16.cu \
+              ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q4_0-q4_0.cu \
+              ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q8_0-q8_0.cu \
+           | grep -v 'fattn-tile-instance' | grep -v 'fattn-wmma')
 
 for cu_file in $CU_FILES; do
     compile_cu "$cu_file"

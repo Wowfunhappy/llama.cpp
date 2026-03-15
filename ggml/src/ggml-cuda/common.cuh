@@ -150,7 +150,7 @@ static int ggml_cuda_highest_compiled_arch(const int arch) {
 
 #define GGML_CUDA_MAX_STREAMS 8
 
-[[noreturn]]
+__attribute__((noreturn))
 void ggml_cuda_error(const char * stmt, const char * func, const char * file, int line, const char * msg);
 
 #define CUDA_CHECK_GEN(err, success, error_fn)                                      \
@@ -357,7 +357,6 @@ static constexpr __device__ int ggml_cuda_get_max_cpy_bytes() {
 }
 
 
-[[noreturn]]
 static __device__ void no_device_code(
     const char * file_name, const int line, const char * function_name, const int arch, const char * arch_list) {
 

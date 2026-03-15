@@ -87,7 +87,7 @@
 
 static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
 
-[[noreturn]]
+__attribute__((noreturn))
 void ggml_cuda_error(const char * stmt, const char * func, const char * file, int line, const char * msg) {
     int id = -1; // in case cudaGetDevice fails
     (void)cudaGetDevice(&id);
@@ -1859,10 +1859,8 @@ struct batched_mul_mat_traits<GGML_TYPE_F32> {
     static const cublasComputeType_t compute_type = CUBLAS_COMPUTE_32F;
     static const cudaDataType_t data_type = CUDA_R_32F;
     static const ggml_type ggml_type_val = GGML_TYPE_F32;
-    static const float alpha = 1.0f;
-    static const float beta = 0.0f;
-    static const void* get_alpha() { static const float val = alpha; return &val; }
-    static const void* get_beta() { static const float val = beta; return &val; }
+    static const void* get_alpha() { static const float val = 1.0f; return &val; }
+    static const void* get_beta() { static const float val = 0.0f; return &val; }
     static to_fp32_nc_cuda_t get_nc_converter(ggml_type src_type) { return ggml_get_to_fp32_nc_cuda(src_type); }
 };
 
@@ -1872,10 +1870,8 @@ struct batched_mul_mat_traits<GGML_TYPE_BF16> {
     static const cublasComputeType_t compute_type = CUBLAS_COMPUTE_32F;
     static const cudaDataType_t data_type = CUDA_R_16BF;
     static const ggml_type ggml_type_val = GGML_TYPE_BF16;
-    static const float alpha = 1.0f;
-    static const float beta = 0.0f;
-    static const void* get_alpha() { static const float val = alpha; return &val; }
-    static const void* get_beta() { static const float val = beta; return &val; }
+    static const void* get_alpha() { static const float val = 1.0f; return &val; }
+    static const void* get_beta() { static const float val = 0.0f; return &val; }
     static to_bf16_nc_cuda_t get_nc_converter(ggml_type src_type) { return ggml_get_to_bf16_nc_cuda(src_type); }
 };
 
@@ -3315,7 +3311,7 @@ static bool ggml_cuda_can_fuse(const struct ggml_cgraph *                cgraph,
 
     const auto is_equal = [](const std::initializer_list<enum ggml_op> & list1,
                              const std::initializer_list<enum ggml_op> & list2) {
-        return std::equal(list1.begin(), list1.end(), list2.begin(), list2.end());
+        return list1.size() == list2.size() && std::equal(list1.begin(), list1.end(), list2.begin());
     };
 
     std::initializer_list<enum ggml_op> mul_mat_bias_glu_ops    = { GGML_OP_MUL_MAT,    GGML_OP_ADD,    GGML_OP_MUL_MAT,    GGML_OP_ADD,    GGML_OP_GLU };
@@ -4142,6 +4138,7 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
     }
 #endif // USE_CUDA_GRAPH
 
+#ifdef USE_CUDA_GRAPH
     if (use_cuda_graph && cuda_graph_update_required) {
         // Start CUDA graph capture
         {
@@ -4151,6 +4148,7 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
 
         CUDA_CHECK(cudaStreamBeginCapture(cuda_ctx->stream(), cudaStreamCaptureModeRelaxed));
     }
+#endif // USE_CUDA_GRAPH
 
     ggml_cuda_graph_evaluate_and_capture(cuda_ctx, cgraph, use_cuda_graph, cuda_graph_update_required, graph_key);
 
@@ -4266,7 +4264,7 @@ static void ggml_backend_cuda_graph_optimize(ggml_backend_t backend, ggml_cgraph
     // store {fork_idx, join_idx}
     std::vector<std::pair<int, int>> concurrent_node_ranges;
 
-    for (const auto & _fo : fan_out) { const auto & root_node = _fo.first; const auto & count = _fo.second; (void)root_node; {
+    for (const auto & _fo : fan_out) { const auto & root_node = _fo.first; const auto & count = _fo.second; (void)root_node;
         if (count >= min_fan_out && count <= max_fan_out) {
             const int root_node_idx = node_indices[root_node];
 
@@ -4277,7 +4275,7 @@ static void ggml_backend_cuda_graph_optimize(ggml_backend_t backend, ggml_cgraph
             }
 
             bool is_part_of_event = false;
-            for (const auto & _cr : concurrent_node_ranges) { const auto & start = _cr.first; const auto & end = _cr.second; {
+            for (const auto & _cr : concurrent_node_ranges) { const auto & start = _cr.first; const auto & end = _cr.second;
                 if (root_node_idx >= start && root_node_idx <= end) {
                     is_part_of_event = true;
                 }
