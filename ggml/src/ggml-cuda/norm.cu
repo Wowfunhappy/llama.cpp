@@ -173,7 +173,7 @@ static __global__ void rms_norm_back_f32(
     sum_xx = warp_reduce_sum(sum_xx);
     sum_xg = warp_reduce_sum(sum_xg);
     if (block_size > WARP_SIZE) {
-        static_assert(block_size == 1024, "unexpected block_size");
+        // static_assert removed: fires for block_size==WARP_SIZE instantiation in C++11 (no if constexpr)
         __shared__ float s_sum_xx[32];
         __shared__ float s_sum_xg[32];
         const int warp_id = threadIdx.x / WARP_SIZE;

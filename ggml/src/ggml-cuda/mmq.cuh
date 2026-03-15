@@ -14,6 +14,19 @@ using namespace ggml_cuda_mma;
 #define MMQ_ITER_K_MXFP4_FP4    512
 #define MMQ_NWARPS 8
 
+// Compile-time MMQ_Y for template args (runtime get_mmq_y_device() can't be used)
+#if defined(GGML_USE_HIP)
+#if defined(RDNA1)
+#define MMQ_Y 64
+#else
+#define MMQ_Y 128
+#endif
+#elif __CUDA_ARCH__ >= 700
+#define MMQ_Y 128
+#else
+#define MMQ_Y 64
+#endif
+
 typedef void (*load_tiles_mmq_t)(const char * __restrict__ x, int * x_tile, const int kbx0, const int i_max, const int stride);
 typedef void (*vec_dot_mmq_t)(const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00);
 typedef void (*mmq_write_back_t)(const float * __restrict__ sum, const int32_t * __restrict__ get_rows_to_sorted,
@@ -109,7 +122,7 @@ static int get_mmq_x_max_host(const int cc) {
 #endif // GGML_CUDA_FORCE_MMQ
 }
 
-static constexpr __device__ int get_mmq_x_max_device() {
+static __device__ int get_mmq_x_max_device() {
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     return 128;
 #else // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)
@@ -137,7 +150,7 @@ static int get_mmq_y_host(const int cc) {
         ((GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA) ? 128 : 64);
 }
 
-static constexpr __device__ int get_iter_k([[maybe_unused]] const ggml_type type) {
+static __device__ int get_iter_k(const ggml_type type) {
 #if defined(BLACKWELL_MMA_AVAILABLE)
     return type == GGML_TYPE_MXFP4 ? MMQ_ITER_K_MXFP4_FP4 : MMQ_ITER_K;
 #else
@@ -145,7 +158,7 @@ static constexpr __device__ int get_iter_k([[maybe_unused]] const ggml_type type
 #endif // defined(BLACKWELL_MMA_AVAILABLE)
 }
 
-static constexpr __device__ int get_mmq_y_device() {
+static __device__ int get_mmq_y_device() {
 #if defined(GGML_USE_HIP)
 #if defined(RDNA1)
     return 64;
@@ -181,7 +194,7 @@ static constexpr __device__ int get_mmq_y_device() {
 #define MMQ_DP4A_TXS_Q5_K    tile_x_sizes{mmq_y*MMQ_TILE_NE_K*2 + mmq_y, mmq_y*MMQ_TILE_NE_K/QI5_K   + mmq_y/QI5_K,     mmq_y*MMQ_TILE_NE_K/8 + mmq_y/8}
 #define MMQ_DP4A_TXS_Q6_K    tile_x_sizes{mmq_y*MMQ_TILE_NE_K*2 + mmq_y, mmq_y*MMQ_TILE_NE_K/QI6_K   + mmq_y/QI6_K,     mmq_y*MMQ_TILE_NE_K/8 + mmq_y/8}
 
-static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml_type type, int mmq_y) {
+static __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml_type type, int mmq_y) {
     switch (type) {
         case GGML_TYPE_Q4_0:    return MMQ_DP4A_TXS_Q4_0;
         case GGML_TYPE_Q4_1:    return MMQ_DP4A_TXS_Q4_1;
@@ -221,7 +234,7 @@ static_assert(MMQ_MMA_TILE_X_K_Q6_K % 8 == 4, "Wrong padding.");
 static_assert(MMQ_MMA_TILE_X_K_FP4  % 8 == 4, "Wrong padding.");
 static_assert(MMQ_MMA_TILE_X_K_FP4 == MMQ_MMA_TILE_X_K_Q8_1, "Wrong tile size for MXFP4");
 
-static constexpr __host__ __device__ int mmq_get_mma_tile_x_k(ggml_type type) {
+static __host__ __device__ int mmq_get_mma_tile_x_k(ggml_type type) {
     switch (type) {
         case GGML_TYPE_Q4_0:    return MMQ_MMA_TILE_X_K_Q8_0;
         case GGML_TYPE_Q4_1:    return MMQ_MMA_TILE_X_K_Q8_1;
@@ -262,15 +275,15 @@ static int mmq_get_granularity_host(const int mmq_x, const int cc) {
 }
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
-static constexpr __device__ int mmq_get_granularity_device(const int mmq_x) {
+static __device__ int mmq_get_granularity_device(const int mmq_x) {
     return mmq_x >= 128 ? 32 : 16;
 }
 #elif defined(TURING_MMA_AVAILABLE)
-static constexpr __device__ int mmq_get_granularity_device(const int mmq_x) {
+static __device__ int mmq_get_granularity_device(const int mmq_x) {
     return mmq_x >= 48 ? 16 : 8;
 }
 #else
-static constexpr __device__ int mmq_get_granularity_device(const int /*mmq_x*/) {
+static __device__ int mmq_get_granularity_device(const int /*mmq_x*/) {
     return 8;
 }
 #endif // AMD_MFMA_AVAILABLE
@@ -285,7 +298,7 @@ static int mmq_get_nwarps_host(const int /*cc*/, const int warp_size) {
 }
 #endif // (GGML_USE_HIP)
 
-static constexpr __device__ int mmq_get_nwarps_device() {
+static __device__ int mmq_get_nwarps_device() {
 #if defined(AMD_MFMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     return 8;
 #else
@@ -297,8 +310,8 @@ static constexpr __device__ int mmq_get_nwarps_device() {
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q4_0(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -309,8 +322,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_0);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR4_0);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI4_0;
     const int kqsx = txi % QI4_0;
@@ -335,7 +348,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI4_0;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -359,8 +372,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q4_0_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_0, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -400,8 +413,8 @@ static __device__ __forceinline__ void vec_dot_q4_0_q8_1_dp4a(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q4_1(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -412,8 +425,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     half2 * x_dm = (half2 *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)  || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_1);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR4_1);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI4_1;
     const int kqsx = txi % QI4_1;
@@ -438,7 +451,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI4_1;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -462,8 +475,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q4_1_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_1, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -503,8 +516,8 @@ static __device__ __forceinline__ void vec_dot_q4_1_q8_1_dp4a(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q5_0(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -515,8 +528,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_0);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR5_0);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI5_0;
     const int kqsx = txi % QI5_0;
@@ -558,7 +571,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI5_0;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -581,8 +594,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q5_1(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -593,8 +606,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     half2 * x_dm = (half2 *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_1);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR5_1);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI5_1;
     const int kqsx = txi % QI5_1;
@@ -634,7 +647,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI5_1;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -657,8 +670,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q8_0(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -670,8 +683,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     // MMQ_ITER_K / (4 * QR8_0) == 64 required. but NV has only 32 threads per warp
-    constexpr int threads_per_row = 32;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = 32;
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI8_0;
     const int kqsx = txi % QI8_0;
@@ -696,7 +709,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = 2*MMQ_TILE_NE_K / QI8_0;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -719,8 +732,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_mxfp4(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -731,8 +744,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR_MXFP4);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR_MXFP4);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI_MXFP4;
     const int kqsx = txi % QI_MXFP4;
@@ -761,7 +774,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI_MXFP4;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -788,18 +801,18 @@ static __device__ __forceinline__ void load_tiles_mxfp4_fp4(const char * __restr
                                                             const int kbx0,
                                                             const int i_max,
                                                             const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     int *      x_qs = (int *) x_tile;
     uint32_t * x_sc = (uint32_t *) (x_qs + 2 * MMQ_TILE_NE_K);
 
     const int txi = threadIdx.x;
 
-    constexpr int iter_k = get_iter_k(GGML_TYPE_MXFP4);
+    const int iter_k = get_iter_k(GGML_TYPE_MXFP4);
 
-    constexpr int threads_per_row = iter_k / QK_MXFP4;  // each thread processes 1 block
-    constexpr int rows_per_warp   = warp_size / threads_per_row;
+    const int threads_per_row = iter_k / QK_MXFP4;  // each thread processes 1 block
+    const int rows_per_warp   = warp_size / threads_per_row;
     const int     kbx             = txi % threads_per_row;
     const int     row_in_warp     = txi / threads_per_row;
 
@@ -829,8 +842,8 @@ static __device__ __forceinline__ void load_tiles_mxfp4_fp4(const char * __restr
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q8_0_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q8_0, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -1071,8 +1084,8 @@ static __device__ __forceinline__ void vec_dot_mxfp4_mxfp4_mma(const int * __res
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q8_1_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_1, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -1233,8 +1246,8 @@ static __device__ __forceinline__ void vec_dot_q8_1_q8_1_mma(
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q8_0_16_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0_16;
     const int   * x_qs = (const int   *) x;
@@ -1451,7 +1464,7 @@ static __device__ __forceinline__ void vec_dot_q8_0_16_q8_1_mma(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q2_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
+    const int nwarps = MMQ_NWARPS;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -1462,8 +1475,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     half2 * x_dm = (half2 *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR2_K);
-    constexpr int nrows = ggml_cuda_get_physical_warp_size() / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR2_K);
+    const int nrows = GGML_CUDA_PHYSICAL_WARP_SIZE / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -1510,8 +1523,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q2_K_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q2_K, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -1837,8 +1850,8 @@ static __device__ __forceinline__ void vec_dot_q2_K_q8_1_mma(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q3_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -1850,8 +1863,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     int   * x_sc = (int   *) (x_df + txs.dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR3_K);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR3_K);
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -1884,7 +1897,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
         }
     }
 
-    constexpr int rows_per_warp = warp_size / 4;
+    const int rows_per_warp = warp_size / 4;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
         int i = i0 + threadIdx.y*rows_per_warp + threadIdx.x/4;
@@ -1939,8 +1952,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q3_K_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q3_K, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -1983,8 +1996,8 @@ static __device__ __forceinline__ int unpack_scales_q45_K(const int * scales, co
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q4_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -1996,8 +2009,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     int   * x_sc = (int   *) (x_dm + txs.dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_K);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR4_K);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
 
 #pragma unroll
@@ -2020,7 +2033,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
-    constexpr int rows_per_warp = warp_size / 2;
+    const int rows_per_warp = warp_size / 2;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
 #if defined(AMD_MFMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
@@ -2069,7 +2082,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
         x_dm[i] = bxi->dm;
     }
-    constexpr int rows_per_warp = warp_size / 4;
+    const int rows_per_warp = warp_size / 4;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
         int i = (i0 + threadIdx.y*rows_per_warp + threadIdx.x/(MMQ_TILE_NE_K/8)) % mmq_y;
@@ -2093,8 +2106,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q4_K_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_K, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -2127,8 +2140,8 @@ static __device__ __forceinline__ void vec_dot_q4_K_q8_1_dp4a(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q5_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2140,8 +2153,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     int   * x_sc = (int   *) (x_dm + txs.dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_K);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR5_K);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
 
 #pragma unroll
@@ -2176,7 +2189,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
-    constexpr int rows_per_warp = warp_size / 2;
+    const int rows_per_warp = warp_size / 2;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
 #if defined(AMD_MFMA_AVAILABLE)
@@ -2226,7 +2239,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
         x_dm[i] = bxi->dm;
     }
 
-    constexpr int rows_per_warp = warp_size / 4;
+    const int rows_per_warp = warp_size / 4;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
         int i = (i0 + threadIdx.y*rows_per_warp + threadIdx.x/(MMQ_TILE_NE_K/8)) % mmq_y;
@@ -2250,8 +2263,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q5_K_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_K, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -2284,8 +2297,8 @@ static __device__ __forceinline__ void vec_dot_q5_K_q8_1_dp4a(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_q6_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2298,8 +2311,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     int   * x_sc = (int   *) (x_df + txs.dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR6_K);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR6_K);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
 
 #pragma unroll
@@ -2349,7 +2362,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     }
 
-    constexpr int rows_per_warp = warp_size / 4;
+    const int rows_per_warp = warp_size / 4;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps*rows_per_warp) {
         int i = (i0 + threadIdx.y*rows_per_warp + threadIdx.x/(MMQ_TILE_NE_K/8)) % mmq_y;
@@ -2371,8 +2384,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 template <int mmq_x, int mmq_y>
 static __device__ __forceinline__ void vec_dot_q6_K_q8_1_dp4a(
     const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q6_K, mmq_y);
     const int   * x_qs = (const int   *) x;
@@ -2618,8 +2631,8 @@ static __device__ __forceinline__ void vec_dot_q6_K_q8_1_mma(
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq4_nl(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2630,8 +2643,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_NL);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR4_NL);
+    const int nrows = warp_size / threads_per_row;
     const int txi = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
     const int kbx  = txi / QI4_NL;
     const int kqsx = txi % QI4_NL;
@@ -2660,7 +2673,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     }
 
     constexpr int blocks_per_tile_x_row = MMQ_TILE_NE_K / QI4_NL;
-    constexpr int rows_per_warp = warp_size / blocks_per_tile_x_row;
+    const int rows_per_warp = warp_size / blocks_per_tile_x_row;
     const int kbxd = threadIdx.x % blocks_per_tile_x_row;
 
 #pragma unroll
@@ -2683,8 +2696,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_xxs(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2695,8 +2708,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_XXS)) / 2;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = (MMQ_ITER_K / (4 * QR2_XXS)) / 2;
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = warp_size > threads_per_row ? threadIdx.x % threads_per_row : threadIdx.x;
 
 #pragma unroll
@@ -2745,8 +2758,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_xs(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2757,8 +2770,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_XS)) / 2;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = (MMQ_ITER_K / (4 * QR2_XS)) / 2;
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -2808,8 +2821,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_s(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2819,8 +2832,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
-    constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_S)) / 2;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = (MMQ_ITER_K / (4 * QR2_S)) / 2;
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -2874,8 +2887,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq3_xxs(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2886,8 +2899,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR3_XXS)) / 2;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = (MMQ_ITER_K / (4 * QR3_XXS)) / 2;
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -2936,8 +2949,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq3_s(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -2948,8 +2961,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR3_S)) / 2;
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = (MMQ_ITER_K / (4 * QR3_S)) / 2;
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -3003,8 +3016,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq1_s(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -3015,8 +3028,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     half2 * x_ds = (half2 *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR1_S);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR1_S);
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -3063,8 +3076,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 
 template <int mmq_y, bool need_check> static __device__ __forceinline__ void load_tiles_iq4_xs(
     const char * __restrict__ x, int * __restrict__ x_tile, const int kbx0, const int i_max, const int stride) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     int   * x_qs = (int   *)  x_tile;
@@ -3075,8 +3088,8 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
-    constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_XS);
-    constexpr int nrows = warp_size / threads_per_row;
+    const int threads_per_row = MMQ_ITER_K / (4 * QR4_XS);
+    const int nrows = warp_size / threads_per_row;
     const int kqsx = threadIdx.x % threads_per_row;
 
 #pragma unroll
@@ -3102,7 +3115,7 @@ template <int mmq_y, bool need_check> static __device__ __forceinline__ void loa
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     }
 
-    constexpr int rows_per_warp = warp_size / 8;
+    const int rows_per_warp = warp_size / 8;
 #pragma unroll
     for (int i0 = 0; i0 < mmq_y; i0 += nwarps * rows_per_warp) {
         int i = i0 + threadIdx.y * rows_per_warp + threadIdx.x / (MMQ_TILE_NE_K/4);
@@ -3130,8 +3143,8 @@ template<int mmq_x, int mmq_y, bool need_check>
 static __device__ __forceinline__ void mmq_write_back_dp4a(
         const float * __restrict__ sum, const int32_t * __restrict__ ids_dst, float * __restrict__ dst,
         const int stride, const int i_max, const int j_max) {
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
 #pragma unroll
     for (int j0 = 0; j0 < mmq_x; j0 += nwarps) {
@@ -3160,7 +3173,7 @@ static __device__ __forceinline__ void mmq_write_back_mma(
         const int stride, const int i_max, const int j_max) {
 
     constexpr int granularity = mmq_get_granularity_device(mmq_x);
-    constexpr int nwarps = mmq_get_nwarps_device();
+    const int nwarps = MMQ_NWARPS;
 
 #if defined(AMD_MFMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     constexpr int tileC_IJ = mmq_get_granularity_device(0);
@@ -3372,11 +3385,11 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
         const int stride_row_x, const int ncols_y, const int stride_col_dst,
         const int tile_x_max_i, const int tile_y_max_j, const int kb0_start, const int kb0_stop) {
 
-    constexpr int              warp_size  = ggml_cuda_get_physical_warp_size();
-    constexpr int              nwarps     = mmq_get_nwarps_device();
-    constexpr int              qk         = ggml_cuda_type_traits<type>::qk;
-    constexpr int              mmq_y      = get_mmq_y_device();
-    constexpr load_tiles_mmq_t load_tiles = mmq_type_traits<mmq_x, mmq_y, need_check, type>::load_tiles;
+    const int              warp_size  = GGML_CUDA_PHYSICAL_WARP_SIZE;
+    const int              nwarps     = MMQ_NWARPS;
+    const int              qk         = ggml_cuda_type_traits<type>::qk;
+    const int              mmq_y      = MMQ_Y;
+    const load_tiles_mmq_t load_tiles = mmq_type_traits<mmq_x, mmq_y, need_check, type>::load_tiles;
 
     extern __shared__ int data_mul_mat_q[];
     int * tile_y = data_mul_mat_q + mmq_x;
@@ -3397,7 +3410,7 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
     constexpr int ne_block = 4 * QK8_1;
 #endif  // defined(BLACKWELL_MMA_AVAILABLE)
 
-    constexpr int ITER_K          = get_iter_k(type);
+    const int ITER_K          = get_iter_k(type);
     constexpr int blocks_per_iter = ITER_K / qk;
 
     float sum[mmq_x*mmq_y / (nwarps*warp_size)] = {0.0f};
@@ -3452,13 +3465,13 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
 template <ggml_type type, int mmq_x, bool need_check>
 #if defined(GGML_USE_HIP)
 #if defined(RDNA4) || defined(RDNA3) || defined(RDNA2) || defined(CDNA) || defined(GCN)
-    __launch_bounds__(ggml_cuda_get_physical_warp_size()*mmq_get_nwarps_device(), 2)
+    __launch_bounds__(GGML_CUDA_PHYSICAL_WARP_SIZE*MMQ_NWARPS, 2)
 #endif // defined(RDNA4) || defined(RDNA3) || defined(RDNA2) || defined(CDNA) || defined(GCN)
 #else
 #if __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
-    __launch_bounds__(ggml_cuda_get_physical_warp_size()*mmq_get_nwarps_device(), 1)
+    __launch_bounds__(GGML_CUDA_PHYSICAL_WARP_SIZE*MMQ_NWARPS, 1)
 #else
-    __launch_bounds__(ggml_cuda_get_physical_warp_size()*mmq_get_nwarps_device(), 2)
+    __launch_bounds__(GGML_CUDA_PHYSICAL_WARP_SIZE*MMQ_NWARPS, 2)
 #endif // __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
 #endif // defined(GGML_USE_HIP)
 static __global__ void mul_mat_q(
@@ -3475,11 +3488,11 @@ static __global__ void mul_mat_q(
         return;
     }
 
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     constexpr int qk    = ggml_cuda_type_traits<type>::qk;
-    constexpr int mmq_y = get_mmq_y_device();
+    const int mmq_y = MMQ_Y;
 
     const int ntx = (ncols_max + mmq_x - 1) / mmq_x; // Number of tiles x
     const int nty = (nrows_x   + mmq_y - 1) / mmq_y; // Number of tiles y
@@ -3557,7 +3570,7 @@ static __global__ void mul_mat_q(
     }
 #endif // (defined(GGML_USE_HIP) && !defined(CDNA3)) || __CUDA_ARCH__ < GGML_CUDA_CC_VOLTA
 
-    constexpr int ITER_K = get_iter_k(type);
+    const int ITER_K = get_iter_k(type);
 
     const     int64_t blocks_per_ne00 = ncols_x / qk;
     constexpr int     blocks_per_iter = ITER_K / qk;
@@ -3716,15 +3729,15 @@ static __global__ void mul_mat_q_stream_k_fixup(const int32_t * ids_dst,
                                                 const int    nsamples_y,
                                                 const size_t stride_sample_dst,
                                                 const int    ncols_max) {
-    constexpr int     mmq_y           = get_mmq_y_device();
+    const int     mmq_y           = MMQ_Y;
     constexpr int     qk              = ggml_cuda_type_traits<type>::qk;
-    constexpr int     ITER_K          = get_iter_k(type);
+    const int     ITER_K          = get_iter_k(type);
 
     constexpr int     blocks_per_iter = ITER_K / qk;
     const     int64_t blocks_per_ne00 = ncols_x / qk;
 
-    constexpr int nwarps = mmq_get_nwarps_device();
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    const int nwarps = MMQ_NWARPS;
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     float sum[mmq_x*mmq_y / (nwarps*warp_size)] = {0.0f};
 

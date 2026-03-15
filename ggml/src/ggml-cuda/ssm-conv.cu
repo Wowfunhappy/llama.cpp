@@ -116,27 +116,28 @@ static void ssm_conv_f32_cuda(const float * src0, const float * src1, const int 
     const int threads = 128;
     GGML_ASSERT(nr % threads == 0);
 
-    auto launch_kernel = [&](auto NC) {
-        constexpr int kNC = decltype(NC)::value;
-        if (n_t <= 32) {
-            const dim3 blocks(n_s, (nr + threads - 1) / threads, 1);
-            ssm_conv_f32<apply_silu, threads, kNC><<<blocks, threads, 0, stream>>>(src0, src1, src0_nb0, src0_nb1, src0_nb2, src1_nb1,
-                                                                       dst, dst_nb0, dst_nb1, dst_nb2, n_t);
-        } else {
-            const int64_t split_n_t = 32;
-            dim3          blocks(n_s, (nr + threads - 1) / threads, (n_t + split_n_t - 1) / split_n_t);
-            const size_t  smem_size = threads * (kNC - 1 + split_n_t) * sizeof(float);
-            ssm_conv_long_token_f32<apply_silu, threads, kNC, split_n_t><<<blocks, threads, smem_size, stream>>>(
-                src0, src1, src0_nb0, src0_nb1, src0_nb2, src1_nb1, dst, dst_nb0, dst_nb1, dst_nb2, n_t);
-        }
-    };
+#define SSM_CONV_LAUNCH(kNC) \
+    do { \
+        if (n_t <= 32) { \
+            const dim3 blocks(n_s, (nr + threads - 1) / threads, 1); \
+            ssm_conv_f32<apply_silu, threads, kNC><<<blocks, threads, 0, stream>>>(src0, src1, src0_nb0, src0_nb1, src0_nb2, src1_nb1, \
+                                                                       dst, dst_nb0, dst_nb1, dst_nb2, n_t); \
+        } else { \
+            const int64_t split_n_t = 32; \
+            dim3          blocks(n_s, (nr + threads - 1) / threads, (n_t + split_n_t - 1) / split_n_t); \
+            const size_t  smem_size = threads * (kNC - 1 + split_n_t) * sizeof(float); \
+            ssm_conv_long_token_f32<apply_silu, threads, kNC, split_n_t><<<blocks, threads, smem_size, stream>>>( \
+                src0, src1, src0_nb0, src0_nb1, src0_nb2, src1_nb1, dst, dst_nb0, dst_nb1, dst_nb2, n_t); \
+        } \
+    } while (0)
 
     switch (nc) {
-        case 3: launch_kernel(std::integral_constant<int, 3>{}); break;
-        case 4: launch_kernel(std::integral_constant<int, 4>{}); break;
-        case 9: launch_kernel(std::integral_constant<int, 9>{}); break;
+        case 3: SSM_CONV_LAUNCH(3); break;
+        case 4: SSM_CONV_LAUNCH(4); break;
+        case 9: SSM_CONV_LAUNCH(9); break;
         default: GGML_ABORT("Only support kernel sizes 3, 4, 9 right now.");
     }
+#undef SSM_CONV_LAUNCH
 }
 
 void ggml_cuda_op_ssm_conv(ggml_backend_cuda_context & ctx, ggml_tensor * dst, ggml_tensor * silu_dst) {

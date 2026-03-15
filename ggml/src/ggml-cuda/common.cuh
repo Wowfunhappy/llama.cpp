@@ -195,7 +195,7 @@ static const char * cu_get_error_str(CUresult err) {
 #define CU_CHECK(err) CUDA_CHECK_GEN(err, CUDA_SUCCESS, cu_get_error_str)
 #endif
 
-#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA) && CUDART_VERSION >= 9000
 #    define CUDA_SET_SHARED_MEMORY_LIMIT(kernel, nbytes)                                                       \
         do {                                                                                                   \
             static bool shared_memory_limit_raised[GGML_CUDA_MAX_DEVICES] = { false };                         \
@@ -334,12 +334,13 @@ static bool blackwell_mma_available(const int cc) {
            ggml_cuda_highest_compiled_arch(cc) < GGML_CUDA_CC_RUBIN;
 }
 
-static constexpr __device__ int ggml_cuda_get_physical_warp_size() {
 #if defined(GGML_USE_HIP) && (defined(__GFX9__) || defined(__GFX8__))
-    return 64;
+#define GGML_CUDA_PHYSICAL_WARP_SIZE 64
 #else
-    return 32;
-#endif // defined(GGML_USE_HIP) && (defined(__GFX9__) || defined(__GFX8__))
+#define GGML_CUDA_PHYSICAL_WARP_SIZE 32
+#endif
+static constexpr __device__ int ggml_cuda_get_physical_warp_size() {
+    return GGML_CUDA_PHYSICAL_WARP_SIZE;
 }
 
 // Maximum number of bytes that can be copied in a single instruction.
@@ -772,7 +773,8 @@ static __device__ __forceinline__ void ggml_cuda_memcpy_1(void * __restrict__ ds
         } else if (nb_per_cpy == 16) {
             ((int4 *) dst)[i] = ((const int4 *) src)[i];
         } else {
-            static_assert(nbytes == 0 && nbytes == -1, "bad nbytes");
+            // Intentionally left empty: unreachable for valid nbytes values.
+            // static_assert removed for C++11/nvcc 7.5 compatibility (evaluated in dead branches).
         }
     }
 }

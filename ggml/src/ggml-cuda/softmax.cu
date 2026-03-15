@@ -4,10 +4,14 @@
 
 #ifdef GGML_USE_HIP
 #include <hip/hip_cooperative_groups.h>
-#else
+#define GGML_CUDA_HAS_COOP_GROUPS 1
+#elif CUDART_VERSION >= 9000
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
-#endif // GGML_USE_HIP
+#define GGML_CUDA_HAS_COOP_GROUPS 1
+#else
+#define GGML_CUDA_HAS_COOP_GROUPS 0
+#endif
 
 #include <cstdint>
 #include <utility>
@@ -137,6 +141,7 @@ static __global__ void soft_max_f32(
     }
 }
 
+#if GGML_CUDA_HAS_COOP_GROUPS
 // TODO: Template to allow keeping ncols in registers if they fit
 static __device__ void soft_max_f32_parallelize_cols_single_row(const float * __restrict__ x,
                                                                 float * __restrict__ dst,
@@ -242,6 +247,7 @@ static __device__ void soft_max_f32_parallelize_cols_single_row(const float * __
         col += step_size * n_elem_per_thread;
     }
 }
+#endif // GGML_CUDA_HAS_COOP_GROUPS
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -269,6 +275,40 @@ static __global__ void soft_max_back_f32(
     }
 }
 
+// C++11-compatible helper: try to launch a specialized soft_max kernel for the given ncols
+template<int ncols_try, typename T>
+static bool try_launch_soft_max(const float * x, const T * mask, const float * sinks, float * dst,
+                                const soft_max_params & p, cudaStream_t stream, dim3 block_dims, dim3 block_nums,
+                                size_t nbytes_shared, size_t smpbo) {
+    if (p.ncols == ncols_try) {
+        const int block = (ncols_try > 1024 ? 1024 : ncols_try);
+        (void)block; // used via template below
+        CUDA_SET_SHARED_MEMORY_LIMIT((soft_max_f32<true, ncols_try, (ncols_try > 1024 ? 1024 : ncols_try), T>), smpbo);
+        soft_max_f32<true, ncols_try, (ncols_try > 1024 ? 1024 : ncols_try)><<<block_nums, block_dims, nbytes_shared, stream>>>
+            (x, mask, sinks, dst, p);
+        return true;
+    }
+    return false;
+}
+
+// Recursive base case
+template<typename T>
+static bool launch_soft_max_kernels_impl(const float *, const T *, const float *, float *,
+                                          const soft_max_params &, cudaStream_t, dim3, dim3, size_t, size_t) {
+    return false;
+}
+
+// Recursive case: try N0, then rest
+template<int N0, int... Ns, typename T>
+static bool launch_soft_max_kernels_impl(const float * x, const T * mask, const float * sinks, float * dst,
+                                          const soft_max_params & p, cudaStream_t stream, dim3 block_dims, dim3 block_nums,
+                                          size_t nbytes_shared, size_t smpbo) {
+    if (try_launch_soft_max<N0>(x, mask, sinks, dst, p, stream, block_dims, block_nums, nbytes_shared, smpbo)) {
+        return true;
+    }
+    return launch_soft_max_kernels_impl<Ns...>(x, mask, sinks, dst, p, stream, block_dims, block_nums, nbytes_shared, smpbo);
+}
+
 template<int... Ns, typename T>
 static void launch_soft_max_kernels(const float * x, const T * mask, const float * sinks, float * dst,
                              const soft_max_params & p, cudaStream_t stream, dim3 block_dims, dim3 block_nums, size_t nbytes_shared)
@@ -276,21 +316,7 @@ static void launch_soft_max_kernels(const float * x, const T * mask, const float
     const int id       = ggml_cuda_get_device();
     const size_t smpbo = ggml_cuda_info().devices[id].smpbo;
 
-    auto launch_kernel = [=](auto I) -> bool {
-        constexpr int ncols = decltype(I)::value;
-        constexpr int block = (ncols > 1024 ? 1024 : ncols);
-
-        if (p.ncols == ncols) {
-            CUDA_SET_SHARED_MEMORY_LIMIT((soft_max_f32<true, ncols, block, T>), smpbo);
-            soft_max_f32<true, ncols, block><<<block_nums, block_dims, nbytes_shared, stream>>>
-                (x, mask, sinks, dst, p);
-            return true;
-        }
-        return false;
-    };
-
-    // unary fold over launch_kernel
-    if ((launch_kernel(std::integral_constant<int, Ns>{}) || ...)) {
+    if (launch_soft_max_kernels_impl<Ns...>(x, mask, sinks, dst, p, stream, block_dims, block_nums, nbytes_shared, smpbo)) {
         return;
     }
 
@@ -299,6 +325,7 @@ static void launch_soft_max_kernels(const float * x, const T * mask, const float
     soft_max_f32<true, 0, 0><<<block_nums, block_dims, nbytes_shared, stream>>>(x, mask, sinks, dst, p);
 }
 
+#if GGML_CUDA_HAS_COOP_GROUPS
 __launch_bounds__(8*WARP_SIZE, 1) static __global__ void soft_max_f32_parallelize_cols(const float * __restrict__ x,
                                                      float * __restrict__ dst,
                                                      float * __restrict__ tmp_maxs,
@@ -315,6 +342,7 @@ __launch_bounds__(8*WARP_SIZE, 1) static __global__ void soft_max_f32_paralleliz
                                                  tmp_sums, p);
     }
 }
+#endif // GGML_CUDA_HAS_COOP_GROUPS
 
 template <typename T>
 static void soft_max_f32_cuda(const float *                                x,
@@ -323,7 +351,8 @@ static void soft_max_f32_cuda(const float *                                x,
                               float *                                      dst,
                               const soft_max_params &                      params,
                               cudaStream_t                                 stream,
-                              [[maybe_unused]] ggml_backend_cuda_context & ctx) {
+                              ggml_backend_cuda_context & ctx) {
+    GGML_UNUSED(ctx);
     int nth = WARP_SIZE;
     const int64_t ncols_x = params.ncols;
 
@@ -341,6 +370,7 @@ static void soft_max_f32_cuda(const float *                                x,
     if (nbytes_shared <= smpbo) {
         launch_soft_max_kernels<32, 64, 128, 256, 512, 1024, 2048, 4096>(x, mask, sinks, dst, params, stream, block_dims, block_nums, nbytes_shared);
     } else {
+#if GGML_CUDA_HAS_COOP_GROUPS
         // Parallelize across SMs for top-p/dist-sampling
         // The heuristic for parallelizing rows across SMs vs parallelizing single row & looping over all rows was done on the basis of a B6000 GPU and
         // Can be adapted further for lower-SM-count GPUs, though keeping data in registers should be implemented first as that is the optimal solution.
@@ -355,7 +385,9 @@ static void soft_max_f32_cuda(const float *                                x,
             CUDA_CHECK(cudaLaunchCooperativeKernel((void *) soft_max_f32_parallelize_cols,
                                                    dim3(ggml_cuda_info().devices[id].nsm, 1, 1),
                                                    dim3(WARP_SIZE * 8, 1, 1), kernel_args, 0, stream));
-        } else {
+        } else
+#endif // GGML_CUDA_HAS_COOP_GROUPS
+        {
             const size_t nbytes_shared_low = WARP_SIZE * sizeof(float);
             soft_max_f32<false, 0, 0>
                 <<<block_nums, block_dims, nbytes_shared_low, stream>>>(x, mask, sinks, dst, params);

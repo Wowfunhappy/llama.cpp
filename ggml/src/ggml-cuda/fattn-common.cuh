@@ -6,6 +6,11 @@
 
 #include <cstdint>
 
+// __builtin_assume is not available on older nvcc (e.g. CUDA 7.5)
+#if !defined(GGML_USE_HIP) && CUDART_VERSION < 9000
+#define __builtin_assume(x) ((void)0)
+#endif
+
 #define FATTN_KQ_STRIDE       256
 #define HALF_MAX_HALF         __float2half(65504.0f/2) // Use neg. of this instead of -INFINITY to initialize KQ max vals to avoid NaN upon subtraction.
 #define SOFTMAX_FTZ_THRESHOLD -20.0f                   // Softmax exp. of values smaller than this are flushed to zero to avoid NaNs.
@@ -534,7 +539,7 @@ static __device__ __forceinline__ void dequantize_V_q8_0(const void * __restrict
 }
 
 template <ggml_type type_K, int D, int nthreads>
-constexpr __device__ vec_dot_KQ_t get_vec_dot_KQ() {
+__device__ vec_dot_KQ_t get_vec_dot_KQ() {
     if (type_K == GGML_TYPE_F16) {
         return vec_dot_fattn_vec_KQ_f16<D, nthreads>;
     } else if (type_K == GGML_TYPE_Q4_0) {
@@ -554,7 +559,7 @@ constexpr __device__ vec_dot_KQ_t get_vec_dot_KQ() {
 }
 
 template <ggml_type type_V, typename T, int ne>
-constexpr __device__ dequantize_V_t get_dequantize_V() {
+__device__ dequantize_V_t get_dequantize_V() {
     if (type_V == GGML_TYPE_F16) {
         return dequantize_V_f16<T, ne>;
     } else if (type_V == GGML_TYPE_Q4_0) {

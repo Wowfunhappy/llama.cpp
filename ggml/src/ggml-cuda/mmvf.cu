@@ -282,20 +282,20 @@ static __global__ void mul_mat_vec_f(
 #pragma unroll
             for (int j = 0; j < ncols_dst; ++j) {
                 const float2 tmpy = y2[j*stride_col_y2 + col2];
-                ggml_cuda_mad(sumf[j], tmpx.x, tmpy.x);
-                ggml_cuda_mad(sumf[j], tmpx.y, tmpy.y);
+                ggml_cuda_mad(sumf[j], __bfloat162float(tmpx.x), tmpy.x);
+                ggml_cuda_mad(sumf[j], __bfloat162float(tmpx.y), tmpy.y);
 
                 if (has_fusion) {
                     if (use_gate) {
-                        ggml_cuda_mad(sumf_gate[j], tmpx_gate.x, tmpy.x);
-                        ggml_cuda_mad(sumf_gate[j], tmpx_gate.y, tmpy.y);
+                        ggml_cuda_mad(sumf_gate[j], __bfloat162float(tmpx_gate.x), tmpy.x);
+                        ggml_cuda_mad(sumf_gate[j], __bfloat162float(tmpx_gate.y), tmpy.y);
                     }
                 }
             }
         }
 #endif
     } else {
-        static_assert(std::is_same<T, void>::value, "unsupported type");
+        
     }
 
 #pragma unroll

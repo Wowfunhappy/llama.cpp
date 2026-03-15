@@ -2,24 +2,42 @@
 #include <cstdint>
 #include <utility>
 
-static __device__ __forceinline__ float op_repeat(const float a, const float b) {
+// C++11 implementation of index_sequence (available in C++14 as index_sequence)
+#if __cplusplus < 201402L
+namespace compat {
+template<size_t... Is> struct index_sequence {};
+template<size_t N, size_t... Is>
+struct make_index_sequence_impl : make_index_sequence_impl<N-1, N-1, Is...> {};
+template<size_t... Is>
+struct make_index_sequence_impl<0, Is...> { typedef index_sequence<Is...> type; };
+template<size_t N>
+using make_index_sequence = typename make_index_sequence_impl<N>::type;
+} // namespace compat
+using compat::index_sequence;
+using compat::make_index_sequence;
+#else
+using index_sequence;
+using make_index_sequence;
+#endif
+
+__device__ __forceinline__ float op_repeat(const float a, const float b) {
     return b;
     GGML_UNUSED(a);
 }
 
-static __device__ __forceinline__ float op_add(const float a, const float b) {
+__device__ __forceinline__ float op_add(const float a, const float b) {
     return a + b;
 }
 
-static __device__ __forceinline__ float op_sub(const float a, const float b) {
+__device__ __forceinline__ float op_sub(const float a, const float b) {
     return a - b;
 }
 
-static __device__ __forceinline__ float op_mul(const float a, const float b) {
+__device__ __forceinline__ float op_mul(const float a, const float b) {
     return a * b;
 }
 
-static __device__ __forceinline__ float op_div(const float a, const float b) {
+__device__ __forceinline__ float op_div(const float a, const float b) {
     return a / b;
 }
 
@@ -77,7 +95,9 @@ static __global__ void k_bin_bcast(const src0_t *         src0,
 
         float result = src0_row ? (float) src0_row[i0*s00] : 0.0f;
         if (sizeof...(src1_ptrs) > 0) {
-            result = (..., (result = bin_op(result, (float)src1s[i_src1 + i10*s10])));
+            // C++11: use array init to expand parameter pack instead of fold expression
+            int dummy[] = {0, (result = bin_op(result, (float)src1s[i_src1 + i10*s10]), 0)...};
+            (void)dummy;
         } else {
             result = bin_op(result, (float)src1[i_src1 + i10*s10]);
         }
@@ -143,7 +163,9 @@ static __global__ void k_bin_bcast_unravel(const src0_t *         src0,
 
     float result = src0_row ? (float) src0_row[i0*s00] : 0.0f;
     if (sizeof...(src1_ptrs) > 0) {
-        result = (..., (result = bin_op(result, (float)src1s[i_src1 + i10*s10])));
+        // C++11: use array init to expand parameter pack instead of fold expression
+        int dummy[] = {0, (result = bin_op(result, (float)src1s[i_src1 + i10*s10]), 0)...};
+        (void)dummy;
     } else {
         result = bin_op(result, (float)src1[i_src1 + i10*s10]);
     }
@@ -154,7 +176,7 @@ static __global__ void k_bin_bcast_unravel(const src0_t *         src0,
 template <float (*bin_op)(const float, const float), typename src0_t, typename src1_t, typename dst_t, size_t... I>
 static void launch_bin_bcast_pack(const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst,
                                   const src0_t * src0_dd, const src1_t * src1_dd, dst_t * dst_dd,
-                                  cudaStream_t stream, std::index_sequence<I...>) {
+                                  cudaStream_t stream, index_sequence<I...>) {
     GGML_TENSOR_BINARY_OP_LOCALS
 
     int nr0 = ne10 / ne0;
@@ -352,7 +374,7 @@ struct bin_bcast_cuda {
             const src0_t * src0_dd, const src1_t * src1_dd, dst_t * dst_dd,
             cudaStream_t stream) {
         launch_bin_bcast_pack<bin_op, src0_t, src1_t, dst_t>(
-            src0, src1, dst, src0_dd, src1_dd, dst_dd, stream, std::make_index_sequence<n_fuse>{});
+            src0, src1, dst, src0_dd, src1_dd, dst_dd, stream, make_index_sequence<n_fuse>{});
     }
 };
 
@@ -420,19 +442,19 @@ static void ggml_cuda_op_fused_binbcast_impl(ggml_backend_cuda_context & ctx, gg
     if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
         launch_bin_bcast_pack<op, float, float, float>(src0, src1, dst,
             (const float *) src0->data, (const float *) src1->data, (float *) dst->data,
-            stream, std::make_index_sequence<n_fuse>{});
+            stream, make_index_sequence<n_fuse>{});
     } else if (src0->type == GGML_TYPE_F16 && src1->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F16) {
         launch_bin_bcast_pack<op, half, half, half>(src0, src1, dst,
             (const half *) src0->data, (const half *) src1->data, (half *) dst->data,
-            stream, std::make_index_sequence<n_fuse>{});
+            stream, make_index_sequence<n_fuse>{});
     } else if (src0->type == GGML_TYPE_F16 && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F16) {
         launch_bin_bcast_pack<op, half, float, half>(src0, src1, dst,
             (const half *) src0->data, (const float *) src1->data, (half *) dst->data,
-            stream, std::make_index_sequence<n_fuse>{});
+            stream, make_index_sequence<n_fuse>{});
     } else if (src0->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F32) {
         launch_bin_bcast_pack<op, half, float, float>(src0, src1, dst,
             (const half *) src0->data, (const float *) src1->data, (float *) dst->data,
-            stream, std::make_index_sequence<n_fuse>{});
+            stream, make_index_sequence<n_fuse>{});
     } else {
         fprintf(stderr,
                 "%s: unsupported types for fusion: dst: %s, src0: %s, src1: %s\n",

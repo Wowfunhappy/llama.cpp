@@ -70,9 +70,12 @@ compile_cpp() {
 
 echo "=== Step 1: Compiling CUDA files ==="
 
+# Skip fattn files (flash attention disabled via GGML_CUDA_NO_FA, won't compile on nvcc 7.5)
+# Skip mmid.cu (runtime-dependent template args)
 CU_FILES=$(ls ggml/src/ggml-cuda/*.cu \
               ggml/src/ggml-cuda/template-instances/mmq-instance-*.cu \
-              ggml/src/ggml-cuda/template-instances/mmf-instance-*.cu)
+              ggml/src/ggml-cuda/template-instances/mmf-instance-*.cu \
+           | grep -v 'fattn' | grep -v 'mmid' | grep -v 'mmq\.cu' | grep -v 'mmvq\.cu' | grep -v 'quantize\.cu')
 
 for cu_file in $CU_FILES; do
     compile_cu "$cu_file"

@@ -28,9 +28,14 @@ void ggml_cuda_op_fill(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
         case GGML_TYPE_F32:
             fill_kernel<<<num_blocks, CUDA_FILL_BLOCK_SIZE, 0, stream>>>((float *)dst_d, k, value);
             break;
-        case GGML_TYPE_F16:
-            fill_kernel<<<num_blocks, CUDA_FILL_BLOCK_SIZE, 0, stream>>>((half *)dst_d, k, ggml_cuda_cast<half>(value));
+        case GGML_TYPE_F16: {
+            // Use host-side conversion instead of __device__-only ggml_cuda_cast
+            half h_value;
+            ggml_fp16_t tmp = ggml_fp32_to_fp16(value);
+            memcpy(&h_value, &tmp, sizeof(h_value));
+            fill_kernel<<<num_blocks, CUDA_FILL_BLOCK_SIZE, 0, stream>>>((half *)dst_d, k, h_value);
             break;
+        }
         default:
             GGML_ABORT("unsupported type");
     }

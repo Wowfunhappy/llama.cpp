@@ -190,32 +190,24 @@ void ggml_cuda_op_concat(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
         }
     } else {
         dim3 grid_dim(dst->ne[1], dst->ne[2], dst->ne[3]);
-        auto launch_kernel = [&](auto dim) {
-            concat_f32_non_cont<dim><<<grid_dim, CUDA_CONCAT_BLOCK_SIZE, 0, stream>>>(
-                (const char *) src0->data, (const char *) src1->data, (char *) dst->data,
-                src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
-                src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3],
-                src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3],
-                src1->nb[0], src1->nb[1], src1->nb[2], src1->nb[3],
-                dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3],
-                dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3]);
-        };
+#define CONCAT_LAUNCH(D) \
+            concat_f32_non_cont<D><<<grid_dim, CUDA_CONCAT_BLOCK_SIZE, 0, stream>>>( \
+                (const char *) src0->data, (const char *) src1->data, (char *) dst->data, \
+                src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3], \
+                src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3], \
+                src1->ne[0], src1->ne[1], src1->ne[2], src1->ne[3], \
+                src1->nb[0], src1->nb[1], src1->nb[2], src1->nb[3], \
+                dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3], \
+                dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3])
         switch (dim) {
-            case 0:
-                launch_kernel(std::integral_constant<int, 0>{});
-                break;
-            case 1:
-                launch_kernel(std::integral_constant<int, 1>{});
-                break;
-            case 2:
-                launch_kernel(std::integral_constant<int, 2>{});
-                break;
-            case 3:
-                launch_kernel(std::integral_constant<int, 3>{});
-                break;
+            case 0: CONCAT_LAUNCH(0); break;
+            case 1: CONCAT_LAUNCH(1); break;
+            case 2: CONCAT_LAUNCH(2); break;
+            case 3: CONCAT_LAUNCH(3); break;
             default:
                 GGML_ABORT("Invalid dim: %d", dim);
                 break;
         }
+#undef CONCAT_LAUNCH
     }
 }

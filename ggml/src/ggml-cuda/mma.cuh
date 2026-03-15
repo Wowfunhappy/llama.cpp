@@ -112,7 +112,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 64;
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 64 && J ==  2) return true;
             if (I == 16 && J ==  8) return true;
             if (I == 32 && J ==  4) return true;
@@ -158,7 +158,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 32;
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 32 && J ==  8) return true;
             return false;
         }
@@ -188,7 +188,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 32;
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 16 && J == 16) return true;
             if (I == 16 && J == 8) return true;
             if (I == 16 && J == 4) return true;
@@ -232,7 +232,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 32;
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I ==  8 && J ==  4) return true;
             if (I ==  8 && J ==  8) return true;
             if (I == 16 && J ==  8) return true;
@@ -287,7 +287,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / WARP_SIZE;
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 32 && J ==  4) return true;
             return false;
         }
@@ -317,7 +317,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 32;
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 16 && J == 8) return true;
             return false;
         }
@@ -343,7 +343,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / 64;
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 16 && J == 8) return true;
             return false;
         }
@@ -369,7 +369,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / WARP_SIZE;
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I ==  8 && J ==  4) return true;
             if (I ==  8 && J ==  8) return true;
             if (I == 16 && J ==  8) return true;
@@ -420,7 +420,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
         nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::supported();
         }
 
@@ -435,7 +435,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::ne;
         nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             return tile<I_, J_, half2, DATA_LAYOUT_I_MAJOR>::supported();
         }
 
@@ -450,7 +450,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = I * J / WARP_SIZE;
         nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I ==  8 && J ==  8) return true;
             if (I == 16 && J ==  4) return true;
             if (I == 16 && J ==  8) return true;
@@ -494,7 +494,7 @@ namespace ggml_cuda_mma {
         static constexpr int ne = tile<I_, J_, T, DATA_LAYOUT_I_MAJOR>::ne;
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             return tile<I_, J_, T, DATA_LAYOUT_I_MAJOR>::supported();
         }
 
@@ -518,7 +518,7 @@ namespace ggml_cuda_mma {
 
         T x[ne] = {0};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I == 16 && J == 16) return true;
             if (I == 16 && J == 8)  return true;
             if (I == 16 && J == 4)  return true;
@@ -554,7 +554,7 @@ namespace ggml_cuda_mma {
 
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             return tile<I_, J_, float, DATA_LAYOUT_I_MAJOR_MIRRORED>::supported();
         }
 
@@ -570,7 +570,7 @@ namespace ggml_cuda_mma {
 
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I ==  8 && J ==  4) return true;
             return false;
         }
@@ -604,7 +604,7 @@ namespace ggml_cuda_mma {
 
         nv_bfloat162 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             return tile<I_, J_, float, DATA_LAYOUT_I_MAJOR_MIRRORED>::supported();
         }
 
@@ -626,7 +626,7 @@ namespace ggml_cuda_mma {
 
         half2 x[ne] = {{0.0f, 0.0f}};
 
-        static constexpr __device__ bool supported() {
+        static __device__ bool supported() {
             if (I ==  8 && J ==  4) return true;
             return false;
         }
