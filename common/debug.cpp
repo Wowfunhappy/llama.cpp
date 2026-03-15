@@ -94,7 +94,7 @@ void common_debug_print_tensor(uint8_t * data, ggml_type type, const int64_t * n
         LOG(INDENT "sum = %f\n", sum);
     }
 
-    if constexpr (abort) {
+    if (abort) {
         if (std::isnan(sum)) {
             LOG("encountered NaN - aborting\n");
             exit(0);

@@ -521,9 +521,9 @@ void ggml_quantize_mat_q8_K_4x8(const float * GGML_RESTRICT x, void * GGML_RESTR
 template<typename block_tx8>
 static void gemv_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc, __m256i signextendlut) {
     static_assert(
-            std::is_same_v<block_tx8, block_q4_0x8> ||
-            std::is_same_v<block_tx8, block_iq4_nlx8> ||
-            std::is_same_v<block_tx8, block_mxfp4x8>,
+            std::is_same<block_tx8, block_q4_0x8>::value ||
+            std::is_same<block_tx8, block_iq4_nlx8>::value ||
+            std::is_same<block_tx8, block_mxfp4x8>::value,
             "Unsupported block type");
 
     const int qk = QK8_0;
@@ -577,11 +577,11 @@ static void gemv_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 
                 // Load the scale values for the 8 blocks interleaved in block_tx8
                 __m256 col_scale_f32;
-                if constexpr (
-                        std::is_same_v<block_tx8, block_q4_0x8> ||
-                        std::is_same_v<block_tx8, block_iq4_nlx8>) {
+                if (
+                        std::is_same<block_tx8, block_q4_0x8>::value ||
+                        std::is_same<block_tx8, block_iq4_nlx8>::value) {
                     col_scale_f32 = GGML_F32Cx8_REARRANGE_LOAD(b_ptr[b].d, changemask);
-                } else if constexpr (std::is_same_v<block_tx8, block_mxfp4x8>) {
+                } else if (std::is_same<block_tx8, block_mxfp4x8>::value) {
                     // Load 8 E8M0 exponents and convert to float via LUT
                     // Rearranged to match changemask order: 0,4,1,5,2,6,3,7
                     col_scale_f32 = _mm256_set_ps(
@@ -640,9 +640,9 @@ static void gemv_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 template<typename block_tx8>
 static void gemm_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc, __m256i signextendlut) {
     static_assert(
-            std::is_same_v<block_tx8, block_q4_0x8> ||
-            std::is_same_v<block_tx8, block_iq4_nlx8> ||
-            std::is_same_v<block_tx8, block_mxfp4x8>,
+            std::is_same<block_tx8, block_q4_0x8>::value ||
+            std::is_same<block_tx8, block_iq4_nlx8>::value ||
+            std::is_same<block_tx8, block_mxfp4x8>::value,
             "Unsupported block type");
 
     const int qk = QK8_0;
@@ -759,11 +759,11 @@ static void gemm_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 
                 // Scale values - Load the weight scale values of two block_tx8
                 __m512 col_scale_f32;
-                if constexpr (
-                        std::is_same_v<block_tx8, block_q4_0x8> ||
-                        std::is_same_v<block_tx8, block_iq4_nlx8>) {
+                if (
+                        std::is_same<block_tx8, block_q4_0x8>::value ||
+                        std::is_same<block_tx8, block_iq4_nlx8>::value) {
                     col_scale_f32 = GGML_F32Cx8x2_LOAD(b_ptr_0[b].d, b_ptr_1[b].d);
-                } else if constexpr (std::is_same_v<block_tx8, block_mxfp4x8>) {
+                } else if (std::is_same<block_tx8, block_mxfp4x8>::value) {
                     //TODO: simd-ify
                     col_scale_f32 = _mm512_set_ps(
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr_1[b].e[7]),
@@ -970,11 +970,11 @@ static void gemm_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 
                 // Scale values - Load the weight scale values of two block_tx8
                 __m512 col_scale_f32;
-                if constexpr (
-                        std::is_same_v<block_tx8, block_q4_0x8> ||
-                        std::is_same_v<block_tx8, block_iq4_nlx8>) {
+                if (
+                        std::is_same<block_tx8, block_q4_0x8>::value ||
+                        std::is_same<block_tx8, block_iq4_nlx8>::value) {
                     col_scale_f32 = GGML_F32Cx8x2_LOAD(b_ptr_0[b].d, b_ptr_1[b].d);
-                } else if constexpr (std::is_same_v<block_tx8, block_mxfp4x8>) {
+                } else if (std::is_same<block_tx8, block_mxfp4x8>::value) {
                     //TODO: simd-ify
                     col_scale_f32 = _mm512_set_ps(
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr_1[b].e[7]),
@@ -1171,11 +1171,11 @@ static void gemm_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 
                 // Scale values - Load the wight scale values of block_tx8
                 __m256 col_scale_f32;
-                if constexpr (
-                        std::is_same_v<block_tx8, block_q4_0x8> ||
-                        std::is_same_v<block_tx8, block_iq4_nlx8>) {
+                if (
+                        std::is_same<block_tx8, block_q4_0x8>::value ||
+                        std::is_same<block_tx8, block_iq4_nlx8>::value) {
                     col_scale_f32 = GGML_F32Cx8_LOAD(b_ptr[b].d);
-                } else if constexpr (std::is_same_v<block_tx8, block_mxfp4x8>) {
+                } else if (std::is_same<block_tx8, block_mxfp4x8>::value) {
                     col_scale_f32 = _mm256_set_ps(
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr[b].e[7]),
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr[b].e[6]),
@@ -1341,11 +1341,11 @@ static void gemm_q4_b32_8x8_q8_0_lut_avx(int n, float * GGML_RESTRICT s, size_t 
 
                 // Scale values - Load the wight scale values of block_tx8
                 __m256 col_scale_f32;
-                if constexpr (
-                        std::is_same_v<block_tx8, block_q4_0x8> ||
-                        std::is_same_v<block_tx8, block_iq4_nlx8>) {
+                if (
+                        std::is_same<block_tx8, block_q4_0x8>::value ||
+                        std::is_same<block_tx8, block_iq4_nlx8>::value) {
                     col_scale_f32 = GGML_F32Cx8_LOAD(b_ptr[b].d);
-                } else if constexpr (std::is_same_v<block_tx8, block_mxfp4x8>) {
+                } else if (std::is_same<block_tx8, block_mxfp4x8>::value) {
                     col_scale_f32 = _mm256_set_ps(
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr[b].e[7]),
                         GGML_CPU_E8M0_TO_FP32_HALF(b_ptr[b].e[6]),

@@ -56,7 +56,7 @@ llama_memory_recurrent::llama_memory_recurrent(
                 return nullptr;
             }
 
-            ctx_map.emplace(buft, ctx);
+            ctx_map.emplace(buft, ggml_context_ptr(ctx));
 
             return ctx;
         }
@@ -100,14 +100,16 @@ llama_memory_recurrent::llama_memory_recurrent(
     }
 
     // allocate tensors and initialize the buffers to avoid NaNs in the padding
-    for (auto & [buft, ctx] : ctx_map) {
+    for (auto & _item : ctx_map) {
+        auto & buft = _item.first;
+        auto & ctx = _item.second;
         ggml_backend_buffer_t buf = ggml_backend_alloc_ctx_tensors_from_buft(ctx.get(), buft);
         if (!buf) {
             throw std::runtime_error("failed to allocate buffer for rs cache");
         }
         ggml_backend_buffer_clear(buf, 0);
         LLAMA_LOG_INFO("%s: %10s RS buffer size = %8.2f MiB\n", __func__, ggml_backend_buffer_name(buf), ggml_backend_buffer_get_size(buf)/1024.0/1024.0);
-        ctxs_bufs.emplace_back(std::move(ctx), buf);
+        ctxs_bufs.emplace_back(std::move(ctx), ggml_backend_buffer_ptr(buf));
     }
 
     {
@@ -133,7 +135,8 @@ void llama_memory_recurrent::clear(bool data) {
     used = 0;
 
     if (data) {
-        for (auto & [_, buf] : ctxs_bufs) {
+        for (auto & _item : ctxs_bufs) {
+            auto & buf = _item.second;
             ggml_backend_buffer_clear(buf.get(), 0);
         }
     }
@@ -369,7 +372,8 @@ llama_pos llama_memory_recurrent::seq_pos_max(llama_seq_id seq_id) const {
 
 std::map<ggml_backend_buffer_type_t, size_t> llama_memory_recurrent::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, size_t> ret;
-    for (const auto & [_, buf] : ctxs_bufs) {
+    for (const auto & _item : ctxs_bufs) {
+        const auto & buf = _item.second;
         ret[ggml_backend_buffer_get_type(buf.get())] += ggml_backend_buffer_get_size(buf.get());
     }
     return ret;
@@ -667,7 +671,8 @@ bool llama_memory_recurrent::get_can_shift() const {
 
 size_t llama_memory_recurrent::total_size() const {
     size_t size = 0;
-    for (const auto & [_, buf] : ctxs_bufs) {
+    for (const auto & _item : ctxs_bufs) {
+        const auto & buf = _item.second;
         size += ggml_backend_buffer_get_size(buf.get());
     }
 

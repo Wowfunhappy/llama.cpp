@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -160,12 +159,12 @@ string string::titlecase() {
         return res;
     });
 }
-string string::strip(bool left, bool right, std::optional<const std::string_view> chars) {
-    static auto strip_part = [](const std::string & s, bool left, bool right, std::optional<const std::string_view> chars) -> std::string {
+string string::strip(bool left, bool right, const std::string & chars) {
+    static auto strip_part = [](const std::string & s, bool left, bool right, const std::string & chars) -> std::string {
         size_t start = 0;
         size_t end = s.length();
         auto match_char = [&chars](unsigned char c) -> bool {
-            return chars ? (*chars).find(c) != std::string::npos : isspace(c);
+            return !chars.empty() ? chars.find(c) != std::string::npos : isspace(c) != 0;
         };
         if (left) {
             while (start < end && match_char(static_cast<unsigned char>(s[start]))) {

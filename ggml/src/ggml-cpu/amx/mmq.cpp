@@ -1310,10 +1310,10 @@ struct tinygemm_kernel_avx<float, ggml_fp16_t, float, BLOCK_M, BLOCK_N, BLOCK_K>
             constexpr int row = idx / COLS;
             constexpr int col = idx % COLS;
 
-            if constexpr (col == 0) {
+            if (col == 0) {
                 va = _mm512_loadu_ps(A + row * K + k);
             }
-            if constexpr (row == 0) {
+            if (row == 0) {
                 vb[col] =  _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i *)(B + col * K + k)));
             }
             vc[idx] = _mm512_fmadd_ps(va, vb[col], vc[idx]);
@@ -1395,7 +1395,7 @@ struct tinygemm_kernel_vnni<block_q8_0, block_q4_0, float, BLOCK_M, BLOCK_N, BLO
 
         auto compute = [&](auto col, auto i) {
             // load a and compute compensation
-            if constexpr (col == 0) {
+            if (col == 0) {
                 const int32_t * a_ptr = reinterpret_cast<const int32_t *>(A[0 * KB + i].qs);
                 vcomp = _mm512_setzero_si512();
                 for (int k = 0; k < 8; ++k) {
@@ -1458,7 +1458,7 @@ struct tinygemm_kernel_vnni<block_q8_1, block_q4_1, float, 1, BLOCK_N, BLOCK_K> 
 
         auto compute = [&](auto col, auto i) {
             // load a
-            if constexpr (col == 0) {
+            if (col == 0) {
                 const int32_t * a_ptr = reinterpret_cast<const int32_t *>(A[0 * KB + i].qs);
                 for (int k = 0; k < 8; ++k) {
                     va[k] = _mm512_set1_epi32(a_ptr[k]);
@@ -1530,7 +1530,7 @@ struct tinygemm_kernel_vnni<block_q8_0, block_q8_0, float, BLOCK_M, BLOCK_N, BLO
 
         auto compute = [&](auto col, auto i) {
             // load a and add offset 128
-            if constexpr (col == 0) {
+            if (col == 0) {
                 const int32_t * a_ptr = reinterpret_cast<const int32_t *>(A[0 * KB + i].qs);
                 for (int k = 0; k < 8; ++k) {
                     va[k] = _mm512_set1_epi32(a_ptr[k]);
@@ -1611,7 +1611,7 @@ struct tinygemm_kernel_vnni<block_q8_K, block_q4_K, float, BLOCK_M, BLOCK_N, BLO
         //
         auto compute = [&](auto col, auto i) {
             // load a
-            if constexpr (col == 0) {
+            if (col == 0) {
                 for (int k_group = 0; k_group < QK_K / 32; ++k_group) {
                     va[k_group] = _mm512_castsi256_si512(_mm256_loadu_si256((const __m256i *)(A[0 * KB + i].qs + k_group * 32)));
                 }
@@ -1704,7 +1704,7 @@ struct tinygemm_kernel_vnni<block_q8_K, block_q5_K, float, BLOCK_M, BLOCK_N, BLO
         // Q5_K and Q4_K shares the same vnni formats, refer to notes above.
         auto compute = [&](auto col, auto i) {
             // load a
-            if constexpr (col == 0) {
+            if (col == 0) {
                 for (int k_group = 0; k_group < QK_K / 32; ++k_group) {
                     va[k_group] = _mm512_castsi256_si512(_mm256_loadu_si256((const __m256i *)(A[0 * KB + i].qs + k_group * 32)));
                 }
@@ -1808,7 +1808,7 @@ struct tinygemm_kernel_vnni<block_q8_K, block_q6_K, float, BLOCK_M, BLOCK_N, BLO
         Unroll<COLS>{}(loadc);
 
         auto compute = [&](auto col, auto i) {
-            if constexpr (col == 0) {
+            if (col == 0) {
                 // load a
                 va[0] = _mm512_loadu_si512((const __m512i *)(A[0 * KB + i].qs +   0));
                 va[1] = _mm512_loadu_si512((const __m512i *)(A[0 * KB + i].qs +  64));
@@ -1926,7 +1926,7 @@ struct tinygemm_kernel_vnni<block_q8_K, block_iq4_xs, float, BLOCK_M, BLOCK_N, B
         Unroll<COLS>{}(loadc);
 
         auto compute = [&](auto col, auto i) {
-            if constexpr (col == 0) {
+            if (col == 0) {
                 // load a
                 va[0] = _mm512_loadu_si512((const __m512i *)(A[0 * KB + i].qs +   0));
                 va[1] = _mm512_loadu_si512((const __m512i *)(A[0 * KB + i].qs +  64));

@@ -8,32 +8,34 @@
 
 using ordered_json = nlohmann::ordered_json;
 
-static std::string_view trim_trailing_space(std::string_view sv, int max = -1) {
+static std::string trim_trailing_space(const std::string & s, int max = -1) {
     int count = 0;
-    while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.back()))) {
+    size_t end = s.size();
+    while (end > 0 && std::isspace(static_cast<unsigned char>(s[end - 1]))) {
         if (max != -1 && count >= max) {
             break;
         }
-        sv.remove_suffix(1);
+        --end;
         count++;
     }
-    return sv;
+    return s.substr(0, end);
 }
 
-static std::string_view trim_leading_space(std::string_view sv, int max = -1) {
+static std::string trim_leading_space(const std::string & s, int max = -1) {
     int count = 0;
-    while (!sv.empty() && std::isspace(static_cast<unsigned char>(sv.front()))) {
+    size_t start = 0;
+    while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start]))) {
         if (max != -1 && count >= max) {
             break;
         }
-        sv.remove_prefix(1);
+        ++start;
         count++;
     }
-    return sv;
+    return s.substr(start);
 }
 
-static std::string_view trim(std::string_view sv) {
-    return trim_trailing_space(trim_leading_space(sv, 1));
+static std::string trim(const std::string & s) {
+    return trim_trailing_space(trim_leading_space(s, 1));
 }
 
 // Count the number of unclosed '{' braces in a JSON-like string,
@@ -219,15 +221,16 @@ void common_chat_peg_mapper::from_ast(const common_peg_ast_arena &    arena,
     arena.visit(parse_result_arg, [this](const common_peg_ast_node & node) { map(node); });
     // Flush any pending tool call that was started but never got a name
     // This happens during partial parsing when the tool call is incomplete
-    if (pending_tool_call.has_value() && !pending_tool_call->name.empty()) {
+    if (has_pending_tool_call && !pending_tool_call.name.empty()) {
         if (!args_buffer.empty()) {
-            pending_tool_call->arguments = args_buffer;
+            pending_tool_call.arguments = args_buffer;
         }
-        if (closing_quote_pending && !pending_tool_call->arguments.empty()) {
-            pending_tool_call->arguments += "\"";
+        if (closing_quote_pending && !pending_tool_call.arguments.empty()) {
+            pending_tool_call.arguments += "\"";
         }
-        result.tool_calls.push_back(pending_tool_call.value());
-        pending_tool_call.reset();
+        result.tool_calls.push_back(pending_tool_call);
+        has_pending_tool_call = false;
+        pending_tool_call = common_chat_tool_call();
     }
 }
 
@@ -260,7 +263,8 @@ void common_chat_peg_mapper::map(const common_peg_ast_node & node) {
 
     if (is_tool_open) {
         pending_tool_call     = common_chat_tool_call();
-        current_tool          = &pending_tool_call.value();
+        has_pending_tool_call = true;
+        current_tool          = &pending_tool_call;
         arg_count             = 0;
         args_buffer.clear();
         closing_quote_pending = false;
@@ -284,9 +288,10 @@ void common_chat_peg_mapper::map(const common_peg_ast_node & node) {
             current_tool->arguments = "{";
         }
         // Add the tool call to results so streaming can see it
-        if (pending_tool_call.has_value()) {
-            result.tool_calls.push_back(pending_tool_call.value());
-            pending_tool_call.reset();
+        if (has_pending_tool_call) {
+            result.tool_calls.push_back(pending_tool_call);
+            has_pending_tool_call = false;
+            pending_tool_call = common_chat_tool_call();
             current_tool = &result.tool_calls.back();
         }
     }
@@ -397,11 +402,12 @@ void common_chat_peg_mapper::map(const common_peg_ast_node & node) {
             current_tool->arguments += "}";
         }
         // Add tool call to results if named; otherwise discard
-        if (pending_tool_call.has_value()) {
+        if (has_pending_tool_call) {
             if (!current_tool->name.empty()) {
-                result.tool_calls.push_back(pending_tool_call.value());
+                result.tool_calls.push_back(pending_tool_call);
             }
-            pending_tool_call.reset();
+            has_pending_tool_call = false;
+            pending_tool_call = common_chat_tool_call();
         }
     }
 }

@@ -300,8 +300,8 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     tmpl_params.add_generation_prompt = params.add_generation_prompt;
     tmpl_params.enable_thinking       = params.enable_thinking;
 
-    if (params.extra_context) {
-        tmpl_params.extra_context = *params.extra_context;
+    if (!params.extra_context.is_null()) {
+        tmpl_params.extra_context = params.extra_context;
     }
     tmpl_params.extra_context["enable_thinking"] = params.enable_thinking;
 
@@ -313,7 +313,7 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     }
 }
 
-std::optional<compare_variants_result> compare_variants(
+compare_variants_result compare_variants(
     const common_chat_template &                   tmpl,
     const template_params &                        params_A,
     const std::function<void(template_params &)> & params_modifier) {
@@ -329,13 +329,13 @@ std::optional<compare_variants_result> compare_variants(
     std::string output_A = apply_template(tmpl, params_A);
     std::string output_B = apply_template(tmpl, params_B);
 
-    // Check for template application failures
+    compare_variants_result result;
+    // Check for template application failures - return empty result
     if (output_A.empty() || output_B.empty()) {
-        return std::nullopt;
+        return result;
     }
 
     // Calculate diff and return result with both outputs
-    compare_variants_result result;
     result.diff     = calculate_diff_split(output_A, output_B);
     result.output_A = output_A;
     result.output_B = output_B;

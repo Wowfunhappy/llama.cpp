@@ -541,7 +541,7 @@ static const std::map<llm_tensor, const char *> LLM_TENSOR_NAMES = {
 static std::set<llm_tensor> llm_get_tensor_names(llm_arch arch) {
     switch (arch) {
         case LLM_ARCH_CLIP:
-            return {};
+            return std::set<llm_tensor>();
         case LLM_ARCH_LLAMA:
         case LLM_ARCH_DECI:
         case LLM_ARCH_MISTRAL3:
@@ -2802,7 +2802,8 @@ std::string LLM_TN_IMPL::str() const {
 std::vector<llm_arch> llm_arch_all() {
     std::vector<llm_arch> ret;
     ret.reserve(LLM_ARCH_NAMES.size());
-    for (const auto & [arch, _] : LLM_ARCH_NAMES) {
+    for (const auto & _item : LLM_ARCH_NAMES) {
+        const auto & arch = _item.first;
         ret.push_back(arch);
     }
     return ret;

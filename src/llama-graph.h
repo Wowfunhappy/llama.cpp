@@ -542,7 +542,9 @@ struct llm_graph_params {
         if (lhs.size() != rhs.size()) {
             return false;
         }
-        for (const auto & [seq_id, sampler] : lhs) {
+        for (const auto & _item : lhs) {
+            const auto & seq_id = _item.first;
+            const auto & sampler = _item.second;
             auto it = rhs.find(seq_id);
             if (it == rhs.end() || it->second != sampler) {
                 return false;

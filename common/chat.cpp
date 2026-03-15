@@ -18,7 +18,6 @@
 #include <exception>
 #include <functional>
 
-#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -752,7 +751,9 @@ static void foreach_parameter(const json &                                      
     if (params.contains("required") && params.at("required").is_array()) {
         params.at("required").get_to(required);
     }
-    for (const auto & [name, prop] : props.items()) {
+    for (const auto & _prop_item : props.items()) {
+        const auto & name = _prop_item.key();
+        const auto & prop = _prop_item.value();
         bool is_required = (required.find(name) != required.end());
         fn(name, prop, is_required);
     }
@@ -761,30 +762,30 @@ static void foreach_parameter(const json &                                      
 std::string common_chat_template_direct_apply(
     const common_chat_template & tmpl,
     const autoparser::templates_params & inputs,
-    const std::optional<json> & messages_override,
-    const std::optional<json> & tools_override,
-    const std::optional<json> & additional_context) {
+    const json * messages_override,
+    const json * tools_override,
+    const json * additional_context) {
     jinja::context ctx(tmpl.source());
 
     nlohmann::ordered_json inp = nlohmann::ordered_json{
-        {"messages", messages_override.has_value() ? *messages_override : inputs.messages},
+        {"messages", messages_override ? *messages_override : inputs.messages},
         {"bos_token", tmpl.bos_token()},
         {"eos_token", tmpl.eos_token()},
         {"enable_thinking", inputs.enable_thinking},
     };
-    if (tools_override.has_value() || !inputs.tools.empty()) {
-        inp["tools"] = tools_override.has_value() ? *tools_override : inputs.tools;
+    if (tools_override || !inputs.tools.empty()) {
+        inp["tools"] = tools_override ? *tools_override : inputs.tools;
     }
     if (inputs.extra_context.is_object()) {
         // TODO: do we need to merge, or replacing is fine?
-        for (const auto & [k, v] : inputs.extra_context.items()) {
-            inp[k] = v;
+        for (const auto & _ec_item : inputs.extra_context.items()) {
+            inp[_ec_item.key()] = _ec_item.value();
         }
     }
-    if (additional_context.has_value()) {
+    if (additional_context) {
         // TODO: merge properly instead of overwriting (matching old behavior)
-        for (const auto & [k, v] : additional_context->items()) {
-            inp[k] = v;
+        for (const auto & _ac_item : additional_context->items()) {
+            inp[_ac_item.key()] = _ac_item.value();
         }
     }
     if (inputs.add_generation_prompt) {
@@ -860,7 +861,7 @@ static common_chat_params common_chat_params_init_ministral_3(const common_chat_
     data.supports_thinking  = true;
     data.thinking_start_tag = "[THINK]";
     data.thinking_end_tag   = "[/THINK]";
-    data.prompt            = common_chat_template_direct_apply(tmpl, inputs, /* messages_override = */ adjusted_messages);
+    data.prompt            = common_chat_template_direct_apply(tmpl, inputs, /* messages_override = */ &adjusted_messages);
     data.format            = COMMON_CHAT_FORMAT_PEG_NATIVE;
     data.preserved_tokens  = {
         "[THINK]",
@@ -946,15 +947,16 @@ static common_chat_params common_chat_params_init_gpt_oss(const common_chat_temp
         }
     }
 
-    auto prompt = common_chat_template_direct_apply(tmpl, inputs, /* messages_override= */ adjusted_messages);
+    auto prompt = common_chat_template_direct_apply(tmpl, inputs, /* messages_override= */ &adjusted_messages);
 
     // Check if we need to replace the return token with end token during
     // inference and without generation prompt. For more details see:
     // https://github.com/ggml-org/llama.cpp/issues/15417
     if (inputs.is_inference && !inputs.add_generation_prompt) {
-        static constexpr std::string_view return_token = "<|return|>";
-        static constexpr std::string_view end_token    = "<|end|>";
-        if (size_t pos = prompt.rfind(return_token); pos != std::string::npos) {
+        static const std::string return_token = "<|return|>";
+        static const std::string end_token    = "<|end|>";
+        size_t pos = prompt.rfind(return_token);
+        if (pos != std::string::npos) {
             prompt.replace(pos, return_token.length(), end_token);
         }
     }

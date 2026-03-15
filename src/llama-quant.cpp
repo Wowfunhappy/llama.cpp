@@ -50,7 +50,8 @@ static std::string remap_layer(const std::string & orig_name, const std::vector<
     }
 
     static const std::regex pattern(R"(blk\.(\d+)\.)");
-    if (std::smatch match; std::regex_search(orig_name, match, pattern)) {
+    std::smatch match;
+    if (std::regex_search(orig_name, match, pattern)) {
         const int blk = std::stoi(match[1]);
         std::string new_name = orig_name;
 
@@ -78,7 +79,8 @@ static std::string remap_imatrix(const std::string & orig_name, const std::map<i
     }
 
     static const std::regex pattern(R"(blk\.(\d+)\.)");
-    if (std::smatch match; std::regex_search(orig_name, match, pattern)) {
+    std::smatch match;
+    if (std::regex_search(orig_name, match, pattern)) {
         const std::string blk(match[1]);
         std::string new_name = orig_name;
 
@@ -190,7 +192,9 @@ struct quantize_state_impl {
         // compile regex patterns once - they are expensive
         if (params->tensor_types) {
             const auto & tensor_types = *static_cast<const std::vector<tensor_type_option> *>(params->tensor_types);
-            for (const auto & [tname, qtype] : tensor_types) {
+            for (const auto & _item : tensor_types) {
+                const auto & tname = _item.name;
+                const auto & qtype = _item.type;
                 tensor_type_patterns.emplace_back(std::regex(tname), qtype);
             }
         }
@@ -672,7 +676,9 @@ static ggml_type llama_tensor_get_type(quantize_state_impl & qs, const llama_mod
         bool manual = false;
         if (!qs.tensor_type_patterns.empty()) {
             const std::string tensor_name(tensor->name);
-            for (const auto & [pattern, qtype] : qs.tensor_type_patterns) {
+            for (const auto & _item : qs.tensor_type_patterns) {
+                const auto & pattern = _item.first;
+                const auto & qtype = _item.second;
                 if (std::regex_search(tensor_name, pattern)) {
                     if (qtype != new_type) {
                         LLAMA_LOG_WARN("%s: %-36s - applying manual override: %s -> %s\n",

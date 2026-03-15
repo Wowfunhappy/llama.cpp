@@ -283,7 +283,9 @@ static bool common_params_handle_remote_preset(common_params & params, llama_exa
     GGML_ASSERT(!params.model.hf_repo.empty());
 
     // the returned hf_repo is without tag
-    auto [hf_repo, hf_tag] = common_download_split_repo_tag(params.model.hf_repo);
+    auto _repo_tag = common_download_split_repo_tag(params.model.hf_repo);
+    auto hf_repo = _repo_tag.first;
+    auto hf_tag = _repo_tag.second;
 
     // "latest" tag (default if not specified) is translated to "default" preset
     if (hf_tag == "latest") {

@@ -174,7 +174,7 @@ protected:
 
 const func_builtins & global_builtins();
 
-std::string value_to_json(const value & val, int indent = -1, const std::string_view item_sep = ", ", const std::string_view key_sep = ": ");
+std::string value_to_json(const value & val, int indent = -1, const std::string & item_sep = ", ", const std::string & key_sep = ": ");
 
 // Note: only used for debugging purposes
 std::string value_to_string_repr(const value & val);
@@ -508,7 +508,9 @@ struct value_object_t : public value_t {
         ss << "{";
         for (size_t i = 0; i < val_obj.size(); i++) {
             if (i > 0) ss << ", ";
-            auto & [key, val] = val_obj.at(i);
+            auto & _kv = val_obj.at(i);
+            auto & key = _kv.first;
+            auto & val = _kv.second;
             ss << value_to_string_repr(key) << ": " << value_to_string_repr(val);
         }
         ss << "}";
@@ -575,7 +577,9 @@ struct value_object_t : public value_t {
     }
     virtual hasher unique_hash() const noexcept override {
         auto hash = hasher(typeid(*this));
-        for (const auto & [key, val] : val_obj) {
+        for (const auto & _kv_pair : val_obj) {
+            const auto & key = _kv_pair.first;
+            const auto & val = _kv_pair.second;
             // must use digest to prevent problems from "concatenation" property of hasher
             // for ex. hash of key="ab", value="c" should be different from key="a", value="bc"
             const size_t key_hash = key->unique_hash().digest();

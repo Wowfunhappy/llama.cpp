@@ -272,12 +272,12 @@ void analyze_reasoning::compare_reasoning_presence() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_with_reasoning }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed, skipping reasoning detection\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     const std::string reasoning_content = THINKING_CONTENT;
 
@@ -289,9 +289,9 @@ void analyze_reasoning::compare_reasoning_presence() {
             return p.tag("pre", p.marker()) + p.space() + p.literal(reasoning_content) + p.space() + p.tag("post", (p.marker() + p.space())) + p.rest();
         });
         // try the more aggressive parse first, if it fails, fall back to the delimiter one
-        auto result = parser_wrapped.parse_anywhere_and_extract(comparison->output_B);
+        auto result = parser_wrapped.parse_anywhere_and_extract(comparison.output_B);
         if (!result.result.success()) {
-            result = parser_delimiter.parse_anywhere_and_extract(comparison->output_B);
+            result = parser_delimiter.parse_anywhere_and_extract(comparison.output_B);
         }
         if (result.result.success()) {
             if (!result.tags["pre"].empty() && !result.tags["post"].empty()) {
@@ -323,19 +323,19 @@ void analyze_reasoning::compare_thinking_enabled() {
 
     auto comparison = compare_variants(*tmpl, params, [&](template_params & p) { p.enable_thinking = true; });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET , __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     std::string left_trimmed = trim_whitespace(diff.left);
 
     if (left_trimmed.empty() && !diff.right.empty()) {
         std::string right_trimmed = trim_whitespace(diff.right);
 
-        if (!right_trimmed.empty() && string_ends_with(comparison->output_B, right_trimmed)) {
+        if (!right_trimmed.empty() && string_ends_with(comparison.output_B, right_trimmed)) {
             if (start.empty()) {
                 start = right_trimmed;
                 mode  = reasoning_mode::FORCED_OPEN;
@@ -349,18 +349,18 @@ void analyze_reasoning::compare_thinking_enabled() {
 
     // Check for FORCED_CLOSED: when enable_thinking=false produces both start and end markers,
     // but enable_thinking=true produces only the start marker
-    if (!comparison->output_A.empty() && !comparison->output_B.empty()) {
+    if (!comparison.output_A.empty() && !comparison.output_B.empty()) {
         auto parser_start = build_tagged_peg_parser([&](common_peg_parser_builder &p) {
             return p.literal(start) + p.space() + p.literal(end) + p.rest();
         });
         auto parser_start_end = build_tagged_peg_parser([&](common_peg_parser_builder &p) {
             return p.tag("pre", p.literal(start)) + p.space() + p.negate(p.literal(end)) + p.rest();
         });
-        if (!start.empty() && parser_start_end.parse_anywhere_and_extract(comparison->output_A).result.success() &&
-            parser_start.parse_anywhere_and_extract(comparison->output_B).result.success()) {
+        if (!start.empty() && parser_start_end.parse_anywhere_and_extract(comparison.output_A).result.success() &&
+            parser_start.parse_anywhere_and_extract(comparison.output_B).result.success()) {
             mode = reasoning_mode::FORCED_CLOSED;
         } else if (!end.empty()) { // we extract the starting marker now since we didn't get it earlier
-            auto result = parser_start_end.parse_anywhere_and_extract(comparison->output_A);
+            auto result = parser_start_end.parse_anywhere_and_extract(comparison.output_A);
             if (result.result.success()) {
                 start = result.tags["pre"];
                 mode  = reasoning_mode::FORCED_CLOSED;
@@ -405,7 +405,7 @@ void analyze_reasoning::compare_reasoning_scope() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_reasoning_tools }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
@@ -413,8 +413,8 @@ void analyze_reasoning::compare_reasoning_scope() {
     std::string reasoning_content = THINKING_CONTENT;
 
     // Check if reasoning only appears in variant B (with tools)
-    bool reasoning_in_A = comparison->output_A.find(reasoning_content) != std::string::npos;
-    bool reasoning_in_B = comparison->output_B.find(reasoning_content) != std::string::npos;
+    bool reasoning_in_A = comparison.output_A.find(reasoning_content) != std::string::npos;
+    bool reasoning_in_B = comparison.output_B.find(reasoning_content) != std::string::npos;
 
     if (!reasoning_in_A && reasoning_in_B) {
         mode = reasoning_mode::TOOLS_ONLY;
@@ -423,7 +423,7 @@ void analyze_reasoning::compare_reasoning_scope() {
         auto parser_wrapped = build_tagged_peg_parser([&](common_peg_parser_builder &p) {
             return p.tag("pre", p.marker()) + p.space() + p.literal(reasoning_content) + p.space() + p.tag("post", (p.marker() + p.space()));
         });
-        auto result = parser_wrapped.parse_anywhere_and_extract(comparison->output_B);
+        auto result = parser_wrapped.parse_anywhere_and_extract(comparison.output_B);
         if (result.result.success()) {
             start = result.tags["pre"];
             end = result.tags["post"];
@@ -431,7 +431,7 @@ void analyze_reasoning::compare_reasoning_scope() {
             auto parser_delimiter = build_tagged_peg_parser([&](common_peg_parser_builder &p) {
                 return p.literal(reasoning_content) + p.space() + p.optional(p.tag("post", (p.marker() + p.space())));
             });
-            result = parser_delimiter.parse_anywhere_and_extract(comparison->output_B);
+            result = parser_delimiter.parse_anywhere_and_extract(comparison.output_B);
             if (result.result.success()) {
                 end = result.tags["post"];
             } else {
@@ -477,12 +477,12 @@ analyze_content::analyze_content(const common_chat_template & tmpl, const analyz
         p.messages = json::array({ user_msg, assistant_with_reasoning });
     });
 
-    if (!comparison_with_tools || !comparison_with_reasoning) {
+    if (comparison_with_tools.output_A.empty() || comparison_with_reasoning.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
     }
 
-    const auto & diff_tools     = comparison_with_tools->diff;
-    const auto & diff_reasoning = comparison_with_reasoning->diff;
+    const auto & diff_tools     = comparison_with_tools.diff;
+    const auto & diff_reasoning = comparison_with_reasoning.diff;
 
     std::string response = ASSISTANT_MSG;
 
@@ -575,12 +575,12 @@ void analyze_tools::analyze_tool_calls(const analyze_reasoning & reasoning) {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_with_tools }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     std::string tool_section = diff.right;
 
@@ -800,12 +800,12 @@ void analyze_tools::check_per_call_markers() {
     auto one_vs_two = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_two_tools }); });
 
-    if (!one_vs_two) {
+    if (one_vs_two.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Generating double tool call comparison failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    diff_split filter_common_call_part = calculate_diff_split(one_vs_two->diff.suffix, one_vs_two->diff.right);
+    diff_split filter_common_call_part = calculate_diff_split(one_vs_two.diff.suffix, one_vs_two.diff.right);
 
     std::string second_tool_content = trim_leading_whitespace(filter_common_call_part.right);
     if (!format.section_start.empty() &&
@@ -844,12 +844,12 @@ void analyze_tools::extract_function_markers() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_barbar }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (diff.left.find(FUN_FIRST) != std::string::npos && diff.right.find(FUN_SECOND) != std::string::npos) {
         std::string prefix_marker;
@@ -911,7 +911,7 @@ void analyze_tools::extract_function_markers() {
             // we'll have to rely on an extra diff with no-calls version
             auto notool_comp = compare_variants(
                 *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_nocall }); });
-            auto nt_diff  = notool_comp->diff;
+            auto nt_diff  = notool_comp.diff;
             closer_suffix = nt_diff.left.substr(nt_diff.left.find("YYYY") + 4);
         } else {
             closer_suffix = diff.suffix.substr(0, diff.suffix.find(suffix_marker));
@@ -976,12 +976,12 @@ void analyze_tools::extract_argument_name_markers() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_second_arg }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (!diff.left.empty() && !diff.right.empty()) {
         // Parse both sides to find ARG_FIRST/ARG_SECOND and extract the surrounding structure
@@ -1050,12 +1050,12 @@ void analyze_tools::extract_argument_value_markers() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_val_Y }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (diff.left == "XXXX" && diff.right == "YYYY") {
         std::string arg_name_ending = ARG_FIRST + arguments.name_suffix;
@@ -1116,12 +1116,12 @@ void analyze_tools::extract_argument_separator() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_two_args }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (!diff.right.empty()) {
         std::string separator        = until_common_prefix(diff.right, ARG_FIRST, ARG_SECOND);
@@ -1151,12 +1151,12 @@ void analyze_tools::extract_args_markers() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_with_args }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (format.mode != tool_format::JSON_NATIVE) {
         std::string prefix_marker = !format.section_start.empty() ? format.section_start : format.per_call_start;
@@ -1208,12 +1208,12 @@ void analyze_tools::extract_call_id_markers() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_id2 }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed for call_id detection\n" ANSI_RESET, __func__);
         return;
     }
 
-    const auto & diff = comparison->diff;
+    const auto & diff = comparison.diff;
 
     if (diff.left.empty() && diff.right.empty()) {
         return;

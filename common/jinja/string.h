@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,7 +54,7 @@ struct string {
     string lowercase();
     string capitalize();
     string titlecase();
-    string strip(bool left, bool right, std::optional<const std::string_view> chars = std::nullopt);
+    string strip(bool left, bool right, const std::string & chars = "");
 };
 
 } // namespace jinja

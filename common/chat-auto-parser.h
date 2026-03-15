@@ -6,7 +6,6 @@
 #include "peg-parser.h"
 
 #include <chrono>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,7 +22,7 @@ struct template_params {
     json                tools;
     bool                add_generation_prompt = false;
     bool                enable_thinking       = true;
-    std::optional<json> extra_context         = std::nullopt;
+    json extra_context;
 };
 
 struct diff_split {

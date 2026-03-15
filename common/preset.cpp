@@ -6,7 +6,7 @@
 
 #include <fstream>
 #include <sstream>
-#include <filesystem>
+#include <sys/stat.h>
 
 static std::string rm_leading_dashes(const std::string & str) {
     size_t pos = 0;
@@ -65,7 +65,7 @@ std::vector<std::string> common_preset::to_args(const std::string & bin_path) co
         args.push_back(bin_path);
     }
 
-    for (const auto & [opt, value] : options) {
+    for (const auto & _ov : options) { const auto & opt = _ov.first; const auto & value = _ov.second;
         if (opt.is_preset_only) {
             continue; // skip preset-only options (they are not CLI args)
         }
@@ -106,7 +106,7 @@ std::string common_preset::to_ini() const {
     std::ostringstream ss;
 
     ss << "[" << name << "]\n";
-    for (const auto & [opt, value] : options) {
+    for (const auto & _ov : options) { const auto & opt = _ov.first; const auto & value = _ov.second;
         auto espaced_value = value;
         string_replace_all(espaced_value, "\n", "\\\n");
         ss << rm_leading_dashes(opt.args.back()) << " = ";
@@ -119,7 +119,7 @@ std::string common_preset::to_ini() const {
 
 void common_preset::set_option(const common_preset_context & ctx, const std::string & env, const std::string & value) {
     // try if option exists, update it
-    for (auto & [opt, val] : options) {
+    for (auto & _ov2 : options) { auto & opt = _ov2.first; auto & val = _ov2.second;
         if (opt.env && env == opt.env) {
             val = value;
             return;
@@ -148,7 +148,7 @@ void common_preset::unset_option(const std::string & env) {
 }
 
 bool common_preset::get_option(const std::string & env, std::string & value) const {
-    for (const auto & [opt, val] : options) {
+    for (const auto & _ov3 : options) { const auto & opt = _ov3.first; const auto & val = _ov3.second;
         if (opt.env && env == opt.env) {
             value = val;
             return true;
@@ -158,13 +158,13 @@ bool common_preset::get_option(const std::string & env, std::string & value) con
 }
 
 void common_preset::merge(const common_preset & other) {
-    for (const auto & [opt, val] : other.options) {
+    for (const auto & _ov4 : other.options) { const auto & opt = _ov4.first; const auto & val = _ov4.second;
         options[opt] = val; // overwrite existing options
     }
 }
 
 void common_preset::apply_to_params(common_params & params) const {
-    for (const auto & [opt, val] : options) {
+    for (const auto & _ov3 : options) { const auto & opt = _ov3.first; const auto & val = _ov3.second;
         // apply each option to params
         if (opt.handler_string) {
             opt.handler_string(params, val);
@@ -189,7 +189,8 @@ void common_preset::apply_to_params(common_params & params) const {
 static std::map<std::string, std::map<std::string, std::string>> parse_ini_from_file(const std::string & path) {
     std::map<std::string, std::map<std::string, std::string>> parsed;
 
-    if (!std::filesystem::exists(path)) {
+    struct stat _st_preset;
+    if (stat(path.c_str(), &_st_preset) != 0) {
         throw std::runtime_error("preset file does not exist: " + path);
     }
 
@@ -319,7 +320,7 @@ common_presets common_preset_context::load_from_ini(const std::string & path, co
             preset.name = section.first;
         }
         LOG_DBG("loading preset: %s\n", preset.name.c_str());
-        for (const auto & [key, value] : section.second) {
+        for (const auto & _kv : section.second) { const auto & key = _kv.first; const auto & value = _kv.second;
             if (key == "version") {
                 // skip version key (reserved for future use)
                 continue;
@@ -380,7 +381,7 @@ struct local_model {
 };
 
 common_presets common_preset_context::load_from_models_dir(const std::string & models_dir) const {
-    if (!std::filesystem::exists(models_dir) || !std::filesystem::is_directory(models_dir)) {
+    if (!fs_is_directory(models_dir)) {
         throw std::runtime_error(string_format("error: '%s' does not exist or is not a directory\n", models_dir.c_str()));
     }
 
@@ -458,7 +459,7 @@ common_preset common_preset_context::load_from_args(int argc, char ** argv) cons
 
 common_presets common_preset_context::cascade(const common_presets & base, const common_presets & added) const {
     common_presets out = base; // copy
-    for (const auto & [name, preset_added] : added) {
+    for (const auto & _np : added) { const auto & name = _np.first; const auto & preset_added = _np.second;
         if (out.find(name) != out.end()) {
             // if exists, merge
             common_preset & target = out[name];
@@ -473,7 +474,7 @@ common_presets common_preset_context::cascade(const common_presets & base, const
 
 common_presets common_preset_context::cascade(const common_preset & base, const common_presets & presets) const {
     common_presets out;
-    for (const auto & [name, preset] : presets) {
+    for (const auto & _np2 : presets) { const auto & name = _np2.first; const auto & preset = _np2.second;
         common_preset tmp = base; // copy
         tmp.name = name;
         tmp.merge(preset);

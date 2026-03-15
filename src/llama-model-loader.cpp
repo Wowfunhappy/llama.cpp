@@ -319,7 +319,7 @@ namespace GGUFMeta {
                 throw std::runtime_error(format("%s is not a string/float32/uint32/int32 array", key.c_str()));
         }
 
-        if constexpr (std::is_same<T, std::string>::value) {
+        if (std::is_same<T, std::string>::value) {
             const size_t n_items = gguf_get_arr_n(ctx, kid);
             result.clear();
 
@@ -365,12 +365,12 @@ namespace GGUFMeta {
             throw std::runtime_error(format("array length %u for key %s exceeds max %u", (uint32_t) arr_info.length, key.c_str(), (uint32_t) N_MAX));
         }
 
-        if constexpr (std::is_same<T, std::string>::value) {
+        if (std::is_same<T, std::string>::value) {
             const size_t n_items = gguf_get_arr_n(ctx, kid);
 
             for (size_t i = 0; i < n_items; i++) {
-                const T value = gguf_get_arr_str(ctx, kid, i);
-                result[i] = value;
+                // reinterpret_cast compiles for any T; only executes at runtime when T=string
+                *reinterpret_cast<std::string *>(&result[i]) = gguf_get_arr_str(ctx, kid, i);
             }
         } else {
             if (arr_info.gt == GGUF_TYPE_BOOL) {
@@ -1034,7 +1034,7 @@ struct ggml_tensor * llama_model_loader::create_tensor(
                 throw std::runtime_error(format("failed to create ggml context"));
             }
 
-            ctx_map.emplace(buft, ctx);
+            ctx_map.emplace(buft, ggml_context_ptr(ctx));
 
             return ctx;
         }

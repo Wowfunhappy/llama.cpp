@@ -16,7 +16,6 @@
 #include <atomic>
 #include <chrono>
 #include <queue>
-#include <filesystem>
 #include <cstring>
 
 #ifdef _WIN32
@@ -45,34 +44,48 @@ extern char **environ;
 // ref: https://github.com/ggml-org/llama.cpp/issues/17862
 #define CHILD_ADDR "127.0.0.1"
 
-static std::filesystem::path get_server_exec_path() {
+// Helper: resolve real path (like std::filesystem::canonical)
+static std::string resolve_real_path(const std::string & path) {
+#if defined(_WIN32)
+    char resolved[MAX_PATH];
+    DWORD len = GetFullPathNameA(path.c_str(), MAX_PATH, resolved, nullptr);
+    if (len > 0 && len < MAX_PATH) {
+        return std::string(resolved);
+    }
+    return path;
+#else
+    char resolved[PATH_MAX];
+    if (realpath(path.c_str(), resolved) != nullptr) {
+        return std::string(resolved);
+    }
+    return path;
+#endif
+}
+
+static std::string get_server_exec_path() {
 #if defined(_WIN32)
     wchar_t buf[32768] = { 0 };  // Large buffer to handle long paths
     DWORD len = GetModuleFileNameW(nullptr, buf, _countof(buf));
     if (len == 0 || len >= _countof(buf)) {
         throw std::runtime_error("GetModuleFileNameW failed or path too long");
     }
-    return std::filesystem::path(buf);
+    // convert wchar_t to std::string
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, buf, (int)len, nullptr, 0, nullptr, nullptr);
+    std::string result(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, buf, (int)len, &result[0], size_needed, nullptr, nullptr);
+    return result;
 #elif defined(__APPLE__) && defined(__MACH__)
     char small_path[PATH_MAX];
     uint32_t size = sizeof(small_path);
 
     if (_NSGetExecutablePath(small_path, &size) == 0) {
         // resolve any symlinks to get absolute path
-        try {
-            return std::filesystem::canonical(std::filesystem::path(small_path));
-        } catch (...) {
-            return std::filesystem::path(small_path);
-        }
+        return resolve_real_path(std::string(small_path));
     } else {
         // buffer was too small, allocate required size and call again
         std::vector<char> buf(size);
         if (_NSGetExecutablePath(buf.data(), &size) == 0) {
-            try {
-                return std::filesystem::canonical(std::filesystem::path(buf.data()));
-            } catch (...) {
-                return std::filesystem::path(buf.data());
-            }
+            return resolve_real_path(std::string(buf.data()));
         }
         throw std::runtime_error("_NSGetExecutablePath failed after buffer resize");
     }
@@ -82,7 +95,7 @@ static std::filesystem::path get_server_exec_path() {
     if (count <= 0) {
         throw std::runtime_error("failed to resolve /proc/self/exe");
     }
-    return std::filesystem::path(std::string(path, count));
+    return std::string(path, count);
 #endif
 }
 
@@ -171,7 +184,7 @@ server_models::server_models(
     unset_reserved_args(base_preset, true);
     // set binary path
     try {
-        bin_path = get_server_exec_path().string();
+        bin_path = get_server_exec_path();
     } catch (const std::exception & e) {
         bin_path = argv[0];
         LOG_WRN("failed to get server executable path: %s\n", e.what());
@@ -186,10 +199,10 @@ void server_models::add_model(server_model_meta && meta) {
     }
 
     // check model name does not conflict with existing aliases
-    for (const auto & [key, inst] : mapping) {
-        if (inst.meta.aliases.count(meta.name)) {
+    for (const auto & kv : mapping) {
+        if (kv.second.meta.aliases.count(meta.name)) {
             throw std::runtime_error(string_format("model name '%s' conflicts with alias of model '%s'",
-                meta.name.c_str(), key.c_str()));
+                meta.name.c_str(), kv.first.c_str()));
         }
     }
 
@@ -221,10 +234,10 @@ void server_models::add_model(server_model_meta && meta) {
             throw std::runtime_error(string_format("alias '%s' for model '%s' conflicts with existing model name",
                 alias.c_str(), meta.name.c_str()));
         }
-        for (const auto & [key, inst] : mapping) {
-            if (inst.meta.aliases.count(alias)) {
+        for (const auto & kv : mapping) {
+            if (kv.second.meta.aliases.count(alias)) {
                 throw std::runtime_error(string_format("alias '%s' for model '%s' conflicts with alias of model '%s'",
-                    alias.c_str(), meta.name.c_str(), key.c_str()));
+                    alias.c_str(), meta.name.c_str(), kv.first.c_str()));
             }
         }
     }
@@ -265,28 +278,28 @@ void server_models::load_models() {
 
     // note: if a model exists in both cached and local, local takes precedence
     common_presets final_presets;
-    for (const auto & [name, preset] : cached_models) {
-        final_presets[name] = preset;
+    for (const auto & kv : cached_models) {
+        final_presets[kv.first] = kv.second;
     }
-    for (const auto & [name, preset] : local_models) {
-        final_presets[name] = preset;
+    for (const auto & kv : local_models) {
+        final_presets[kv.first] = kv.second;
     }
 
     // process custom presets from INI
-    for (const auto & [name, custom] : custom_presets) {
-        if (final_presets.find(name) != final_presets.end()) {
+    for (const auto & kv : custom_presets) {
+        if (final_presets.find(kv.first) != final_presets.end()) {
             // apply custom config if exists
-            common_preset & target = final_presets[name];
-            target.merge(custom);
+            common_preset & target = final_presets[kv.first];
+            target.merge(kv.second);
         } else {
             // otherwise add directly
-            final_presets[name] = custom;
+            final_presets[kv.first] = kv.second;
         }
     }
 
     // server base preset from CLI args take highest precedence
-    for (auto & [name, preset] : final_presets) {
-        preset.merge(base_preset);
+    for (auto & kv : final_presets) {
+        kv.second.merge(base_preset);
     }
 
     // convert presets to server_model_meta and add to mapping
@@ -309,8 +322,8 @@ void server_models::load_models() {
     // log available models
     {
         std::unordered_set<std::string> custom_names;
-        for (const auto & [name, preset] : custom_presets) {
-            custom_names.insert(name);
+        for (const auto & kv : custom_presets) {
+            custom_names.insert(kv.first);
         }
         auto join_set = [](const std::set<std::string> & s) {
             std::string result;
@@ -324,40 +337,40 @@ void server_models::load_models() {
         };
 
         SRV_INF("Available models (%zu) (*: custom preset)\n", mapping.size());
-        for (const auto & [name, inst] : mapping) {
-            bool has_custom = custom_names.find(name) != custom_names.end();
+        for (const auto & kv : mapping) {
+            bool has_custom = custom_names.find(kv.first) != custom_names.end();
             std::string info;
-            if (!inst.meta.aliases.empty()) {
-                info += " (aliases: " + join_set(inst.meta.aliases) + ")";
+            if (!kv.second.meta.aliases.empty()) {
+                info += " (aliases: " + join_set(kv.second.meta.aliases) + ")";
             }
-            if (!inst.meta.tags.empty()) {
-                info += " [tags: " + join_set(inst.meta.tags) + "]";
+            if (!kv.second.meta.tags.empty()) {
+                info += " [tags: " + join_set(kv.second.meta.tags) + "]";
             }
-            SRV_INF("  %c %s%s\n", has_custom ? '*' : ' ', name.c_str(), info.c_str());
+            SRV_INF("  %c %s%s\n", has_custom ? '*' : ' ', kv.first.c_str(), info.c_str());
         }
     }
 
     // handle custom stop-timeout option
-    for (auto & [name, inst] : mapping) {
+    for (auto & kv : mapping) {
         std::string val;
-        if (inst.meta.preset.get_option(COMMON_ARG_PRESET_STOP_TIMEOUT, val)) {
+        if (kv.second.meta.preset.get_option(COMMON_ARG_PRESET_STOP_TIMEOUT, val)) {
             try {
-                inst.meta.stop_timeout = std::stoi(val);
+                kv.second.meta.stop_timeout = std::stoi(val);
             } catch (...) {
                 SRV_WRN("invalid stop-timeout value '%s' for model '%s', using default %d seconds\n",
-                    val.c_str(), name.c_str(), DEFAULT_STOP_TIMEOUT);
-                inst.meta.stop_timeout = DEFAULT_STOP_TIMEOUT;
+                    val.c_str(), kv.first.c_str(), DEFAULT_STOP_TIMEOUT);
+                kv.second.meta.stop_timeout = DEFAULT_STOP_TIMEOUT;
             }
         }
     }
 
     // load any autoload models
     std::vector<std::string> models_to_load;
-    for (const auto & [name, inst] : mapping) {
+    for (const auto & kv : mapping) {
         std::string val;
-        if (inst.meta.preset.get_option(COMMON_ARG_PRESET_LOAD_ON_STARTUP, val)) {
+        if (kv.second.meta.preset.get_option(COMMON_ARG_PRESET_LOAD_ON_STARTUP, val)) {
             if (common_arg_utils::is_truthy(val)) {
-                models_to_load.push_back(name);
+                models_to_load.push_back(kv.first);
             }
         }
     }
@@ -388,26 +401,26 @@ bool server_models::has_model(const std::string & name) {
     if (mapping.find(name) != mapping.end()) {
         return true;
     }
-    for (const auto & [key, inst] : mapping) {
-        if (inst.meta.aliases.count(name)) {
+    for (const auto & kv : mapping) {
+        if (kv.second.meta.aliases.count(name)) {
             return true;
         }
     }
     return false;
 }
 
-std::optional<server_model_meta> server_models::get_meta(const std::string & name) {
+std::pair<bool, server_model_meta> server_models::get_meta(const std::string & name) {
     std::lock_guard<std::mutex> lk(mutex);
     auto it = mapping.find(name);
     if (it != mapping.end()) {
-        return it->second.meta;
+        return std::make_pair(true, it->second.meta);
     }
-    for (const auto & [key, inst] : mapping) {
-        if (inst.meta.aliases.count(name)) {
-            return inst.meta;
+    for (const auto & kv : mapping) {
+        if (kv.second.meta.aliases.count(name)) {
+            return std::make_pair(true, kv.second.meta);
         }
     }
-    return std::nullopt;
+    return std::make_pair(false, server_model_meta());
 }
 
 static int get_free_port() {
@@ -486,8 +499,8 @@ std::vector<server_model_meta> server_models::get_all_meta() {
     std::lock_guard<std::mutex> lk(mutex);
     std::vector<server_model_meta> result;
     result.reserve(mapping.size());
-    for (const auto & [name, inst] : mapping) {
-        result.push_back(inst.meta);
+    for (const auto & kv : mapping) {
+        result.push_back(kv.second.meta);
     }
     return result;
 }
@@ -698,15 +711,15 @@ void server_models::unload_all() {
     std::vector<std::thread> to_join;
     {
         std::lock_guard<std::mutex> lk(mutex);
-        for (auto & [name, inst] : mapping) {
-            if (inst.meta.is_active()) {
-                SRV_INF("unloading model instance name=%s\n", name.c_str());
-                stopping_models.insert(name);
+        for (auto & kv : mapping) {
+            if (kv.second.meta.is_active()) {
+                SRV_INF("unloading model instance name=%s\n", kv.first.c_str());
+                stopping_models.insert(kv.first);
                 cv_stop.notify_all();
                 // status change will be handled by the managing thread
             }
             // moving the thread to join list to avoid deadlock
-            to_join.push_back(std::move(inst.th));
+            to_join.push_back(std::move(kv.second.th));
         }
     }
     for (auto & th : to_join) {
@@ -740,13 +753,13 @@ void server_models::wait_until_loaded(const std::string & name) {
 
 bool server_models::ensure_model_loaded(const std::string & name) {
     auto meta = get_meta(name);
-    if (!meta.has_value()) {
+    if (!meta.first) {
         throw std::runtime_error("model name=" + name + " is not found");
     }
-    if (meta->status == SERVER_MODEL_STATUS_LOADED) {
+    if (meta.second.status == SERVER_MODEL_STATUS_LOADED) {
         return false; // already loaded
     }
-    if (meta->status == SERVER_MODEL_STATUS_UNLOADED) {
+    if (meta.second.status == SERVER_MODEL_STATUS_UNLOADED) {
         SRV_INF("model name=%s is not loaded, loading...\n", name.c_str());
         load(name);
     }
@@ -757,7 +770,7 @@ bool server_models::ensure_model_loaded(const std::string & name) {
 
     // check final status
     meta = get_meta(name);
-    if (!meta.has_value() || meta->is_failed()) {
+    if (!meta.first || meta.second.is_failed()) {
         throw std::runtime_error("model name=" + name + " failed to load");
     }
 
@@ -766,17 +779,17 @@ bool server_models::ensure_model_loaded(const std::string & name) {
 
 server_http_res_ptr server_models::proxy_request(const server_http_req & req, const std::string & method, const std::string & name, bool update_last_used) {
     auto meta = get_meta(name);
-    if (!meta.has_value()) {
+    if (!meta.first) {
         throw std::runtime_error("model name=" + name + " is not found");
     }
-    if (meta->status != SERVER_MODEL_STATUS_LOADED) {
+    if (meta.second.status != SERVER_MODEL_STATUS_LOADED) {
         throw std::invalid_argument("model name=" + name + " is not loaded");
     }
     if (update_last_used) {
         std::unique_lock<std::mutex> lk(mutex);
         mapping[name].meta.last_used = ggml_time_ms();
     }
-    SRV_INF("proxying request to model %s on port %d\n", name.c_str(), meta->port);
+    SRV_INF("proxying request to model %s on port %d\n", name.c_str(), meta.second.port);
     std::string proxy_path = req.path;
     if (!req.query_string.empty()) {
         proxy_path += '?' + req.query_string;
@@ -785,7 +798,7 @@ server_http_res_ptr server_models::proxy_request(const server_http_req & req, co
             method,
             "http",
             CHILD_ADDR,
-            meta->port,
+            meta.second.port,
             proxy_path,
             req.headers,
             req.body,
@@ -851,16 +864,16 @@ static bool router_validate_model(std::string & name, server_models & models, bo
         return false;
     }
     auto meta = models.get_meta(name);
-    if (!meta.has_value()) {
+    if (!meta.first) {
         res_err(res, format_error_response(string_format("model '%s' not found", name.c_str()), ERROR_TYPE_INVALID_REQUEST));
         return false;
     }
     // resolve alias to canonical model name
-    name = meta->name;
+    name = meta.second.name;
     if (models_autoload) {
         models.ensure_model_loaded(name);
     } else {
-        if (meta->status != SERVER_MODEL_STATUS_LOADED) {
+        if (meta.second.status != SERVER_MODEL_STATUS_LOADED) {
             res_err(res, format_error_response("model is not loaded", ERROR_TYPE_INVALID_REQUEST));
             return false;
         }
@@ -929,15 +942,15 @@ void server_models_routes::init_routes() {
         json body = json::parse(req.body);
         std::string name = json_value(body, "model", std::string());
         auto meta = models.get_meta(name);
-        if (!meta.has_value()) {
+        if (!meta.first) {
             res_err(res, format_error_response("model is not found", ERROR_TYPE_NOT_FOUND));
             return res;
         }
-        if (meta->status == SERVER_MODEL_STATUS_LOADED) {
+        if (meta.second.status == SERVER_MODEL_STATUS_LOADED) {
             res_err(res, format_error_response("model is already loaded", ERROR_TYPE_INVALID_REQUEST));
             return res;
         }
-        models.load(meta->name);
+        models.load(meta.second.name);
         res_ok(res, {{"success", true}});
         return res;
     };
@@ -988,15 +1001,15 @@ void server_models_routes::init_routes() {
         json body = json::parse(req.body);
         std::string name = json_value(body, "model", std::string());
         auto model = models.get_meta(name);
-        if (!model.has_value()) {
+        if (!model.first) {
             res_err(res, format_error_response("model is not found", ERROR_TYPE_INVALID_REQUEST));
             return res;
         }
-        if (!model->is_active()) {
+        if (!model.second.is_active()) {
             res_err(res, format_error_response("model is not loaded", ERROR_TYPE_INVALID_REQUEST));
             return res;
         }
-        models.unload(model->name);
+        models.unload(model.second.name);
         res_ok(res, {{"success", true}});
         return res;
     };
@@ -1128,16 +1141,16 @@ server_http_proxy::server_http_proxy(
     httplib::ResponseHandler response_handler = [pipe, cli](const httplib::Response & response) {
         msg_t msg;
         msg.status = response.status;
-        for (const auto & [key, value] : response.headers) {
-            const auto lowered = to_lower_copy(key);
+        for (const auto & kv : response.headers) {
+            const auto lowered = to_lower_copy(kv.first);
             if (should_strip_proxy_header(lowered)) {
                 continue;
             }
             if (lowered == "content-type") {
-                msg.content_type = value;
+                msg.content_type = kv.second;
                 continue;
             }
-            msg.headers[key] = value;
+            msg.headers[kv.first] = kv.second;
         }
         return pipe->write(std::move(msg)); // send headers first
     };
@@ -1152,15 +1165,15 @@ server_http_proxy::server_http_proxy(
     {
         req.method = method;
         req.path = path;
-        for (const auto & [key, value] : headers) {
-            if (key == "Accept-Encoding") {
+        for (const auto & kv : headers) {
+            if (kv.first == "Accept-Encoding") {
                 // disable Accept-Encoding to avoid compressed responses
                 continue;
             }
-            if (key == "Host" || key == "host") {
-                req.set_header(key, host);
+            if (kv.first == "Host" || kv.first == "host") {
+                req.set_header(kv.first, host);
             } else {
-                req.set_header(key, value);
+                req.set_header(kv.first, kv.second);
             }
         }
         req.body = body;

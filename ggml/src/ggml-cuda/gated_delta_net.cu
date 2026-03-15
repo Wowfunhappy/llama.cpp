@@ -63,7 +63,7 @@ __global__ void gated_delta_net_cuda(const float * q,
 
         const float beta_val = *beta_t;
 
-        if constexpr (!KDA) {
+        if (!KDA) {
             const float g_val = expf(*g_t);
 
             // kv[col] = (S^T @ k)[col] = sum_i S[i][col] * k[i]

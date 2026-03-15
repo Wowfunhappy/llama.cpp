@@ -11,10 +11,10 @@
 ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void);
 
 template <int K> constexpr int QK_0() {
-    if constexpr (K == 4) {
+    if (K == 4) {
         return QK4_0;
     }
-    if constexpr (K == 8) {
+    if (K == 8) {
         return QK8_0;
     }
     return -1;

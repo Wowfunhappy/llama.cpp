@@ -115,7 +115,8 @@ public:
     bool has_model(const std::string & name);
 
     // return a copy of model metadata (thread-safe)
-    std::optional<server_model_meta> get_meta(const std::string & name);
+    // returns pair<true, meta> if found, pair<false, default> if not found
+    std::pair<bool, server_model_meta> get_meta(const std::string & name);
 
     // return a copy of all model metadata (thread-safe)
     std::vector<server_model_meta> get_all_meta();

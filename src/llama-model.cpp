@@ -2255,12 +2255,13 @@ void llama_model::load_hparams(llama_model_loader & ml) {
                     case 10752: type = LLM_TYPE_2_6B; break;
                     default:    type = LLM_TYPE_UNKNOWN;
                 }
-                if (const auto is_swa = ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa, false); is_swa && hparams.n_swa > 0) {
+                { const auto is_swa = ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa, false);
+                if (is_swa && hparams.n_swa > 0) {
                     hparams.swa_type = LLAMA_SWA_TYPE_STANDARD;
                     for (uint32_t il = 0; il < hparams.n_layer; ++il) {
                         hparams.swa_layers[il] = !hparams.recurrent_layer_arr[il];
                     }
-                }
+                } }
             } break;
         case LLM_ARCH_LFM2MOE:
             {
@@ -7526,7 +7527,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     const size_t n_max_backend_buffer = ml.ctx_map.size() * ml.files.size();
     pimpl->ctxs_bufs.reserve(n_max_backend_buffer);
 
-    for (auto & [buft, ctx_ptr] : ml.ctx_map) {
+    for (auto & _item : ml.ctx_map) {
+        auto & buft = _item.first;
+        auto & ctx_ptr = _item.second;
         ggml_context * ctx = ctx_ptr.get();
 
         // skip contexts without tensors
@@ -7625,7 +7628,8 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     }
 
     // print memory requirements per buffer type
-    for (auto & [_, bufs] : pimpl->ctxs_bufs) {
+    for (auto & _item : pimpl->ctxs_bufs) {
+        auto & bufs = _item.second;
         for (auto & buf: bufs) {
             LLAMA_LOG_INFO("%s: %12s model buffer size = %8.2f MiB\n",
                 __func__, ggml_backend_buffer_name(buf.get()), ggml_backend_buffer_get_size(buf.get()) / 1024.0 / 1024.0);
@@ -7633,7 +7637,8 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     }
 
     // populate tensors_by_name
-    for (auto & [ctx, _] : pimpl->ctxs_bufs) {
+    for (auto & _item : pimpl->ctxs_bufs) {
+        auto & ctx = _item.first;
         for (auto * cur = ggml_get_first_tensor(ctx.get()); cur != NULL; cur = ggml_get_next_tensor(ctx.get(), cur)) {
             tensors_by_name.emplace_back(ggml_get_name(cur), cur);
         }
@@ -7644,7 +7649,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     }
 
     // load tensor data
-    for (auto & [ctx, buf_map] : ctx_buf_maps) {
+    for (auto & _item : ctx_buf_maps) {
+        auto & ctx = _item.first;
+        auto & buf_map = _item.second;
         if (!ml.load_all_data(ctx, buf_map, use_mlock ? &pimpl->mlock_mmaps : NULL, params.progress_callback, params.progress_callback_user_data)) {
             return false;
         }
@@ -7693,7 +7700,9 @@ llama_split_mode llama_model::split_mode() const {
 
 std::map<ggml_backend_buffer_type_t, size_t> llama_model::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, size_t> ret;
-    for (const auto & [ctx, bufs] : pimpl->ctxs_bufs) {
+    for (const auto & _item : pimpl->ctxs_bufs) {
+        const auto & ctx = _item.first;
+        const auto & bufs = _item.second;
         if (hparams.no_alloc) {
             GGML_ASSERT(bufs.size() == 1);
             ggml_backend_buffer_t buf = bufs[0].get();
@@ -7794,9 +7803,10 @@ void llama_model::print_info() const {
         LLAMA_LOG_INFO("%s: rope_yarn_log_mul     = %.4f\n",   __func__, hparams.rope_yarn_log_mul);
         LLAMA_LOG_INFO("%s: rope_finetuned        = %s\n",     __func__, hparams.rope_finetuned ? "yes" : "unknown");
         // MRoPE (Multi-axis Rotary Position Embedding) sections
-        if (const auto & s = hparams.rope_sections; s[0] || s[1] || s[2] || s[3]) {
+        { const auto & s = hparams.rope_sections;
+        if (s[0] || s[1] || s[2] || s[3]) {
             LLAMA_LOG_INFO("%s: mrope sections        = [%d, %d, %d, %d]\n", __func__, s[0], s[1], s[2], s[3]);
-        }
+        } }
         if (!classifier_labels.empty()) {
             LLAMA_LOG_INFO("%s: n_cls_out             = %u\n", __func__, hparams.n_cls_out);
 

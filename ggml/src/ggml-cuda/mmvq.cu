@@ -169,7 +169,7 @@ static __global__ void mul_mat_vec_q(
     uint32_t channel_y;
     uint32_t sample_dst;
 
-    if constexpr (is_multi_token_id) {
+    if (is_multi_token_id) {
         // Multi-token MUL_MAT_ID path, adding these in the normal path causes a perf regression for n_tokens=1 case
         token_idx  = blockIdx.z;
         channel_x  = ids[channel_dst + token_idx * ids_stride];
@@ -192,7 +192,7 @@ static __global__ void mul_mat_vec_q(
     const float * gate_bias = nullptr;
     ggml_glu_op active_glu;
 
-    if constexpr (has_fusion) {
+    if (has_fusion) {
         use_gate      = fusion.gate      != nullptr;
         use_bias      = fusion.x_bias    != nullptr;
         use_gate_bias = fusion.gate_bias != nullptr && use_gate;
@@ -205,7 +205,7 @@ static __global__ void mul_mat_vec_q(
 
     float x_biases[ncols_dst]    = { 0.0f };
     float gate_biases[ncols_dst] = { 0.0f };
-    if constexpr (has_fusion) {
+    if (has_fusion) {
         const uint32_t channel_bias = ids ? channel_x : channel_dst;
         if (use_bias) {
             x_bias = x_bias + sample_dst*stride_sample_dst + channel_bias*stride_channel_dst + row0;
@@ -236,7 +236,7 @@ static __global__ void mul_mat_vec_q(
     float tmp_gate[ncols_dst][rows_per_cuda_block] = {{0.0f}};
 
     const block_q8_1 * y = ((const block_q8_1 *) vy) + sample_y*stride_sample_y + channel_y*stride_channel_y;
-    if constexpr (is_multi_token_id) {
+    if (is_multi_token_id) {
         y += token_idx*stride_col_y;
     }
     const int kbx_offset = sample_x*stride_sample_x + channel_x*stride_channel_x + row0*stride_row_x;
@@ -253,7 +253,7 @@ static __global__ void mul_mat_vec_q(
             for (int i = 0; i < rows_per_cuda_block; ++i) {
                 tmp[j][i] += vec_dot_q_cuda(
                     vx, &y[j*stride_col_y + kby], kbx_offset + i*stride_row_x + kbx, kqs);
-                if constexpr (has_fusion) {
+                if (has_fusion) {
                     if (use_gate) {
                         tmp_gate[j][i] += vec_dot_q_cuda(
                             vgate, &y[j*stride_col_y + kby], kbx_offset + i*stride_row_x + kbx, kqs);
@@ -265,7 +265,7 @@ static __global__ void mul_mat_vec_q(
 
     __shared__ float tmp_shared[nwarps-1 > 0 ? nwarps-1 : 1][ncols_dst][rows_per_cuda_block][warp_size];
     __shared__ float tmp_shared_gate[(has_fusion && (nwarps-1 > 0)) ? nwarps-1 : 1][ncols_dst][rows_per_cuda_block][warp_size];
-    if constexpr (!has_fusion) {
+    if (!has_fusion) {
         (void) tmp_shared_gate;
     } else if (!use_gate) {
         (void) tmp_shared_gate;
@@ -277,7 +277,7 @@ static __global__ void mul_mat_vec_q(
 #pragma unroll
             for (int i = 0; i < rows_per_cuda_block; ++i) {
                 tmp_shared[threadIdx.y-1][j][i][threadIdx.x] = tmp[j][i];
-                if constexpr (has_fusion) {
+                if (has_fusion) {
                     if (use_gate) {
                         tmp_shared_gate[threadIdx.y-1][j][i][threadIdx.x] = tmp_gate[j][i];
                     }
@@ -292,7 +292,7 @@ static __global__ void mul_mat_vec_q(
 
     dst += sample_dst*stride_sample_dst + channel_dst*stride_channel_dst + row0;
 
-    if constexpr (is_multi_token_id) {
+    if (is_multi_token_id) {
         dst += token_idx*stride_col_dst;
     }
 
@@ -304,14 +304,14 @@ static __global__ void mul_mat_vec_q(
 #pragma unroll
             for (int l = 0; l < nwarps-1; ++l) {
                 tmp[j][i] += tmp_shared[l][j][i][threadIdx.x];
-                if constexpr (has_fusion) {
+                if (has_fusion) {
                     if (use_gate) {
                         tmp_gate[j][i] += tmp_shared_gate[l][j][i][threadIdx.x];
                     }
                 }
             }
             tmp[j][i] = warp_reduce_sum<warp_size>(tmp[j][i]);
-            if constexpr (has_fusion) {
+            if (has_fusion) {
                 if (use_gate) {
                     tmp_gate[j][i] = warp_reduce_sum<warp_size>(tmp_gate[j][i]);
                 }
@@ -320,7 +320,7 @@ static __global__ void mul_mat_vec_q(
 
         if (threadIdx.x < rows_per_cuda_block && (rows_per_cuda_block == 1 || uint32_t(row0 + threadIdx.x) < stride_col_dst)) {
             float result = tmp[j][threadIdx.x];
-            if constexpr (has_fusion) {
+            if (has_fusion) {
                 if (use_bias) {
                     result += x_biases[j];
                 }
@@ -350,7 +350,7 @@ static __global__ void mul_mat_vec_q(
         }
     }
 
-    if constexpr (!has_fusion) {
+    if (!has_fusion) {
         GGML_UNUSED_VARS(use_gate, use_bias, use_gate_bias, active_glu, gate_bias, x_bias, tmp_gate);
     }
 }
@@ -375,7 +375,7 @@ static void mul_mat_vec_q_switch_fusion(
         const uint32_t ids_stride, cudaStream_t stream) {
 
     const bool has_fusion = fusion.gate != nullptr || fusion.x_bias != nullptr || fusion.gate_bias != nullptr;
-    if constexpr (c_ncols_dst == 1) {
+    if (c_ncols_dst == 1) {
         if (has_fusion) {
             mul_mat_vec_q<type, c_ncols_dst, true, is_multi_token_id><<<block_nums, block_dims, nbytes_shared, stream>>>
                 (vx, vy, ids, fusion, dst, ncols_x, nchannels_y, stride_row_x, stride_col_y, stride_col_dst,

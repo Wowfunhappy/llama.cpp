@@ -539,52 +539,54 @@ enum class block_reduce_method {
 template<block_reduce_method method_t, typename T>
 struct block_reduce_policy;
 
+// C++11 compat: is_any trait (replaces C++17 fold expression + variable template)
 template <typename T, typename... Ts>
-inline constexpr bool is_any = (std::is_same_v<T, Ts> || ...);
+struct is_any_of;
 
-template<typename...>
-inline constexpr bool ggml_cuda_dependent_false_v = false;
+template <typename T>
+struct is_any_of<T> { static const bool value = false; };
+
+template <typename T, typename First, typename... Rest>
+struct is_any_of<T, First, Rest...> {
+    static const bool value = std::is_same<T, First>::value || is_any_of<T, Rest...>::value;
+};
 
 template <typename T> struct block_reduce_policy<block_reduce_method::SUM, T> {
     static __device__ T reduce(T val) {
-        if constexpr(is_any<T, float, float2, half2, int>) {
+        if(is_any_of<T, float, float2, half2, int>::value) {
             return warp_reduce_sum(val);
         } else {
-            static_assert(ggml_cuda_dependent_false_v<T>, "Unsupported type for block reduce sum");
         }
     }
 
     static __device__ T sentinel() {
-        if constexpr (std::is_same_v<T, float>) {
+        if (std::is_same<T, float>::value) {
             return 0.0f;
-        } else if constexpr (std::is_same_v<T, float2>) {
+        } else if (std::is_same<T, float2>::value) {
             return make_float2(0.0f, 0.0f);
-        } else if constexpr (std::is_same_v<T, half2>) {
+        } else if (std::is_same<T, half2>::value) {
             return make_half2(0.0f, 0.0f);
-        } else if constexpr (std::is_same_v<T, int>) {
+        } else if (std::is_same<T, int>::value) {
             return 0;
         } else {
-            static_assert(ggml_cuda_dependent_false_v<T>, "Unsupported type for block reduce sum");
         }
     }
 };
 
 template <typename T> struct block_reduce_policy<block_reduce_method::MAX, T> {
     static __device__ T reduce(T val) {
-        if constexpr (is_any<T, float, half2>) {
+        if (is_any_of<T, float, half2>::value) {
             return warp_reduce_max(val);
         } else {
-            static_assert(ggml_cuda_dependent_false_v<T>, "Unsupported type for block reduce max");
         }
     }
 
     static __device__ T sentinel() {
-        if constexpr (std::is_same_v<T, float>) {
+        if (std::is_same<T, float>::value) {
             return -INFINITY;
-        } else if constexpr (std::is_same_v<T, half2>) {
+        } else if (std::is_same<T, half2>::value) {
             return make_half2(-INFINITY, -INFINITY);
         } else {
-            static_assert(ggml_cuda_dependent_false_v<T>, "Unsupported type for block reduce max");
         }
     }
 };
@@ -633,10 +635,9 @@ static __device__ __forceinline__ half2 ggml_cuda_hmax2(const half2 a, const hal
 #elif CUDART_VERSION >= CUDART_HMAX
     return __hmax2(a, b);
 #else
-    half2 ret;
-    reinterpret_cast<half&>(ret.x) = __float2half(fmaxf( __low2float(a),  __low2float(b)));
-    reinterpret_cast<half&>(ret.y) = __float2half(fmaxf(__high2float(a), __high2float(b)));
-    return ret;
+    float lo = fmaxf(__low2float(a), __low2float(b));
+    float hi = fmaxf(__high2float(a), __high2float(b));
+    return __halves2half2(__float2half(lo), __float2half(hi));
 #endif
 }
 
@@ -657,8 +658,8 @@ static __device__ __forceinline__ half2 warp_reduce_max(half2 x) {
 #if (defined(CUDART_VERSION) && CUDART_VERSION < CUDART_HMASK) || defined(GGML_USE_HIP) || \
     (defined(MUSART_VERSION) && MUSART_VERSION < MUSART_HMASK)
 static __device__ __forceinline__ uint32_t __hgt2_mask(const half2 a, const half2 b) {
-    const uint32_t mask_low  = 0x0000FFFF * (float( __low2half(a)) > float( __low2half(b)));
-    const uint32_t mask_high = 0xFFFF0000 * (float(__high2half(a)) > float(__high2half(b)));
+    const uint32_t mask_low  = 0x0000FFFF * (__half2float( __low2half(a)) > __half2float( __low2half(b)));
+    const uint32_t mask_high = 0xFFFF0000 * (__half2float(__high2half(a)) > __half2float(__high2half(b)));
     return mask_low | mask_high;
 }
 #endif // (defined(CUDART_VERSION) && CUDART_VERSION < CUDART_HMASK) || defined(GGML_USE_HIP) || (defined(MUSART_VERSION) && MUSART_VERSION < MUSART_HMASK)
@@ -758,22 +759,22 @@ static __device__ __forceinline__ void ggml_cuda_memcpy_1(void * __restrict__ ds
         "The intent is for the parameter is only as a workaround if either one of the pointers is not properly aligned. "
         "If you use it to do more bytes per copy than ggml_cuda_max_cpy_bytes() the reads and writes may not be coalesced. "
         "Call ggml_cuda_memcpy_1 in a loop instead.");
-    if constexpr (alignment != 0) {
+    if (alignment != 0) {
         static_assert(nbytes % alignment == 0, "bad alignment");
     }
     constexpr int nb_per_cpy = alignment == 0 ? nbytes : alignment;
 
 #pragma unroll
     for (int i = 0; i < nbytes/nb_per_cpy; ++i) {
-        if constexpr (nb_per_cpy == 1) {
+        if (nb_per_cpy == 1) {
             ((char *) dst)[i] = ((const char *) src)[i];
-        } else if constexpr (nb_per_cpy == 2) {
+        } else if (nb_per_cpy == 2) {
             ((short *) dst)[i] = ((const short *) src)[i];
-        } else if constexpr (nb_per_cpy == 4) {
+        } else if (nb_per_cpy == 4) {
             ((int *) dst)[i] = ((const int *) src)[i];
-        } else if constexpr (nb_per_cpy == 8) {
+        } else if (nb_per_cpy == 8) {
             ((int2 *) dst)[i] = ((const int2 *) src)[i];
-        } else if constexpr (nb_per_cpy == 16) {
+        } else if (nb_per_cpy == 16) {
             ((int4 *) dst)[i] = ((const int4 *) src)[i];
         } else {
             static_assert(nbytes == 0 && nbytes == -1, "bad nbytes");
@@ -804,7 +805,7 @@ __device__ __forceinline__ uint8_t ggml_cuda_float_to_fp4_e2m1(float x, float e)
     float         ax       = fabsf(x) * e;
 
     // Positive LUT
-    static constexpr float pos_lut[8] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f };
+    const float pos_lut[8] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f };
 
     int   best_i   = 0;
     float best_err = fabsf(ax - pos_lut[0]);
@@ -1216,7 +1217,7 @@ struct ggml_cuda_concurrent_event {
         const int64_t       join_start = (int64_t) join_t->data;
         const int64_t       join_end   = join_start + ggml_nbytes(join_t);
 
-        for (const auto & [tensor, stream] : stream_mapping) {
+        for (const auto & _sm_item : stream_mapping) { const auto & tensor = _sm_item.first; const auto & stream = _sm_item.second;
             const ggml_tensor * t = tensor->view_src ? tensor->view_src : tensor;
             const int64_t       t_start = (int64_t) t->data;
             const int64_t       t_end   = t_start + ggml_nbytes(t);
@@ -1237,7 +1238,7 @@ struct ggml_cuda_concurrent_event {
 
         bool writes_overlap = false;
         bool dependent_srcs = false;
-        for (const auto & [tensor, stream] : stream_mapping) {
+        for (const auto & _sm_item : stream_mapping) { const auto & tensor = _sm_item.first; const auto & stream = _sm_item.second;
             const ggml_tensor * t = tensor->view_src ? tensor->view_src : tensor;
             const int64_t       t_start = (int64_t) t->data;
             const int64_t       t_end   = t_start + ggml_nbytes(t);

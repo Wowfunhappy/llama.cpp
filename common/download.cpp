@@ -9,8 +9,8 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
+#include <sys/stat.h>
 #include <future>
 #include <map>
 #include <mutex>
@@ -45,6 +45,17 @@
 #endif
 
 using json = nlohmann::ordered_json;
+
+static bool file_exists_check(const std::string & path) {
+    struct stat st;
+    return stat(path.c_str(), &st) == 0;
+}
+
+static size_t file_size_check(const std::string & path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) return 0;
+    return static_cast<size_t>(st.st_size);
+}
 
 //
 // downloader
@@ -113,7 +124,7 @@ static void write_etag(const std::string & path, const std::string & etag) {
 
 static std::string read_etag(const std::string & path) {
     const std::string etag_path = path + ".etag";
-    if (!std::filesystem::exists(etag_path)) {
+    if (!file_exists_check(etag_path)) {
         return {};
     }
     std::ifstream etag_in(etag_path);
@@ -294,7 +305,9 @@ static int common_download_file_single_online(const std::string        & url,
     static const int max_attempts        = 3;
     static const int retry_delay_seconds = 2;
 
-    auto [cli, parts] = common_http_client(url);
+    auto _http_pair = common_http_client(url);
+    auto & cli = _http_pair.first;
+    auto & parts = _http_pair.second;
 
     httplib::Headers headers;
     for (const auto & h : custom_headers) {
@@ -308,7 +321,7 @@ static int common_download_file_single_online(const std::string        & url,
     }
     cli.set_default_headers(headers);
 
-    const bool file_exists = std::filesystem::exists(path);
+    const bool file_exists = file_exists_check(path);
 
     std::string last_etag;
     if (file_exists) {
@@ -373,9 +386,9 @@ static int common_download_file_single_online(const std::string        & url,
 
         size_t existing_size = 0;
 
-        if (std::filesystem::exists(path_temporary)) {
+        if (file_exists_check(path_temporary)) {
             if (supports_ranges) {
-                existing_size = std::filesystem::file_size(path_temporary);
+                existing_size = file_size_check(path_temporary);
             } else if (remove(path_temporary.c_str()) != 0) {
                 LOG_ERR("%s: unable to delete file: %s\n", __func__, path_temporary.c_str());
                 return -1;
@@ -404,7 +417,9 @@ static int common_download_file_single_online(const std::string        & url,
 
 std::pair<long, std::vector<char>> common_remote_get_content(const std::string          & url,
                                                              const common_remote_params & params) {
-    auto [cli, parts] = common_http_client(url);
+    auto _http_pair = common_http_client(url);
+    auto & cli = _http_pair.first;
+    auto & parts = _http_pair.second;
 
     httplib::Headers headers;
     for (const auto & h : params.headers) {
@@ -445,7 +460,7 @@ int common_download_file_single(const std::string & url,
         return common_download_file_single_online(url, path, bearer_token, headers);
     }
 
-    if (!std::filesystem::exists(path)) {
+    if (!file_exists_check(path)) {
         LOG_ERR("%s: required file is not available in cache (offline mode): %s\n", __func__, path.c_str());
         return -1;
     }
@@ -568,7 +583,9 @@ common_hf_file_res common_get_hf_file(const std::string & hf_repo_with_tag,
                                       bool offline,
                                       const common_header_list & custom_headers) {
     // the returned hf_repo is without tag
-    auto [hf_repo, tag] = common_download_split_repo_tag(hf_repo_with_tag);
+    auto _repo_tag = common_download_split_repo_tag(hf_repo_with_tag);
+    auto hf_repo = _repo_tag.first;
+    auto tag = _repo_tag.second;
 
     std::string url = get_model_endpoint() + "v2/" + hf_repo + "/manifests/" + tag;
 
@@ -598,7 +615,7 @@ common_hf_file_res common_get_hf_file(const std::string & hf_repo_with_tag,
         }
     }
     if (res_code == 0) {
-        if (std::filesystem::exists(cached_response_path)) {
+        if (file_exists_check(cached_response_path)) {
             LOG_WRN("trying to read manifest from cache: %s\n", cached_response_path.c_str());
             res_str = read_file(cached_response_path);
             res_code = 200;

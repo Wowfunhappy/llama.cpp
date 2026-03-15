@@ -16,7 +16,6 @@
 #include <cstddef>
 #include <cinttypes>
 #include <memory>
-#include <filesystem>
 
 // fix problem with std::min and std::max
 #if defined(_WIN32)
@@ -830,8 +829,11 @@ private:
             model_name = params_base.model.name;
         } else {
             // fallback: derive model name from file name
-            auto model_path = std::filesystem::path(params_base.model.path);
-            model_name = model_path.filename().string();
+            {
+                const std::string & mp = params_base.model.path;
+                size_t pos = mp.find_last_of("/\\");
+                model_name = (pos != std::string::npos) ? mp.substr(pos + 1) : mp;
+            }
         }
 
         model_aliases = params_base.model_alias;

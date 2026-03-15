@@ -23,7 +23,7 @@ namespace console {
     void set_display(display_type display);
     bool readline(std::string & line, bool multiline_input);
 
-    using completion_callback = std::function<std::vector<std::pair<std::string, size_t>>(std::string_view, size_t)>;
+    using completion_callback = std::function<std::vector<std::pair<std::string, size_t>>(const std::string &, size_t)>;
     void set_completion_callback(completion_callback cb);
 
     namespace spinner {

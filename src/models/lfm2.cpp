@@ -143,10 +143,10 @@ llm_build_lfm2<iswa>::llm_build_lfm2(const llama_model & model, const llm_graph_
     ggml_build_forward_expand(gf, cur);
 
     inp_hybrid_type * inp_hybrid = nullptr;
-    if constexpr (iswa) {
-        inp_hybrid = build_inp_mem_hybrid_iswa();
+    if (iswa) {
+        inp_hybrid = (inp_hybrid_type *)(void *)build_inp_mem_hybrid_iswa();
     } else {
-        inp_hybrid = build_inp_mem_hybrid();
+        inp_hybrid = (inp_hybrid_type *)(void *)build_inp_mem_hybrid();
     }
 
     ggml_tensor * inp_pos     = build_inp_pos();

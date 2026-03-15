@@ -69,8 +69,8 @@ static void build_min_max_int(int64_t min_value, int64_t max_value, std::strings
         }
         out << "}";
     };
-    std::function<void(const std::string_view &, const std::string_view &)> uniform_range =
-        [&](const std::string_view & from, const std::string_view & to) {
+    std::function<void(const std::string &, const std::string &)> uniform_range =
+        [&](const std::string & from, const std::string & to) {
             size_t i = 0;
             while (i < from.length() && i < to.length() && from[i] == to[i]) {
                 i++;

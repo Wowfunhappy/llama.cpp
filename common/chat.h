@@ -302,6 +302,6 @@ std::map<std::string, bool> common_chat_templates_get_caps(const common_chat_tem
 std::string common_chat_template_direct_apply(
     const common_chat_template & tmpl,
     const autoparser::templates_params & inputs,
-    const std::optional<json> & messages_override = std::nullopt,
-    const std::optional<json> & tools_override = std::nullopt,
-    const std::optional<json> & additional_context = std::nullopt);
+    const json * messages_override = nullptr,
+    const json * tools_override = nullptr,
+    const json * additional_context = nullptr);

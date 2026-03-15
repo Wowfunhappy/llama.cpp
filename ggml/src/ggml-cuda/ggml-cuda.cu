@@ -1974,7 +1974,7 @@ static void ggml_cuda_mul_mat_batched_cublas_impl(ggml_backend_cuda_context & ct
                                                                                   || force_compute_type.fp32);
 
     if (dst->op_params[0] == GGML_PREC_DEFAULT && !need_compute_32f) {
-        if constexpr (src0_type == GGML_TYPE_F32) {
+        if (src0_type == GGML_TYPE_F32) {
             dst_t = (char *) dst_ddf;  // Direct F32 output
         } else {
             dst_t = (char *) dst_temp.alloc(ne_dst);

@@ -1,7 +1,6 @@
 #include "regex-partial.h"
 #include "common.h"
 #include <functional>
-#include <optional>
 
 common_regex::common_regex(const std::string & pattern) :
     pattern(pattern),
@@ -124,7 +123,8 @@ std::string regex_to_reversed_partial_regex(const std::string & pattern) {
                     throw std::runtime_error("Invalid repetition range in pattern");
                 }
 
-                auto parseOptInt = [&](const std::string & s, const std::optional<int> & def = std::nullopt) -> std::optional<int> {
+                // Parse optional int: -1 means "not set"
+                auto parseOptInt = [&](const std::string & s, int def = -1) -> int {
                     if (s.empty()) {
                         return def;
                     }
@@ -132,17 +132,17 @@ std::string regex_to_reversed_partial_regex(const std::string & pattern) {
                 };
                 auto min = parseOptInt(parts[0], 0);
                 auto max = parts.size() == 1 ? min : parseOptInt(parts[1]);
-                if (min && max && *max < *min) {
+                if (min >= 0 && max >= 0 && max < min) {
                     throw std::runtime_error("Invalid repetition range in pattern");
                 }
                 // Brutal but... let's repeat at least min times, then ? for the delta between min & max (or * for unbounded)
                 auto part = sequence->back();
                 sequence->pop_back();
-                for (int i = 0; i < *min; i++) {
+                for (int i = 0; i < min; i++) {
                     sequence->push_back(part);
                 }
-                if (max) {
-                    for (int i = *min; i < *max; i++) {
+                if (max >= 0) {
+                    for (int i = min; i < max; i++) {
                         sequence->push_back(part + "?");
                     }
                 } else {

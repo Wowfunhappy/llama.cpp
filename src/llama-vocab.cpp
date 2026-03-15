@@ -248,7 +248,7 @@ private:
 template<typename T, typename Container = std::vector<T>, typename Compare = std::less<typename Container::value_type>>
 class llama_priority_queue : public std::priority_queue<T, Container, Compare> {
 public:
-    using std::priority_queue<T, Container, Compare>::priority_queue;
+    llama_priority_queue() : std::priority_queue<T, Container, Compare>() {}
 
     T pop_move() {
         T item = std::move(this->c.front());
@@ -2605,7 +2605,7 @@ void llama_vocab::impl::load(llama_model_loader & ml, const LLM_KV & kv) {
     //NOTE: Per token attributes are missing from the GGUF file.
     //TODO: Extract attributes from GGUF file.
     {
-        auto _contains_any = [] (const std::string & str, const std::vector<std::string_view> & substrs) -> bool {
+        auto _contains_any = [] (const std::string & str, const std::vector<std::string> & substrs) -> bool {
             for (const auto & substr : substrs) {
                 if (str.find(substr) != std::string::npos) {
                     return true;
@@ -2811,11 +2811,14 @@ void llama_vocab::impl::tokenizer_st_partition(std::forward_list<fragment_buffer
                     // find the first occurrence of a given special token in this fragment
                     //  passing offset argument only limit the "search area" but match coordinates
                     //  are still relative to the source full raw_text
-                    //  string_view begins at pos 0 for the same reason
-                    auto match = std::string_view(raw_text.data(), raw_text_base_offset + raw_text_base_length).find(text, raw_text_base_offset);
+                    //  use find on the raw_text and check bounds manually (C++14 compatible)
+                    auto match = raw_text.find(text, raw_text_base_offset);
 
-                    // no occurrences found, stop processing this fragment for a given special token
-                    if (match == std::string::npos) break;
+                    // no occurrences found, or found beyond the fragment boundary
+                    if (match == std::string::npos || match + text.size() > raw_text_base_offset + raw_text_base_length) {
+                        match = std::string::npos;
+                        break;
+                    }
 
 #ifdef PRETOKENIZERDEBUG
                     LLAMA_LOG_WARN("FF: (%ld %ld %ld) '%s'\n", raw_text->length(), raw_text_base_offset, raw_text_base_length, raw_text->substr(raw_text_base_offset, raw_text_base_length).c_str());

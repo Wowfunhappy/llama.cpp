@@ -55,8 +55,8 @@ struct hasher {
     static constexpr size_t seed = size_t_digits == 64 ? 0xcbf29ce484222325 : 0x811c9dc5;
     static constexpr auto block_size = sizeof(size_t); // in bytes; allowing the compiler to vectorize the computation
 
-    static_assert(size_t_digits == 64 || size_t_digits == 32);
-    static_assert(block_size == 8 || block_size == 4);
+    static_assert(size_t_digits == 64 || size_t_digits == 32, "unsupported size_t width");
+    static_assert(block_size == 8 || block_size == 4, "unsupported block size");
 
     uint8_t buffer[block_size];
     size_t idx = 0; // current index in buffer
@@ -135,7 +135,7 @@ private:
                     | (static_cast<uint32_t>(block[1]) << 8)
                     | (static_cast<uint32_t>(block[2]) << 16)
                     | (static_cast<uint32_t>(block[3]) << 24);
-        if constexpr (block_size == 8) {
+        if (block_size == 8) {
             blk = blk | (static_cast<uint64_t>(block[4]) << 32)
                       | (static_cast<uint64_t>(block[5]) << 40)
                       | (static_cast<uint64_t>(block[6]) << 48)

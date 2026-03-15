@@ -315,37 +315,37 @@ void server_http_context::stop() const {
 }
 
 static void set_headers(httplib::Response & res, const std::map<std::string, std::string> & headers) {
-    for (const auto & [key, value] : headers) {
-        res.set_header(key, value);
+    for (const auto & kv : headers) {
+        res.set_header(kv.first, kv.second);
     }
 }
 
 static std::map<std::string, std::string> get_params(const httplib::Request & req) {
     std::map<std::string, std::string> params;
-    for (const auto & [key, value] : req.params) {
-        params[key] = value;
+    for (const auto & kv : req.params) {
+        params[kv.first] = kv.second;
     }
-    for (const auto & [key, value] : req.path_params) {
-        params[key] = value;
+    for (const auto & kv : req.path_params) {
+        params[kv.first] = kv.second;
     }
     return params;
 }
 
 static std::map<std::string, std::string> get_headers(const httplib::Request & req) {
     std::map<std::string, std::string> headers;
-    for (const auto & [key, value] : req.headers) {
-        headers[key] = value;
+    for (const auto & kv : req.headers) {
+        headers[kv.first] = kv.second;
     }
     return headers;
 }
 
 static std::string build_query_string(const httplib::Request & req) {
     std::string qs;
-    for (const auto & [key, value] : req.params) {
+    for (const auto & kv : req.params) {
         if (!qs.empty()) {
             qs += '&';
         }
-        qs += httplib::encode_query_component(key) + "=" + httplib::encode_query_component(value);
+        qs += httplib::encode_query_component(kv.first) + "=" + httplib::encode_query_component(kv.second);
     }
     return qs;
 }

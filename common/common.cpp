@@ -15,7 +15,6 @@
 #include <cstdarg>
 #include <cstring>
 #include <ctime>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -45,6 +44,8 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <libgen.h>
 #endif
 
 #if defined(__linux__)
@@ -835,8 +836,13 @@ bool fs_create_directory_with_parents(const std::string & path) {
 }
 
 bool fs_is_directory(const std::string & path) {
-    std::filesystem::path dir(path);
-    return std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
+#if defined(_WIN32)
+    DWORD attrs = GetFileAttributesA(path.c_str());
+    return (attrs != INVALID_FILE_ATTRIBUTES) && (attrs & FILE_ATTRIBUTE_DIRECTORY);
+#else
+    struct stat st;
+    return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+#endif
 }
 
 std::string fs_get_cache_directory() {
@@ -899,39 +905,65 @@ std::vector<common_file_info> fs_list(const std::string & path, bool include_dir
     std::vector<common_file_info> files;
     if (path.empty()) return files;
 
-    std::filesystem::path dir(path);
-    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
+    if (!fs_is_directory(path)) {
         return files;
     }
 
-    for (const auto & entry : std::filesystem::directory_iterator(dir)) {
-        try {
-            // Only include regular files (skip directories)
-            const auto & p = entry.path();
-            if (std::filesystem::is_regular_file(p)) {
-                common_file_info info;
-                info.path   = p.string();
-                info.name   = p.filename().string();
-                info.is_dir = false;
-                try {
-                    info.size = static_cast<size_t>(std::filesystem::file_size(p));
-                } catch (const std::filesystem::filesystem_error &) {
-                    info.size = 0;
-                }
-                files.push_back(std::move(info));
-            } else if (include_directories && std::filesystem::is_directory(p)) {
-                common_file_info info;
-                info.path   = p.string();
-                info.name   = p.filename().string();
-                info.size   = 0; // Directories have no size
-                info.is_dir = true;
-                files.push_back(std::move(info));
-            }
-        } catch (const std::filesystem::filesystem_error &) {
-            // skip entries we cannot inspect
-            continue;
+#if defined(_WIN32)
+    std::string search_path = path + "\\*";
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA(search_path.c_str(), &fd);
+    if (hFind == INVALID_HANDLE_VALUE) return files;
+    do {
+        std::string name = fd.cFileName;
+        if (name == "." || name == "..") continue;
+        std::string full_path = path + "\\" + name;
+        bool is_dir = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        if (!is_dir) {
+            common_file_info info;
+            info.path   = full_path;
+            info.name   = name;
+            info.is_dir = false;
+            info.size   = static_cast<size_t>((static_cast<uint64_t>(fd.nFileSizeHigh) << 32) | fd.nFileSizeLow);
+            files.push_back(std::move(info));
+        } else if (include_directories) {
+            common_file_info info;
+            info.path   = full_path;
+            info.name   = name;
+            info.size   = 0;
+            info.is_dir = true;
+            files.push_back(std::move(info));
+        }
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+#else
+    DIR * dir = opendir(path.c_str());
+    if (!dir) return files;
+    struct dirent * entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        std::string name = entry->d_name;
+        if (name == "." || name == "..") continue;
+        std::string full_path = path + "/" + name;
+        struct stat st;
+        if (stat(full_path.c_str(), &st) != 0) continue;
+        if (S_ISREG(st.st_mode)) {
+            common_file_info info;
+            info.path   = full_path;
+            info.name   = name;
+            info.is_dir = false;
+            info.size   = static_cast<size_t>(st.st_size);
+            files.push_back(std::move(info));
+        } else if (include_directories && S_ISDIR(st.st_mode)) {
+            common_file_info info;
+            info.path   = full_path;
+            info.name   = name;
+            info.size   = 0;
+            info.is_dir = true;
+            files.push_back(std::move(info));
         }
     }
+    closedir(dir);
+#endif
 
     return files;
 }
@@ -1776,7 +1808,7 @@ bool common_prompt_batch_decode(
     const std::vector<llama_token> & tokens,
                                int & n_past,
                                int   n_batch,
-                  std::string_view   state_path,
+              const std::string &    state_path,
                               bool   save_state) {
     const int n_eval = tokens.size();
     if (n_eval == 0) {

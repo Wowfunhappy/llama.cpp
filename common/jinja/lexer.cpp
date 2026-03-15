@@ -280,7 +280,7 @@ lexer_result lexer::tokenize(const std::string & source) {
 
         // Try to match one of the tokens in the mapping table
         bool matched = false;
-        for (const auto & [seq, typ] : ordered_mapping_table) {
+        for (const auto & _st : ordered_mapping_table) { const auto & seq = _st.first; const auto & typ = _st.second;
             start_pos = pos;
             // Inside an object literal, don't treat "}}" as expression-end
             if (seq == "}}" && curly_bracket_depth > 0) {

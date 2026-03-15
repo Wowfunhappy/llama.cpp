@@ -14,7 +14,7 @@ size_t common_utf8_sequence_length(unsigned char first_byte) {
     return lookup[highbits];
 }
 
-utf8_parse_result common_parse_utf8_codepoint(std::string_view input, size_t offset) {
+utf8_parse_result common_parse_utf8_codepoint(const std::string & input, size_t offset) {
     if (offset >= input.size()) {
         return utf8_parse_result(utf8_parse_result::INCOMPLETE);
     }

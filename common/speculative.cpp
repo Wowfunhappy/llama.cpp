@@ -535,7 +535,7 @@ struct common_speculative_state_ngram_mod : public common_speculative_state {
 
     common_speculative_state_ngram_mod(enum common_speculative_type type, common_ngram_mod & mod)
         : common_speculative_state(type), mod(mod), verbose(std::getenv("LLAMA_TRACE") != nullptr) {
-        static_assert(sizeof(llama_token) == sizeof(common_ngram_mod::entry_t));
+        static_assert(sizeof(llama_token) == sizeof(common_ngram_mod::entry_t), "size mismatch");
     }
 
     void begin(const llama_tokens & prompt) override {

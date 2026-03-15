@@ -1427,7 +1427,9 @@ static void copy_tensor_async_ints(
         return;
     }
 
-    for (const auto & [seq_id, tensor] : tensor_map) {
+    for (const auto & _item : tensor_map) {
+        const auto & seq_id = _item.first;
+        const auto & tensor = _item.second;
         auto it = seq_to_row.find(seq_id);
         if (it == seq_to_row.end()) {
             continue;
@@ -1454,7 +1456,9 @@ static void copy_tensor_async_floats(
         return;
     }
 
-    for (const auto & [seq_id, tensor] : tensor_map) {
+    for (const auto & _item : tensor_map) {
+        const auto & seq_id = _item.first;
+        const auto & tensor = _item.second;
         auto it = seq_to_row.find(seq_id);
         if (it == seq_to_row.end()) {
             continue;
@@ -1485,7 +1489,9 @@ static void copy_tensor_async_candidates(
         return;
     }
 
-    for (const auto & [seq_id, tensor] : tensor_map) {
+    for (const auto & _item : tensor_map) {
+        const auto & seq_id = _item.first;
+        const auto & tensor = _item.second;
         auto it = seq_to_row.find(seq_id);
         if (it == seq_to_row.end()) {
             continue;
@@ -2625,11 +2631,15 @@ void llama_context::perf_reset() {
 
 std::map<ggml_backend_buffer_type_t, llama_memory_breakdown_data> llama_context::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, llama_memory_breakdown_data> ret;
-    for (const auto & [buft, size] : model.memory_breakdown()) {
+    for (const auto & _item : model.memory_breakdown()) {
+        const auto & buft = _item.first;
+        const auto & size = _item.second;
         ret[buft].model += size;
     }
     if (memory) {
-        for (const auto & [buft, size] : memory->memory_breakdown()) {
+        for (const auto & _item2 : memory->memory_breakdown()) {
+            const auto & buft = _item2.first;
+            const auto & size = _item2.second;
             ret[buft].context += size;
         }
     }

@@ -18,10 +18,10 @@ llm_build_llama<embed>::llm_build_llama(const llama_model & model, const llm_gra
     using inp_attn_type = std::conditional_t<embed, llm_graph_input_attn_no_cache, llm_graph_input_attn_kv>;
 
     inp_attn_type * inp_attn = nullptr;
-    if constexpr (embed) {
-        inp_attn = build_attn_inp_no_cache();
+    if (embed) {
+        inp_attn = (inp_attn_type *)(void *)build_attn_inp_no_cache();
     } else {
-        inp_attn = build_attn_inp_kv();
+        inp_attn = (inp_attn_type *)(void *)build_attn_inp_kv();
     }
 
     const float kq_scale = hparams.f_attention_scale == 0.0f ? 1.0f/sqrtf(float(n_embd_head)) : hparams.f_attention_scale;
@@ -160,7 +160,7 @@ llm_build_llama<embed>::llm_build_llama(const llama_model & model, const llm_gra
     cb(cur, "result_norm", -1);
     res->t_embd = cur;
 
-    if constexpr (!embed) {
+    if (!embed) {
         // lm_head
         cur = build_lora_mm(model.output, cur);
 

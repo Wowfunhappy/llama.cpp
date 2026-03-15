@@ -10,7 +10,6 @@
 #include <array>
 #include <atomic>
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <thread>
 #include <signal.h>
@@ -21,6 +20,12 @@
 #   define NOMINMAX
 #endif
 #include <windows.h>
+#include <io.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <limits.h>
 #endif
 
 const char * LLAMA_ASCII_LOGO = R"(
@@ -232,23 +237,100 @@ static const std::array<const std::string, 6> cmds = {
     "/regen",
 };
 
-static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std::string_view line, size_t cursor_byte_pos) {
+// Helper: get parent directory from a path string
+static std::string path_parent(const std::string & path) {
+    size_t pos = path.find_last_of("/\\");
+    if (pos == std::string::npos) {
+        return "";
+    }
+    return path.substr(0, pos);
+}
+
+// Helper: check if path is a directory
+static bool path_is_directory(const std::string & path) {
+#if defined(_WIN32)
+    DWORD attrs = GetFileAttributesA(path.c_str());
+    return (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY));
+#else
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        return false;
+    }
+    return S_ISDIR(st.st_mode);
+#endif
+}
+
+// Helper: get current working directory as string
+static std::string get_current_dir() {
+#if defined(_WIN32)
+    char buf[MAX_PATH];
+    if (GetCurrentDirectoryA(MAX_PATH, buf)) {
+        return std::string(buf);
+    }
+    return ".";
+#else
+    char buf[PATH_MAX];
+    if (getcwd(buf, sizeof(buf))) {
+        return std::string(buf);
+    }
+    return ".";
+#endif
+}
+
+// Helper: list directory entries (names only)
+static std::vector<std::string> list_directory(const std::string & dir_path) {
+    std::vector<std::string> entries;
+#if defined(_WIN32)
+    std::string search = dir_path + "\\*";
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA(search.c_str(), &fd);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            std::string name = fd.cFileName;
+            if (name != "." && name != "..") {
+                entries.push_back(dir_path + "\\" + name);
+            }
+        } while (FindNextFileA(hFind, &fd));
+        FindClose(hFind);
+    }
+#else
+    DIR * dp = opendir(dir_path.c_str());
+    if (dp) {
+        struct dirent * ep;
+        while ((ep = readdir(dp)) != nullptr) {
+            std::string name = ep->d_name;
+            if (name != "." && name != "..") {
+                std::string full = dir_path;
+                if (!full.empty() && full.back() != '/') {
+                    full += '/';
+                }
+                full += name;
+                entries.push_back(full);
+            }
+        }
+        closedir(dp);
+    }
+#endif
+    return entries;
+}
+
+static std::vector<std::pair<std::string, size_t>> auto_completion_callback(const std::string & line, size_t cursor_byte_pos) {
     std::vector<std::pair<std::string, size_t>> matches;
     std::string cmd;
 
-    if (line.length() > 1 && line[0] == '/' && !std::any_of(cmds.begin(), cmds.end(), [line](const std::string & prefix) {
+    if (line.length() > 1 && line[0] == '/' && !std::any_of(cmds.begin(), cmds.end(), [&line](const std::string & prefix) {
         return string_starts_with(line, prefix);
     })) {
         auto it = cmds.begin();
 
-        while ((it = std::find_if(it, cmds.end(), [line](const std::string & cmd_line) {
+        while ((it = std::find_if(it, cmds.end(), [&line](const std::string & cmd_line) {
             return string_starts_with(cmd_line, line);
         })) != cmds.end()) {
             matches.emplace_back(*it, (*it).length());
             ++it;
         }
     } else {
-        auto it = std::find_if(cmds.begin(), cmds.end(), [line](const std::string & prefix) {
+        auto it = std::find_if(cmds.begin(), cmds.end(), [&line](const std::string & prefix) {
             return prefix.back() == ' ' && string_starts_with(line, prefix);
         });
 
@@ -258,10 +340,10 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std:
     }
 
     if (!cmd.empty() && line.length() >= cmd.length() && cursor_byte_pos >= cmd.length()) {
-        const std::string path_prefix  = std::string(line.substr(cmd.length(), cursor_byte_pos - cmd.length()));
-        const std::string path_postfix = std::string(line.substr(cursor_byte_pos));
-        auto cur_dir = std::filesystem::current_path();
-        std::string cur_dir_str = cur_dir.string();
+        const std::string path_prefix  = line.substr(cmd.length(), cursor_byte_pos - cmd.length());
+        const std::string path_postfix = line.substr(cursor_byte_pos);
+        std::string cur_dir = get_current_dir();
+        std::string cur_dir_str = cur_dir;
         std::string expanded_prefix = path_prefix;
 
 #if !defined(_WIN32)
@@ -275,36 +357,40 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std:
 #else
         if (std::isalpha(expanded_prefix[0]) && expanded_prefix.find(':') == 1) {
 #endif
-            cur_dir = std::filesystem::path(expanded_prefix).parent_path();
+            cur_dir = path_parent(expanded_prefix);
+            if (cur_dir.empty()) {
+#if !defined(_WIN32)
+                cur_dir = "/";
+#else
+                cur_dir = expanded_prefix.substr(0, 3); // e.g. "C:\"
+#endif
+            }
             cur_dir_str = "";
         } else if (!path_prefix.empty()) {
-            cur_dir /= std::filesystem::path(path_prefix).parent_path();
+            std::string parent = path_parent(path_prefix);
+            if (!parent.empty()) {
+                if (!cur_dir.empty() && cur_dir.back() != '/' && cur_dir.back() != '\\') {
+                    cur_dir += '/';
+                }
+                cur_dir += parent;
+            }
         }
 
-        std::error_code ec;
-        for (const auto & entry : std::filesystem::directory_iterator(cur_dir, ec)) {
-            if (ec) {
-                break;
-            }
-            if (!entry.exists(ec)) {
-                ec.clear();
-                continue;
-            }
-
-            const std::string path_full = entry.path().string();
+        std::vector<std::string> dir_entries = list_directory(cur_dir);
+        for (const auto & path_full : dir_entries) {
             std::string path_entry = !cur_dir_str.empty() && string_starts_with(path_full, cur_dir_str) ? path_full.substr(cur_dir_str.length() + 1) : path_full;
 
-            if (entry.is_directory(ec)) {
-                path_entry.push_back(std::filesystem::path::preferred_separator);
+            if (path_is_directory(path_full)) {
+#if !defined(_WIN32)
+                path_entry.push_back('/');
+#else
+                path_entry.push_back('\\');
+#endif
             }
 
             if (expanded_prefix.empty() || string_starts_with(path_entry, expanded_prefix)) {
                 std::string updated_line = cmd + path_entry;
                 matches.emplace_back(updated_line + path_postfix, updated_line.length());
-            }
-
-            if (ec) {
-                ec.clear();
             }
         }
 
@@ -315,18 +401,18 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std:
 
         // Add the longest common prefix
         if (!expanded_prefix.empty() && matches.size() > 1) {
-            const std::string_view match0(matches[0].first);
-            const std::string_view match1(matches[1].first);
+            const std::string & match0 = matches[0].first;
+            const std::string & match1 = matches[1].first;
             auto it = std::mismatch(match0.begin(), match0.end(), match1.begin(), match1.end());
             size_t len = it.first - match0.begin();
 
             for (size_t i = 2; i < matches.size(); ++i) {
-                const std::string_view matchi(matches[i].first);
+                const std::string & matchi = matches[i].first;
                 auto cmp = std::mismatch(match0.begin(), match0.end(), matchi.begin(), matchi.end());
                 len = std::min(len, static_cast<size_t>(cmp.first - match0.begin()));
             }
 
-            std::string updated_line = std::string(match0.substr(0, len));
+            std::string updated_line = match0.substr(0, len);
             matches.emplace_back(updated_line + path_postfix, updated_line.length());
         }
 
@@ -366,7 +452,9 @@ int main(int argc, char ** argv) {
     atexit([]() { console::cleanup(); });
 
     console::set_display(DISPLAY_TYPE_RESET);
-    console::set_completion_callback(auto_completion_callback);
+    console::set_completion_callback([](std::string_view sv, size_t pos) {
+        return auto_completion_callback(std::string(sv.data(), sv.size()), pos);
+    });
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
     struct sigaction sigint_action;

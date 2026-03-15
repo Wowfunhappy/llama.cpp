@@ -1230,7 +1230,8 @@ struct llama_grammar * llama_grammar_init_impl(
     }
     for (size_t i = 0; i < num_trigger_patterns; i++) {
         GGML_ASSERT(trigger_patterns != nullptr);
-        auto & trigger = vec_trigger_patterns.emplace_back();
+        vec_trigger_patterns.emplace_back();
+        auto & trigger = vec_trigger_patterns.back();
         trigger.pattern = trigger_patterns[i];
         trigger.regex = std::regex(trigger.pattern);
     }
@@ -1356,8 +1357,11 @@ void llama_grammar_accept_impl(struct llama_grammar & grammar, llama_token token
                     grammar.awaiting_trigger = false;
 
                     // replay tokens that overlap with [start, end)
-                    for (const auto & [tok, tok_pos] : grammar.trigger_buffer_positions) {
-                        auto [tok_start, tok_end] = tok_pos;
+                    for (const auto & _item : grammar.trigger_buffer_positions) {
+                        const auto & tok = _item.first;
+                        const auto & tok_pos = _item.second;
+                        auto tok_start = tok_pos.first;
+                        auto tok_end = tok_pos.second;
                         if (tok_end <= start) {
                             continue;
                         }

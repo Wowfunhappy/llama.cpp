@@ -8,7 +8,6 @@
 #include <string>
 #include <cctype>
 #include <vector>
-#include <optional>
 #include <algorithm>
 
 #define FILENAME "jinja-value"
@@ -115,17 +114,21 @@ static T slice(const T & array, int64_t start, int64_t stop, int64_t step = 1) {
     return result;
 }
 
-template<typename T>
+template<typename T, typename std::enable_if<std::is_same<T, value_int>::value, int>::type = 0>
 static value empty_value_fn(const func_args &) {
-    if constexpr (std::is_same_v<T, value_int>) {
-        return mk_val<T>(0);
-    } else if constexpr (std::is_same_v<T, value_float>) {
-        return mk_val<T>(0.0);
-    } else if constexpr (std::is_same_v<T, value_bool>) {
-        return mk_val<T>(false);
-    } else {
-        return mk_val<T>();
-    }
+    return mk_val<T>(0);
+}
+template<typename T, typename std::enable_if<std::is_same<T, value_float>::value, int>::type = 0>
+static value empty_value_fn(const func_args &) {
+    return mk_val<T>(0.0);
+}
+template<typename T, typename std::enable_if<std::is_same<T, value_bool>::value, int>::type = 0>
+static value empty_value_fn(const func_args &) {
+    return mk_val<T>(false);
+}
+template<typename T, typename std::enable_if<!std::is_same<T, value_int>::value && !std::is_same<T, value_float>::value && !std::is_same<T, value_bool>::value, int>::type = 0>
+static value empty_value_fn(const func_args &) {
+    return mk_val<T>();
 }
 template<typename T>
 static value test_type_fn(const func_args & args) {
@@ -200,7 +203,7 @@ static value selectattr(const func_args & args) {
             }
             value attr_val = item->at(attribute, val_default);
             bool is_selected = attr_val->as_bool();
-            if constexpr (is_reject) is_selected = !is_selected;
+            if (is_reject) is_selected = !is_selected;
             if (is_selected) out->push_back(item);
         }
         return out;
@@ -222,7 +225,7 @@ static value selectattr(const func_args & args) {
             test_args.push_back(test_val); // extra argument
             value test_result = test_fn(test_args);
             bool is_selected = test_result->as_bool();
-            if constexpr (is_reject) is_selected = !is_selected;
+            if (is_reject) is_selected = !is_selected;
             if (is_selected) out->push_back(item);
         }
         return out;
@@ -248,7 +251,7 @@ static value selectattr(const func_args & args) {
             test_args.push_back(extra_arg); // extra argument
             value test_result = test_fn(test_args);
             bool is_selected = test_result->as_bool();
-            if constexpr (is_reject) is_selected = !is_selected;
+            if (is_reject) is_selected = !is_selected;
             if (is_selected) out->push_back(item);
         }
         return out;
@@ -1272,7 +1275,7 @@ void global_from_json(context & ctx, const nlohmann::ordered_json & json_obj, bo
 
 // recursively convert value to JSON string
 // TODO: avoid circular references
-static void value_to_json_internal(std::ostringstream & oss, const value & val, int curr_lvl, int indent, const std::string_view item_sep, const std::string_view key_sep) {
+static void value_to_json_internal(std::ostringstream & oss, const value & val, int curr_lvl, int indent, const std::string & item_sep, const std::string & key_sep) {
     auto indent_str = [indent, curr_lvl]() -> std::string {
         return (indent > 0) ? std::string(curr_lvl * indent, ' ') : "";
     };
@@ -1351,7 +1354,7 @@ static void value_to_json_internal(std::ostringstream & oss, const value & val, 
     }
 }
 
-std::string value_to_json(const value & val, int indent, const std::string_view item_sep, const std::string_view key_sep) {
+std::string value_to_json(const value & val, int indent, const std::string & item_sep, const std::string & key_sep) {
     std::ostringstream oss;
     value_to_json_internal(oss, val, 0, indent, item_sep, key_sep);
     JJ_DEBUG("value_to_json: result=%s", oss.str().c_str());

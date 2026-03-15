@@ -707,7 +707,9 @@ bool llm_graph_input_sampling::can_reuse(const llm_graph_params & params) {
         return false;
     }
 
-    for (const auto & [seq_id, sampler] : params.samplers) {
+    for (const auto & _item : params.samplers) {
+        const auto & seq_id = _item.first;
+        const auto & sampler = _item.second;
         if (samplers[seq_id] != sampler) {
             return false;
         }
@@ -775,22 +777,26 @@ void llm_graph_result::set_outputs() {
     if (t_embd_pooled != nullptr) {
         ggml_set_output(t_embd_pooled);
     }
-    for (auto & [seq_id, t] : t_sampled) {
+    for (auto & _item : t_sampled) {
+        auto & t = _item.second;
         if (t != nullptr) {
             ggml_set_output(t);
         }
     }
-    for (auto & [seq_id, t] : t_sampled_probs) {
+    for (auto & _item : t_sampled_probs) {
+        auto & t = _item.second;
         if (t != nullptr) {
             ggml_set_output(t);
         }
     }
-    for (auto & [seq_id, t] : t_sampled_logits) {
+    for (auto & _item : t_sampled_logits) {
+        auto & t = _item.second;
         if (t != nullptr) {
             ggml_set_output(t);
         }
     }
-    for (auto & [seq_id, t] : t_candidates) {
+    for (auto & _item : t_candidates) {
+        auto & t = _item.second;
         if (t != nullptr) {
             ggml_set_output(t);
         }
@@ -2649,7 +2655,9 @@ void llm_graph_context::build_sampling() const {
     // this is important in order to minimize graph reallocations
     ggml_tensor * logits_t = ggml_pad(ctx0, res->t_logits, 0, 1, 0, 0);
 
-    for (const auto & [seq_id, sampler] : samplers) {
+    for (const auto & _item : samplers) {
+        const auto & seq_id = _item.first;
+        const auto & sampler = _item.second;
         const auto it = seq_to_logit_row.find(seq_id);
 
         // inactive samplers always work on the first row
@@ -2696,8 +2704,11 @@ void llm_graph_context::build_sampling() const {
 
     // TODO: Call llama_sampler_accept_ggml after all samplers have been applied.
     /*
-    for (const auto & [seq_id, sampler] : samplers) {
-        if (auto it = res->t_sampled.find(seq_id); it != res->t_sampled.end()) {
+    for (const auto & _item : samplers) {
+        const auto & seq_id = _item.first;
+        const auto & sampler = _item.second;
+        auto it = res->t_sampled.find(seq_id);
+        if (it != res->t_sampled.end()) {
             ggml_tensor * selected_token = it->second;
             if (selected_token != nullptr) {
                 llama_sampler_accept_ggml(sampler, ctx0, gf, selected_token);

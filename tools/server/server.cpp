@@ -126,11 +126,11 @@ int main(int argc, char ** argv) {
     server_routes routes(params, ctx_server);
 
     bool is_router_server = params.model.path.empty();
-    std::optional<server_models_routes> models_routes{};
+    std::unique_ptr<server_models_routes> models_routes;
     if (is_router_server) {
         // setup server instances manager
         try {
-            models_routes.emplace(params, argc, argv);
+            models_routes.reset(new server_models_routes(params, argc, argv));
         } catch (const std::exception & e) {
             LOG_ERR("%s: failed to initialize router models: %s\n", __func__, e.what());
             return 1;
@@ -223,7 +223,7 @@ int main(int argc, char ** argv) {
 
         clean_up = [&models_routes]() {
             SRV_INF("%s: cleaning up before exit...\n", __func__);
-            if (models_routes.has_value()) {
+            if (models_routes) {
                 models_routes->models.unload_all();
             }
             llama_backend_free();

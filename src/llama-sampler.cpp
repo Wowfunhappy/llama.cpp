@@ -929,6 +929,7 @@ int llama_sampler_chain_n(const struct llama_sampler * chain) {
 // greedy
 
 struct llama_sampler_greedy : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
 };
 
 static const char * llama_sampler_greedy_name(const struct llama_sampler * smpl) {
@@ -1011,15 +1012,16 @@ static struct llama_sampler_i llama_sampler_greedy_i = {
 struct llama_sampler * llama_sampler_init_greedy() {
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_greedy_i,
-        /* .ctx   = */ new llama_sampler_greedy {
-            ("greedy"),
-        }
+        /* .ctx   = */ new llama_sampler_greedy("greedy")
     );
 }
 
 // dist
 
 struct llama_sampler_dist : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_dist(const char * name, uint32_t seed, uint32_t seed_cur, std::mt19937 rng, ggml_tensor * inp_uniform)
+        : llama_sampler_backend(name), seed(seed), seed_cur(seed_cur), rng(std::move(rng)), inp_uniform(inp_uniform) {}
     const uint32_t seed;
           uint32_t seed_cur;
 
@@ -1231,19 +1233,15 @@ struct llama_sampler * llama_sampler_init_dist(uint32_t seed) {
     auto seed_cur = get_rng_seed(seed);
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_dist_i,
-        /* .ctx   = */ new llama_sampler_dist {
-            ("dist"),
-            /* .seed        = */ seed,
-            /* .seed_cur    = */ seed_cur,
-            /* .rng         = */ std::mt19937(seed_cur),
-            /* .inp_uniform = */ nullptr,
-        }
+        /* .ctx   = */ new llama_sampler_dist("dist", seed, seed_cur, std::mt19937(seed_cur), nullptr)
     );
 }
 
 // top-k
 
 struct llama_sampler_top_k : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_top_k(const char * name, int32_t k) : llama_sampler_backend(name), k(k) {}
     const int32_t k;
 };
 
@@ -1327,16 +1325,16 @@ struct llama_sampler * llama_sampler_init_top_k(int32_t k) {
 
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_top_k_i,
-        /* .ctx   = */ new llama_sampler_top_k {
-            ("top-k"),
-            /* .k = */ k,
-        }
+        /* .ctx   = */ new llama_sampler_top_k("top-k", k)
     );
 }
 
 // top-p
 
 struct llama_sampler_top_p : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_top_p(const char * name, float p, size_t min_keep, std::vector<llama_token_data> buf_sort)
+        : llama_sampler_backend(name), p(p), min_keep(min_keep), buf_sort(std::move(buf_sort)) {}
     const float  p;
     const size_t min_keep;
 
@@ -1519,18 +1517,15 @@ struct llama_sampler * llama_sampler_init_top_p(float p, size_t min_keep) {
 
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_top_p_i,
-        /* .ctx   = */ new llama_sampler_top_p {
-            ("top-p"),
-            /* .p        = */ p,
-            /* .min_keep = */ min_keep,
-            /* .buf_sort = */ {},
-        }
+        /* .ctx   = */ new llama_sampler_top_p("top-p", p, min_keep, {})
     );
 }
 
 // min-p
 
 struct llama_sampler_min_p : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_min_p(const char * name, float p, size_t min_keep) : llama_sampler_backend(name), p(p), min_keep(min_keep) {}
     const float  p;
     const size_t min_keep;
 };
@@ -1676,11 +1671,7 @@ struct llama_sampler * llama_sampler_init_min_p(float p, size_t min_keep) {
 
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_min_p_i,
-        /* .ctx   = */ new llama_sampler_min_p {
-            ("min-p"),
-            /* .p        = */ p,
-            /* .min_keep = */ min_keep,
-        }
+        /* .ctx   = */ new llama_sampler_min_p("min-p", p, min_keep)
     );
 }
 
@@ -1796,6 +1787,8 @@ struct llama_sampler * llama_sampler_init_typical(float p, size_t min_keep) {
 // temp
 
 struct llama_sampler_temp : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_temp(const char * name, float temp) : llama_sampler_backend(name), temp(temp) {}
     const float temp;
 };
 
@@ -1890,16 +1883,16 @@ struct llama_sampler * llama_sampler_init_temp(float temp) {
 
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_temp_i,
-        /* .ctx   = */ new llama_sampler_temp {
-            ("temp"),
-            /*.temp = */ temp,
-        }
+        /* .ctx   = */ new llama_sampler_temp("temp", temp)
     );
 }
 
 // temp-ext
 
 struct llama_sampler_temp_ext : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_temp_ext(const char * name, float temp, float delta, float exponent)
+        : llama_sampler_backend(name), temp(temp), delta(delta), exponent(exponent) {}
     const float temp;
     const float delta;
     const float exponent;
@@ -2087,12 +2080,7 @@ struct llama_sampler * llama_sampler_init_temp_ext(float temp, float delta, floa
 
     auto * res = llama_sampler_init(
         /* .iface = */ &llama_sampler_temp_ext_i,
-        /* .ctx   = */ new llama_sampler_temp_ext {
-            ("temp-ext"),
-            /* .temp     = */ temp,
-            /* .delta    = */ delta,
-            /* .exponent = */ exponent,
-        }
+        /* .ctx   = */ new llama_sampler_temp_ext("temp-ext", temp, delta, exponent)
     );
 
     return res;
@@ -3310,11 +3298,11 @@ static void llama_sampler_adaptive_p_apply(struct llama_sampler * smpl, llama_to
     }
 
     // using the EMA, compute the adapted target probability for the current sampling step
-    auto target = std::clamp(ctx->target, 0.0f, 1.0f);
-    float adapted_target = std::clamp(
+    auto target = std::max(0.0f, std::min(ctx->target, 1.0f));
+    float adapted_target = std::max(0.0f, std::min(
         ctx->total_weight == 0.0f ? target : 2.0f * target - (ctx->weighted_sum / ctx->total_weight),
-        0.0f, 1.0f
-    );
+        1.0f
+    ));
 
     // adaptive probability transform
     //
@@ -3405,7 +3393,7 @@ struct llama_sampler * llama_sampler_init_adaptive_p(
     uint32_t seed
 ) {
     auto seed_cur = get_rng_seed(seed);
-    float clamped_decay = std::clamp(decay, 0.0f, 0.99f);
+    float clamped_decay = std::max(0.0f, std::min(decay, 0.99f));
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_adaptive_p_i,
         /* .ctx   = */ new llama_sampler_adaptive_p {
@@ -3426,6 +3414,11 @@ struct llama_sampler * llama_sampler_init_adaptive_p(
 // logit-bias
 
 struct llama_sampler_logit_bias : public llama_sampler_backend {
+    using llama_sampler_backend::llama_sampler_backend;
+    llama_sampler_logit_bias(const char * name, int32_t n_vocab, std::vector<llama_logit_bias> logit_bias,
+                             std::vector<llama_logit_bias> to_search, ggml_tensor * inp_logit_bias, ggml_tensor * inp_logit_idxs)
+        : llama_sampler_backend(name), n_vocab(n_vocab), logit_bias(std::move(logit_bias)),
+          to_search(std::move(to_search)), inp_logit_bias(inp_logit_bias), inp_logit_idxs(inp_logit_idxs) {}
     const int32_t n_vocab;
 
     const std::vector<llama_logit_bias> logit_bias;
@@ -3580,14 +3573,7 @@ struct llama_sampler * llama_sampler_init_logit_bias(
 
     return llama_sampler_init(
         /* .iface = */ &llama_sampler_logit_bias_i,
-        /* .ctx   = */ new llama_sampler_logit_bias {
-            ("logit-bias"),
-            /* .n_vocab        = */ n_vocab,
-            /* .logit_bias     = */ std::vector<llama_logit_bias>(logit_bias, logit_bias + n_logit_bias),
-            /* .to_search      = */ {},
-            /* .inp_logit_bias = */ nullptr,
-            /* .inp_logit_idxs = */ nullptr,
-        }
+        /* .ctx   = */ new llama_sampler_logit_bias("logit-bias", n_vocab, std::vector<llama_logit_bias>(logit_bias, logit_bias + n_logit_bias), {}, nullptr, nullptr)
     );
 }
 
