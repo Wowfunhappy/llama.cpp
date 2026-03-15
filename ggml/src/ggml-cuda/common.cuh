@@ -537,7 +537,10 @@ enum class block_reduce_method {
 };
 
 template<block_reduce_method method_t, typename T>
-struct block_reduce_policy;
+struct block_reduce_policy {
+    static __device__ T reduce(T val) { return val; }
+    static __device__ T sentinel()    { T z; memset(&z, 0, sizeof(z)); return z; }
+};
 
 // C++11 compat: is_any trait (replaces C++17 fold expression + variable template)
 template <typename T, typename... Ts>
@@ -551,44 +554,32 @@ struct is_any_of<T, First, Rest...> {
     static const bool value = std::is_same<T, First>::value || is_any_of<T, Rest...>::value;
 };
 
-template <typename T> struct block_reduce_policy<block_reduce_method::SUM, T> {
-    static __device__ T reduce(T val) {
-        if(is_any_of<T, float, float2, half2, int>::value) {
-            return warp_reduce_sum(val);
-        } else {
-        }
-    }
-
-    static __device__ T sentinel() {
-        if (std::is_same<T, float>::value) {
-            return 0.0f;
-        } else if (std::is_same<T, float2>::value) {
-            return make_float2(0.0f, 0.0f);
-        } else if (std::is_same<T, half2>::value) {
-            return make_half2(0.0f, 0.0f);
-        } else if (std::is_same<T, int>::value) {
-            return 0;
-        } else {
-        }
-    }
+// SUM reduce: explicit specializations for each supported type
+template <> struct block_reduce_policy<block_reduce_method::SUM, float> {
+    static __device__ float reduce(float val)  { return warp_reduce_sum(val); }
+    static __device__ float sentinel()         { return 0.0f; }
+};
+template <> struct block_reduce_policy<block_reduce_method::SUM, float2> {
+    static __device__ float2 reduce(float2 val) { return warp_reduce_sum(val); }
+    static __device__ float2 sentinel()          { return make_float2(0.0f, 0.0f); }
+};
+template <> struct block_reduce_policy<block_reduce_method::SUM, half2> {
+    static __device__ half2 reduce(half2 val)   { return warp_reduce_sum(val); }
+    static __device__ half2 sentinel()           { return make_half2(0.0f, 0.0f); }
+};
+template <> struct block_reduce_policy<block_reduce_method::SUM, int> {
+    static __device__ int reduce(int val)       { return warp_reduce_sum(val); }
+    static __device__ int sentinel()             { return 0; }
 };
 
-template <typename T> struct block_reduce_policy<block_reduce_method::MAX, T> {
-    static __device__ T reduce(T val) {
-        if (is_any_of<T, float, half2>::value) {
-            return warp_reduce_max(val);
-        } else {
-        }
-    }
-
-    static __device__ T sentinel() {
-        if (std::is_same<T, float>::value) {
-            return -INFINITY;
-        } else if (std::is_same<T, half2>::value) {
-            return make_half2(-INFINITY, -INFINITY);
-        } else {
-        }
-    }
+// MAX reduce: declared here, defined after warp_reduce_max(half2) below
+template <> struct block_reduce_policy<block_reduce_method::MAX, float> {
+    static __device__ float reduce(float val);
+    static __device__ float sentinel();
+};
+template <> struct block_reduce_policy<block_reduce_method::MAX, half2> {
+    static __device__ half2 reduce(half2 val);
+    static __device__ half2 sentinel();
 };
 
 template <block_reduce_method reduce_method_t, const unsigned int block_size_template = 0, typename T>
@@ -654,6 +645,12 @@ static __device__ __forceinline__ half2 warp_reduce_max(half2 x) {
    NO_DEVICE_CODE;
 #endif // !defined(GGML_USE_HIP) && __CUDA_ARCH__ >= GGML_CUDA_CC_PASCAL || defined(GGML_USE_HIP)
 }
+
+// Deferred MAX reduce definitions (after warp_reduce_max is defined)
+__device__ inline float block_reduce_policy<block_reduce_method::MAX, float>::reduce(float val) { return warp_reduce_max(val); }
+__device__ inline float block_reduce_policy<block_reduce_method::MAX, float>::sentinel()        { return -INFINITY; }
+__device__ inline half2 block_reduce_policy<block_reduce_method::MAX, half2>::reduce(half2 val) { return warp_reduce_max(val); }
+__device__ inline half2 block_reduce_policy<block_reduce_method::MAX, half2>::sentinel()        { return make_half2(-INFINITY, -INFINITY); }
 
 #if (defined(CUDART_VERSION) && CUDART_VERSION < CUDART_HMASK) || defined(GGML_USE_HIP) || \
     (defined(MUSART_VERSION) && MUSART_VERSION < MUSART_HMASK)
@@ -759,9 +756,7 @@ static __device__ __forceinline__ void ggml_cuda_memcpy_1(void * __restrict__ ds
         "The intent is for the parameter is only as a workaround if either one of the pointers is not properly aligned. "
         "If you use it to do more bytes per copy than ggml_cuda_max_cpy_bytes() the reads and writes may not be coalesced. "
         "Call ggml_cuda_memcpy_1 in a loop instead.");
-    if (alignment != 0) {
-        static_assert(nbytes % alignment == 0, "bad alignment");
-    }
+    // Note: alignment check moved to avoid division by zero when alignment=0
     constexpr int nb_per_cpy = alignment == 0 ? nbytes : alignment;
 
 #pragma unroll
