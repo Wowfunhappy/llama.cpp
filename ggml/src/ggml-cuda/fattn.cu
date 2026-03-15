@@ -454,11 +454,11 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
 
     // If there are no tensor cores available, use the generic tile kernel:
 #if CUDART_VERSION < 9000
-    // On Kepler (CUDA 7.5): always use vec kernel (tile kernel requires constexpr config)
+    // On Kepler (CUDA 7.5): use vec kernel for FA (tile kernel has runtime issues)
     if (can_use_vector_kernel) {
         return BEST_FATTN_KERNEL_VEC;
     }
-    return BEST_FATTN_KERNEL_NONE; // Fall back to non-FA path
+    return BEST_FATTN_KERNEL_NONE; // Fall back to non-FA path for unsupported configs
 #else
     if (can_use_vector_kernel) {
         if (!ggml_is_quantized(K->type) && !ggml_is_quantized(V->type)) {

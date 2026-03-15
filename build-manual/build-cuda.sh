@@ -78,7 +78,8 @@ CU_FILES=$(ls ggml/src/ggml-cuda/*.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-f16-f16.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q4_0-q4_0.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q8_0-q8_0.cu \
-           | grep -v 'fattn-tile-instance' | grep -v 'fattn-wmma')
+              ggml/src/ggml-cuda/template-instances/fattn-tile-*.cu \
+           | grep -v 'fattn-wmma')
 
 for cu_file in $CU_FILES; do
     compile_cu "$cu_file"
