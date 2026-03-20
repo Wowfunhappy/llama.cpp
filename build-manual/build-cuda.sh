@@ -206,18 +206,30 @@ compile_cpp tools/cli/cli.cpp "-I./tools/server -I./common -I./vendor"
 compile_cpp examples/simple/simple.cpp
 
 echo ""
-echo "=== Step 10: Linking ==="
+echo "=== Step 10: Compiling CUDA runtime stub ==="
+
+# The stub intercepts __cudaRegisterFatBinary etc. and forwards to the real
+# CUDA runtime via dlsym if available, or no-ops if CUDA isn't installed.
+# This lets one binary work with or without CUDA.
+$CC -O3 -c build-manual/cuda-stub.c -o ${BUILDDIR}/host_build-manual_cuda-stub_c.o
+
+echo ""
+echo "=== Step 10b: Linking ==="
 
 ALL_HOST=$(ls ${BUILDDIR}/host_*.o 2>/dev/null)
 CUDA_OBJS=$(ls ${BUILDDIR}/cuda_*.o 2>/dev/null)
+
+# Weak-link CUDA libs: binary loads them if present, ignores if absent.
+# The cuda-stub.o provides fallback symbols for static init code.
+CUDA_LINK="-L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib"
+CUDA_LINK="$CUDA_LINK -Wl,-weak-lcudart -Wl,-weak-lcublas"
 
 # llama-cli
 CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple')
 $CXX -o ${BUILDDIR}/llama-cli \
     $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
-    -L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib \
-    -lcudart -lcublas \
+    $CUDA_LINK \
     /usr/local/lib/libMacportsLegacySupport.a \
     -lpthread
 
@@ -226,12 +238,11 @@ SIMPLE_OBJS=$(echo "$ALL_HOST" | grep -v 'tools_\|common_')
 $CXX -o ${BUILDDIR}/llama-simple \
     $SIMPLE_OBJS $CUDA_OBJS \
     -framework Accelerate \
-    -L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib \
-    -lcudart -lcublas \
+    $CUDA_LINK \
     /usr/local/lib/libMacportsLegacySupport.a \
     -lpthread
 
 echo ""
 echo "=== Build complete ==="
-echo "Binaries:"
+echo "Binaries (single file, works with or without CUDA):"
 ls -la ${BUILDDIR}/llama-cli ${BUILDDIR}/llama-simple

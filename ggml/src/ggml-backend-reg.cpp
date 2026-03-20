@@ -103,7 +103,16 @@ struct ggml_backend_registry {
 
     ggml_backend_registry() {
 #ifdef GGML_USE_CUDA
+#if defined(__APPLE__)
+        // With weak linking + cuda-stub, check if real CUDA runtime is loaded
+        if (dlsym(RTLD_DEFAULT, "cudaGetDeviceCount") != nullptr) {
+            register_backend(ggml_backend_cuda_reg());
+        } else {
+            GGML_LOG_INFO("%s: CUDA not available, using CPU only\n", __func__);
+        }
+#else
         register_backend(ggml_backend_cuda_reg());
+#endif
 #endif
 #ifdef GGML_USE_METAL
         register_backend(ggml_backend_metal_reg());
