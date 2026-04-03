@@ -11,33 +11,33 @@ from typing import Any, Callable, Sequence, Mapping, Iterable, Protocol, ClassVa
 try:
     from sentencepiece import SentencePieceProcessor
 except ImportError:
-    SentencePieceProcessor = None
+    SentencePieceProcessor: Any = None
 
 try:
-    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer # pyright: ignore[reportMissingImports]
-    from mistral_common.tokens.tokenizers.tekken import Tekkenizer # pyright: ignore[reportMissingImports]
-    from mistral_common.tokens.tokenizers.utils import ( # pyright: ignore[reportMissingImports]
+    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer # type: ignore[import-not-found, ty:unresolved-import]
+    from mistral_common.tokens.tokenizers.tekken import Tekkenizer # type: ignore[import-not-found, ty:unresolved-import]
+    from mistral_common.tokens.tokenizers.utils import ( # type: ignore[import-not-found, ty:unresolved-import]
         _filter_valid_tokenizer_files,
     )
-    from mistral_common.tokens.tokenizers.sentencepiece import ( # pyright: ignore[reportMissingImports]
+    from mistral_common.tokens.tokenizers.sentencepiece import ( # type: ignore[import-not-found, ty:unresolved-import]
         SentencePieceTokenizer,
     )
 except ImportError:
     _mistral_common_installed = False
-    MistralTokenizer = None
-    Tekkenizer = None
-    SentencePieceTokenizer = None
-    _filter_valid_tokenizer_files = None
+    MistralTokenizer: Any = None
+    Tekkenizer: Any = None
+    SentencePieceTokenizer: Any = None
+    _filter_valid_tokenizer_files: Any = None
 else:
     _mistral_common_installed = True
 
 try:
-    from mistral_common.tokens.tokenizers.utils import ( # pyright: ignore[reportMissingImports]
+    from mistral_common.tokens.tokenizers.utils import ( # type: ignore[import-not-found, ty:unresolved-import]
         get_one_valid_tokenizer_file,
     )
 except ImportError:
     # We still want the conversion to work with older mistral-common versions.
-    get_one_valid_tokenizer_file = None
+    get_one_valid_tokenizer_file: Any = None
 
 
 import gguf
@@ -538,45 +538,72 @@ class LlamaHfVocab(Vocab):
 
         # Allow the tokenizer to default to slow or fast versions.
         # Explicitly set tokenizer to use local paths.
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            base_path,
-            cache_dir=base_path,
-            local_files_only=True,
-        )
-        assert self.tokenizer.is_fast  # assume tokenizer.json is used
+        self._use_raw_json = False
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                base_path,
+                cache_dir=base_path,
+                local_files_only=True,
+            )
+            assert self.tokenizer.is_fast  # assume tokenizer.json is used
+        except Exception:
+            # Fallback: parse tokenizer.json directly (for old tokenizers library)
+            logger.warning("AutoTokenizer failed, falling back to raw tokenizer.json parsing")
+            self._use_raw_json = True
+            self._raw_vocab = tokenizer_model.get('vocab', {})
+            self._raw_added = tokenizer_json.get('added_tokens', [])
+            self._raw_added_set = {t['id'] for t in self._raw_added if t.get('special', False)}
+            self.tokenizer = None
 
         # Initialize lists and dictionaries for added tokens
         self.added_tokens_list = []
         self.added_tokens_dict = dict()
         self.added_tokens_ids  = set()
 
-        # Process added tokens
-        for tok, tokidx in sorted(
-            self.tokenizer.get_added_vocab().items(), key=lambda x: x[1]
-        ):
-            # Only consider added tokens that are not in the base vocabulary
-            if tokidx >= self.tokenizer.vocab_size:
-                self.added_tokens_list.append(tok)
-                self.added_tokens_dict[tok] = tokidx
-                self.added_tokens_ids.add(tokidx)
+        if self._use_raw_json:
+            base_vocab_size = len(self._raw_vocab)
+            for added in sorted(self._raw_added, key=lambda x: x['id']):
+                if added['id'] >= base_vocab_size:
+                    self.added_tokens_list.append(added['content'])
+                    self.added_tokens_dict[added['content']] = added['id']
+                    self.added_tokens_ids.add(added['id'])
+            self.specials = {
+                t['content']: t['id'] for t in self._raw_added if t.get('special', False)
+            }
+            self.special_ids = set(self.specials.values())
+            self.vocab_size_base = base_vocab_size
+            self.vocab_size      = self.vocab_size_base + len(self.added_tokens_list)
+        else:
+            # Process added tokens
+            for tok, tokidx in sorted(
+                self.tokenizer.get_added_vocab().items(), key=lambda x: x[1]
+            ):
+                # Only consider added tokens that are not in the base vocabulary
+                if tokidx >= self.tokenizer.vocab_size:
+                    self.added_tokens_list.append(tok)
+                    self.added_tokens_dict[tok] = tokidx
+                    self.added_tokens_ids.add(tokidx)
 
-        # Store special tokens and their IDs
-        self.specials = {
-            tok: self.tokenizer.get_vocab()[tok]
-            for tok in self.tokenizer.all_special_tokens
-        }
-        self.special_ids = set(self.tokenizer.all_special_ids)
+            # Store special tokens and their IDs
+            self.specials = {
+                tok: self.tokenizer.get_vocab()[tok]
+                for tok in self.tokenizer.all_special_tokens
+            }
+            self.special_ids = set(self.tokenizer.all_special_ids)
 
-        # Set vocabulary sizes
-        self.vocab_size_base = self.tokenizer.vocab_size
-        self.vocab_size      = self.vocab_size_base + len(self.added_tokens_list)
+            # Set vocabulary sizes
+            self.vocab_size_base = self.tokenizer.vocab_size
+            self.vocab_size      = self.vocab_size_base + len(self.added_tokens_list)
 
         self.fname_tokenizer = fname_tokenizer
 
     def hf_tokens(self) -> Iterable[tuple[bytes, float, gguf.TokenType]]:
-        reverse_vocab = {
-            id: encoded_tok for encoded_tok, id in self.tokenizer.get_vocab().items()
-        }
+        if self._use_raw_json:
+            reverse_vocab = {v: k for k, v in self._raw_vocab.items()}
+        else:
+            reverse_vocab = {
+                id: encoded_tok for encoded_tok, id in self.tokenizer.get_vocab().items()
+            }
 
         for token_id in range(self.vocab_size_base):
             # Skip processing added tokens here
@@ -703,7 +730,7 @@ class MistralVocab(Vocab):
 
             tokenizer_file_path = base_path / tokenizer_file
 
-        self.tokenizer = MistralTokenizer.from_file(
+        self.tokenizer: Any = MistralTokenizer.from_file(
             tokenizer_file_path
         ).instruct_tokenizer.tokenizer
         self.tokenizer_type = (

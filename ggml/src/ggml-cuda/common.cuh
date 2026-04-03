@@ -339,21 +339,20 @@ static bool blackwell_mma_available(const int cc) {
 #else
 #define GGML_CUDA_PHYSICAL_WARP_SIZE 32
 #endif
-static constexpr __device__ int ggml_cuda_get_physical_warp_size() {
+static __device__ int ggml_cuda_get_physical_warp_size() {
     return GGML_CUDA_PHYSICAL_WARP_SIZE;
 }
 
 // Maximum number of bytes that can be copied in a single instruction.
-static constexpr __device__ int ggml_cuda_get_max_cpy_bytes() {
 #ifdef GGML_USE_HIP
-    return 16;
+#define GGML_CUDA_MAX_CPY_BYTES 16
+#elif __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
+#define GGML_CUDA_MAX_CPY_BYTES 16
 #else
-#if __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
-    return 16;
-#else
-    return 8;
-#endif // __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
-#endif // GGML_USE_HIP
+#define GGML_CUDA_MAX_CPY_BYTES 8
+#endif
+static __device__ int ggml_cuda_get_max_cpy_bytes() {
+    return GGML_CUDA_MAX_CPY_BYTES;
 }
 
 
@@ -451,7 +450,7 @@ static __device__ __forceinline__ half2 warp_reduce_sum(half2 a) {
 
 template<int width = WARP_SIZE>
 static __device__ __forceinline__ int warp_reduce_all(int x) {
-    if (width == ggml_cuda_get_physical_warp_size()) {
+    if (width == GGML_CUDA_PHYSICAL_WARP_SIZE) {
         return __all_sync(0xffffffff, x);
     } else {
 #pragma unroll
@@ -464,7 +463,7 @@ static __device__ __forceinline__ int warp_reduce_all(int x) {
 
 template<int width = WARP_SIZE>
 static __device__ __forceinline__ int warp_reduce_any(int x) {
-    if (width == ggml_cuda_get_physical_warp_size()) {
+    if (width == GGML_CUDA_PHYSICAL_WARP_SIZE) {
         return __any_sync(0xffffffff, x);
     } else {
 #pragma unroll
@@ -751,7 +750,7 @@ static __device__ __forceinline__ void ggml_cuda_mad(half2 & acc, const half2 v,
 template <int nbytes, int alignment = 0>
 static __device__ __forceinline__ void ggml_cuda_memcpy_1(void * __restrict__ dst, const void * __restrict__ src) {
     static_assert(
-        nbytes <= ggml_cuda_get_max_cpy_bytes() || alignment == 0,
+        nbytes <= GGML_CUDA_MAX_CPY_BYTES || alignment == 0,
         "You are misusing the alignment parameter for ggml_cuda_memcpy_1. "
         "The intent is for the parameter is only as a workaround if either one of the pointers is not properly aligned. "
         "If you use it to do more bytes per copy than ggml_cuda_max_cpy_bytes() the reads and writes may not be coalesced. "
@@ -794,6 +793,35 @@ static __device__ __forceinline__ float ggml_cuda_e8m0_to_fp32(uint8_t x) {
     memcpy(&result, &bits, sizeof(float));
     return result;
 #endif // CUDART_VERSION >= 12050
+}
+
+static __device__ __forceinline__ float ggml_cuda_ue4m3_to_fp32(uint8_t x) {
+#if defined(GGML_USE_HIP) && defined(CDNA3) && defined(FP8_AVAILABLE) && HIP_VERSION >= 60200000
+    // ROCm does not support fp8 in software on devices with fp8 hardware,
+    // but CDNA3 supports only e4m3_fnuz (no inf).
+    const uint32_t bits = x * (x != 0x7F && x != 0xFF); // Convert NaN to 0.0f to match CPU implementation.
+    const __hip_fp8_e4m3_fnuz xf = *reinterpret_cast<const __hip_fp8_e4m3_fnuz *>(&bits);
+    return static_cast<float>(xf) / 2;
+#else
+#if defined(FP8_AVAILABLE) && !defined(GGML_USE_HIP)
+    const uint32_t bits = x * (x != 0x7F && x != 0xFF); // Convert NaN to 0.0f to match CPU implementation.
+    const __nv_fp8_e4m3 xf = *reinterpret_cast<const __nv_fp8_e4m3 *>(&bits);
+    return static_cast<float>(xf) / 2;
+#else
+    if (x == 0 || (x == 0x7F && x != 0xFF)) { // Convert NaN to 0.0f
+        return 0.0f;
+    }
+    const int exp = (x >> 3) & 0xF;
+    const int man = x & 0x7;
+    float raw;
+    if (exp == 0) {
+        raw = ldexpf((float) man, -9);
+    } else {
+        raw = ldexpf(1.0f + (float) man / 8.0f, exp - 7);
+    }
+    return static_cast<float>(raw / 2);
+#endif // defined(FP8_AVAILABLE) && !defined(GGML_USE_HIP)
+#endif // defined(GGML_USE_HIP) && defined(CDNA3) && defined(FP8_AVAILABLE) && HIP_VERSION >= 60200000
 }
 
 __device__ __forceinline__ uint8_t ggml_cuda_float_to_fp4_e2m1(float x, float e) {
@@ -926,6 +954,13 @@ struct ggml_cuda_type_traits<GGML_TYPE_MXFP4> {
     static constexpr int qk = QK_MXFP4;
     static constexpr int qr = QR_MXFP4;
     static constexpr int qi = QI_MXFP4;
+};
+
+template<>
+struct ggml_cuda_type_traits<GGML_TYPE_NVFP4> {
+    static constexpr int qk = QK_NVFP4;
+    static constexpr int qr = QR_NVFP4;
+    static constexpr int qi = QI_NVFP4;
 };
 
 template<>

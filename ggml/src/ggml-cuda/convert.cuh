@@ -61,6 +61,20 @@ template<> __device__ inline int32_t ggml_cuda_cast<int32_t, float>(float x)    
 template<> __device__ inline int32_t ggml_cuda_cast<int32_t, __half>(__half x)            { return (int32_t)__half2float(x); }
 template<> __device__ inline int32_t ggml_cuda_cast<int32_t, nv_bfloat16>(nv_bfloat16 x) { return (int32_t)__bfloat162float(x); }
 
+// float2 identity
+template<> __device__ inline float2 ggml_cuda_cast<float2, float2>(float2 x)              { return x; }
+
 // float2 -> half2/bf162
 template<> __device__ inline half2       ggml_cuda_cast<half2, float2>(float2 x)          { return __float22half2_rn(x); }
 template<> __device__ inline nv_bfloat162 ggml_cuda_cast<nv_bfloat162, float2>(float2 x)  { return __floats2bfloat162_rn(x.x, x.y); }
+
+// bf162 -> float2
+template<> __device__ inline float2 ggml_cuda_cast<float2, nv_bfloat162>(nv_bfloat162 x)  {
+    return make_float2(__bfloat162float(x.x), __bfloat162float(x.y));
+}
+
+// half2 identity
+template<> __device__ inline half2 ggml_cuda_cast<half2, half2>(half2 x)                  { return x; }
+
+// nv_bfloat162 identity
+template<> __device__ inline nv_bfloat162 ggml_cuda_cast<nv_bfloat162, nv_bfloat162>(nv_bfloat162 x) { return x; }

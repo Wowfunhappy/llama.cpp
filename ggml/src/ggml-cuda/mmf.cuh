@@ -25,12 +25,13 @@ static __forceinline__ int mmf_get_padding(int cc) {
     }
 }
 
-static constexpr __device__ int mmf_get_padding() {
 #if defined(AMD_MFMA_AVAILABLE)
-    return 2;
+#define MMF_PADDING 2
 #else
-    return 4;
-#endif // defined(AMD_MFMA_AVAILABLE)
+#define MMF_PADDING 4
+#endif
+static __device__ int mmf_get_padding() {
+    return MMF_PADDING;
 }
 
 struct mmf_ids_data {
@@ -46,7 +47,7 @@ void ggml_cuda_mul_mat_f(ggml_backend_cuda_context & ctx, const ggml_tensor * sr
 bool ggml_cuda_should_use_mmf(enum ggml_type type, int cc, int warp_size, const int64_t * scr0_ne, const size_t * src0_nb, const int src1_ncols, bool mul_mat_id);
 
 template <typename T, int rows_per_block, int cols_per_block, int nwarps, bool has_ids>
-__launch_bounds__(ggml_cuda_get_physical_warp_size()*nwarps, 1)
+__launch_bounds__(GGML_CUDA_PHYSICAL_WARP_SIZE*nwarps, 1)
 static __global__ void mul_mat_f(
         const T * __restrict__ x, const float * __restrict__ y, const int32_t * __restrict__ ids, float * __restrict__ dst,
         const int ncols, const int ncols_dst_total, const int nchannels_dst, const int stride_row, const int stride_col_y, const int stride_col_dst,
@@ -83,8 +84,8 @@ static __global__ void mul_mat_f(
         return;
     }
 
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
-    constexpr int tile_k_padded = warp_size + mmf_get_padding();
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
+    const int tile_k_padded = warp_size + MMF_PADDING;
     constexpr int ntA = rows_per_block / tile_A::I;
     constexpr int ntB = (cols_per_block + tile_B::I - 1) / tile_B::I;
 
@@ -295,7 +296,7 @@ static __global__ void mul_mat_f(
 
 //This kernel is for larger batch sizes of mul_mat_id
 template <typename T, int rows_per_block, int cols_per_block, int nwarps>
-__launch_bounds__(ggml_cuda_get_physical_warp_size()*nwarps, 1)
+__launch_bounds__(GGML_CUDA_PHYSICAL_WARP_SIZE*nwarps, 1)
 static __global__ void mul_mat_f_ids(
         const T * __restrict__ x, const float * __restrict__ y,
         const int32_t * __restrict__ ids_src_compact, const int32_t * __restrict__ ids_dst_compact,
@@ -335,8 +336,8 @@ static __global__ void mul_mat_f_ids(
     }
 
 
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
-    constexpr int tile_k_padded = warp_size + mmf_get_padding();
+    const int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
+    const int tile_k_padded = warp_size + MMF_PADDING;
     constexpr int ntA = rows_per_block / tile_A::I;
     constexpr int ntB = (cols_per_block + tile_B::I - 1) / tile_B::I;
 

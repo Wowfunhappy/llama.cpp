@@ -159,6 +159,7 @@ echo "=== Step 7: Compiling common library ==="
 COMMON_INCLUDES="-I./common -I./vendor -I./tools/server"
 
 compile_cpp build-manual/build-info.cpp "$COMMON_INCLUDES"
+compile_cpp build-manual/hf-cache-stub.cpp "$COMMON_INCLUDES"
 
 for src in \
     arg.cpp chat-auto-parser-generator.cpp chat-auto-parser-helpers.cpp \
@@ -180,7 +181,7 @@ echo ""
 echo "=== Step 8a: Compiling mtmd library ==="
 
 MTMD_INCLUDES="-I./tools/mtmd -I./tools/mtmd/models -I./common -I./vendor"
-for src in clip.cpp mtmd.cpp mtmd-audio.cpp mtmd-helper.cpp; do
+for src in clip.cpp mtmd.cpp mtmd-audio.cpp mtmd-helper.cpp mtmd-image.cpp; do
     compile_cpp "tools/mtmd/${src}" "$MTMD_INCLUDES"
 done
 for src in $(ls tools/mtmd/models/*.cpp); do
@@ -197,12 +198,16 @@ for src in \
     server-models.cpp server-queue.cpp server-task.cpp; do
     compile_cpp "tools/server/${src}" "$SERVER_INCLUDES"
 done
-# server.cpp has its own main() - compiled separately, not linked into llama-cli
+# server.cpp has its own main() - compiled separately for llama-server
+compile_cpp tools/server/server.cpp "$SERVER_INCLUDES"
+compile_cpp build-manual/server-tools-stub.cpp "$SERVER_INCLUDES"
+compile_cpp vendor/cpp-httplib/httplib.cpp "-I./vendor"
 
 echo ""
 echo "=== Step 9: Compiling llama-cli ==="
 
 compile_cpp tools/cli/cli.cpp "-I./tools/server -I./common -I./vendor"
+compile_cpp tools/completion/completion.cpp
 compile_cpp examples/simple/simple.cpp
 
 echo ""
@@ -225,7 +230,7 @@ CUDA_LINK="-L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib"
 CUDA_LINK="$CUDA_LINK -Wl,-weak-lcudart -Wl,-weak-lcublas"
 
 # llama-cli
-CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple')
+CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_completion_completion\|tools_server_server_cpp')
 $CXX -o ${BUILDDIR}/llama-cli \
     $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
@@ -234,9 +239,27 @@ $CXX -o ${BUILDDIR}/llama-cli \
     -lpthread
 
 # llama-simple
-SIMPLE_OBJS=$(echo "$ALL_HOST" | grep -v 'tools_\|common_')
+SIMPLE_OBJS=$(echo "$ALL_HOST" | grep -v 'tools_\|common_\|build-manual_\|vendor_')
 $CXX -o ${BUILDDIR}/llama-simple \
     $SIMPLE_OBJS $CUDA_OBJS \
+    -framework Accelerate \
+    $CUDA_LINK \
+    /usr/local/lib/libMacportsLegacySupport.a \
+    -lpthread
+
+# llama-server
+SERVER_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_completion_completion')
+$CXX -o ${BUILDDIR}/llama-server \
+    $SERVER_OBJS $CUDA_OBJS \
+    -framework Accelerate \
+    $CUDA_LINK \
+    /usr/local/lib/libMacportsLegacySupport.a \
+    -lpthread
+
+# llama-completion
+COMPLETION_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_server_server_cpp')
+$CXX -o ${BUILDDIR}/llama-completion \
+    $COMPLETION_OBJS $CUDA_OBJS \
     -framework Accelerate \
     $CUDA_LINK \
     /usr/local/lib/libMacportsLegacySupport.a \
@@ -245,4 +268,4 @@ $CXX -o ${BUILDDIR}/llama-simple \
 echo ""
 echo "=== Build complete ==="
 echo "Binaries (single file, works with or without CUDA):"
-ls -la ${BUILDDIR}/llama-cli ${BUILDDIR}/llama-simple
+ls -la ${BUILDDIR}/llama-cli ${BUILDDIR}/llama-simple ${BUILDDIR}/llama-server ${BUILDDIR}/llama-completion

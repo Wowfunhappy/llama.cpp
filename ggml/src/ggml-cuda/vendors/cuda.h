@@ -12,9 +12,10 @@
 #include "cuda_bf16.h"
 #endif
 
-#if CUDART_VERSION >= 12050
+#if CUDART_VERSION >= 11080
 #include <cuda_fp8.h>
-#endif // CUDART_VERSION >= 12050
+#define FP8_AVAILABLE
+#endif // CUDART_VERSION >= 11080
 
 #if CUDART_VERSION >= 12080
 #include <cuda_fp4.h>

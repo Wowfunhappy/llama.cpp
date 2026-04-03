@@ -37,7 +37,7 @@ static __global__ void mul_mat_vec_f(
     const int sample_x    = fastdiv((uint32_t) sample_dst, sample_ratio);
     const int sample_y    = sample_dst;
 
-    constexpr int warp_size   = ggml_cuda_get_physical_warp_size();
+    const int warp_size   = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     x   += int64_t(sample_x)  *stride_sample_x   + channel_x  *stride_channel_x   + row*stride_row;
     y   += int64_t(sample_y)  *stride_sample_y   + channel_y  *stride_channel_y;

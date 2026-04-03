@@ -451,7 +451,7 @@ struct value_array_t : public value_t {
     }
 protected:
     virtual bool equivalent(const value_t & other) const override {
-        return typeid(*this) == typeid(other) && is_hashable() && other.is_hashable() && std::equal(val_arr.begin(), val_arr.end(), other.val_arr.begin(), value_equivalence());
+        return typeid(*this) == typeid(other) && is_hashable() && other.is_hashable() && std::equal(val_arr.begin(), val_arr.end(), other.val_arr.begin(), other.val_arr.end(), value_equivalence());
     }
 };
 using value_array = std::shared_ptr<value_array_t>;
@@ -509,9 +509,7 @@ struct value_object_t : public value_t {
         for (size_t i = 0; i < val_obj.size(); i++) {
             if (i > 0) ss << ", ";
             auto & _kv = val_obj.at(i);
-            auto & key = _kv.first;
-            auto & val = _kv.second;
-            ss << value_to_string_repr(key) << ": " << value_to_string_repr(val);
+            ss << value_to_string_repr(_kv.first) << ": " << value_to_string_repr(_kv.second);
         }
         ss << "}";
         return ss.str();
@@ -577,13 +575,11 @@ struct value_object_t : public value_t {
     }
     virtual hasher unique_hash() const noexcept override {
         auto hash = hasher(typeid(*this));
-        for (const auto & _kv_pair : val_obj) {
-            const auto & key = _kv_pair.first;
-            const auto & val = _kv_pair.second;
+        for (const auto & _kv : val_obj) {
             // must use digest to prevent problems from "concatenation" property of hasher
             // for ex. hash of key="ab", value="c" should be different from key="a", value="bc"
-            const size_t key_hash = key->unique_hash().digest();
-            const size_t val_hash = val->unique_hash().digest();
+            const size_t key_hash = _kv.first->unique_hash().digest();
+            const size_t val_hash = _kv.second->unique_hash().digest();
             hash.update(&key_hash, sizeof(key_hash));
             hash.update(&val_hash, sizeof(val_hash));
         }
@@ -591,7 +587,7 @@ struct value_object_t : public value_t {
     }
 protected:
     virtual bool equivalent(const value_t & other) const override {
-        return typeid(*this) == typeid(other) && is_hashable() && other.is_hashable() && std::equal(val_obj.begin(), val_obj.end(), other.val_obj.begin(), value_equivalence());
+        return typeid(*this) == typeid(other) && is_hashable() && other.is_hashable() && std::equal(val_obj.begin(), val_obj.end(), other.val_obj.begin(), other.val_obj.end(), value_equivalence());
     }
 };
 using value_object = std::shared_ptr<value_object_t>;

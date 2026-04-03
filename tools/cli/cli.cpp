@@ -105,12 +105,12 @@ struct cli_context {
             }
 
             // reasoning budget sampler
-            if (reasoning_budget >= 0 && !chat_params.thinking_end_tag.empty()) {
+            if (!chat_params.thinking_end_tag.empty()) {
                 const llama_vocab * vocab = llama_model_get_vocab(
                     llama_get_model(ctx_server.get_llama_context()));
 
                 task.params.sampling.reasoning_budget_tokens = reasoning_budget;
-                task.params.sampling.reasoning_budget_activate_immediately = chat_params.thinking_forced_open;
+                task.params.sampling.generation_prompt = chat_params.generation_prompt;
 
                 if (!chat_params.thinking_start_tag.empty()) {
                     task.params.sampling.reasoning_budget_start =
@@ -220,7 +220,8 @@ struct cli_context {
         inputs.parallel_tool_calls   = false;
         inputs.add_generation_prompt = true;
         inputs.reasoning_format      = COMMON_REASONING_FORMAT_DEEPSEEK;
-        inputs.enable_thinking       = common_chat_templates_support_enable_thinking(chat_params.tmpls.get());
+        inputs.force_pure_content    = chat_params.force_pure_content;
+        inputs.enable_thinking       = chat_params.enable_thinking ? common_chat_templates_support_enable_thinking(chat_params.tmpls.get()) : false;
 
         // Apply chat template to the list of messages
         return common_chat_templates_apply(chat_params.tmpls.get(), inputs);
@@ -228,10 +229,11 @@ struct cli_context {
 };
 
 // TODO?: Make this reusable, enums, docs
-static const std::array<const std::string, 6> cmds = {
+static const std::array<const std::string, 7> cmds = {
     "/audio ",
     "/clear",
     "/exit",
+    "/glob ",
     "/image ",
     "/read ",
     "/regen",
@@ -339,9 +341,9 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(cons
         }
     }
 
-    if (!cmd.empty() && line.length() >= cmd.length() && cursor_byte_pos >= cmd.length()) {
-        const std::string path_prefix  = line.substr(cmd.length(), cursor_byte_pos - cmd.length());
-        const std::string path_postfix = line.substr(cursor_byte_pos);
+    if (!cmd.empty() && cmd != "/glob " && line.length() >= cmd.length() && cursor_byte_pos >= cmd.length()) {
+        const std::string path_prefix  = std::string(line.substr(cmd.length(), cursor_byte_pos - cmd.length()));
+        const std::string path_postfix = std::string(line.substr(cursor_byte_pos));
         std::string cur_dir = get_current_dir();
         std::string cur_dir_str = cur_dir;
         std::string expanded_prefix = path_prefix;
@@ -424,10 +426,14 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(cons
     return matches;
 }
 
+static constexpr size_t FILE_GLOB_MAX_RESULTS = 100;
+
 int main(int argc, char ** argv) {
     common_params params;
 
     params.verbosity = LOG_LEVEL_ERROR; // by default, less verbose logs
+
+    common_init();
 
     if (!common_params_parse(argc, argv, params, LLAMA_EXAMPLE_CLI)) {
         return 1;
@@ -438,8 +444,6 @@ int main(int argc, char ** argv) {
         console::error("--no-conversation is not supported by llama-cli\n");
         console::error("please use llama-completion instead\n");
     }
-
-    common_init();
 
     // struct that contains llama context and inference
     cli_context ctx_cli(params);
@@ -517,7 +521,8 @@ int main(int argc, char ** argv) {
     console::log("  /exit or Ctrl+C     stop or exit\n");
     console::log("  /regen              regenerate the last response\n");
     console::log("  /clear              clear the chat history\n");
-    console::log("  /read               add a text file\n");
+    console::log("  /read <file>        add a text file\n");
+    console::log("  /glob <pattern>     add text files using globbing pattern\n");
     if (inf.has_inp_image) {
         console::log("  /image <file>       add an image file\n");
     }
@@ -528,6 +533,27 @@ int main(int argc, char ** argv) {
 
     // interactive loop
     std::string cur_msg;
+
+    auto add_text_file = [&](const std::string & fname) -> bool {
+        std::string marker = ctx_cli.load_input_file(fname, false);
+        if (marker.empty()) {
+            console::error("file does not exist or cannot be opened: '%s'\n", fname.c_str());
+            return false;
+        }
+        if (inf.fim_sep_token != LLAMA_TOKEN_NULL) {
+            cur_msg += common_token_to_piece(ctx_cli.ctx_server.get_llama_context(), inf.fim_sep_token, true);
+            cur_msg += fname;
+            cur_msg.push_back('\n');
+        } else {
+            cur_msg += "--- File: ";
+            cur_msg += fname;
+            cur_msg += " ---\n";
+        }
+        cur_msg += marker;
+        console::log("Loaded text from '%s'\n", fname.c_str());
+        return true;
+    };
+
     while (true) {
         std::string buffer;
         console::set_display(DISPLAY_TYPE_USER_INPUT);
@@ -612,22 +638,11 @@ int main(int argc, char ** argv) {
             continue;
         } else if (string_starts_with(buffer, "/read ")) {
             std::string fname = string_strip(buffer.substr(6));
-            std::string marker = ctx_cli.load_input_file(fname, false);
-            if (marker.empty()) {
-                console::error("file does not exist or cannot be opened: '%s'\n", fname.c_str());
-                continue;
-            }
-            if (inf.fim_sep_token != LLAMA_TOKEN_NULL) {
-                cur_msg += common_token_to_piece(ctx_cli.ctx_server.get_llama_context(), inf.fim_sep_token, true);
-                cur_msg += fname;
-                cur_msg.push_back('\n');
-            } else {
-                cur_msg += "--- File: ";
-                cur_msg += fname;
-                cur_msg += " ---\n";
-            }
-            cur_msg += marker;
-            console::log("Loaded text from '%s'\n", fname.c_str());
+            add_text_file(fname);
+            continue;
+        } else if (string_starts_with(buffer, "/glob ")) {
+            // /glob requires std::filesystem (C++17), not available on this platform
+            console::error("/glob command is not supported on this build\n");
             continue;
         } else {
             // not a command

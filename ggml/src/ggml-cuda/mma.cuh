@@ -729,7 +729,7 @@ namespace ggml_cuda_mma {
         // All wmma layout has contiguous data when i-major.
         if (is_i_major(dl)) {
             // the data must be aligned to 16 bytes when bigger than ggml_cuda_get_max_cpy_bytes()
-            constexpr int aligned_copy_bytes = ggml_cuda_get_max_cpy_bytes();
+            const int aligned_copy_bytes = GGML_CUDA_MAX_CPY_BYTES;
             if (sizeof(t.x) > aligned_copy_bytes) {
                 static_assert(sizeof(t.x) % aligned_copy_bytes == 0, "bad type size");
                 constexpr int aligned_copy_count = sizeof(t.x)/aligned_copy_bytes;

@@ -232,6 +232,20 @@ void common_chat_peg_mapper::from_ast(const common_peg_ast_arena &    arena,
         has_pending_tool_call = false;
         pending_tool_call = common_chat_tool_call();
     }
+
+    // Discard whitespace-only reasoning content (e.g. from <think></think> prefill)
+    if (!result.reasoning_content.empty()) {
+        bool all_whitespace = true;
+        for (char c : result.reasoning_content) {
+            if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
+                all_whitespace = false;
+                break;
+            }
+        }
+        if (all_whitespace) {
+            result.reasoning_content.clear();
+        }
+    }
 }
 
 void common_chat_peg_mapper::map(const common_peg_ast_node & node) {
@@ -792,6 +806,16 @@ common_peg_parser common_chat_peg_builder::build_json_tools_flat_keys(
     }
 
     return tool_choices;
+}
+
+common_peg_parser common_chat_peg_builder::prefix(const std::string & s, const std::string & delimiter) {
+    if (s.empty()) {
+        return eps();
+    }
+    if (delimiter.empty()) {
+        return literal(s);
+    }
+    return literal(s.substr(0, s.rfind(delimiter)));
 }
 
 common_peg_parser common_chat_peg_builder::standard_json_tools(
