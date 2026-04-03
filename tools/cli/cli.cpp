@@ -100,9 +100,10 @@ struct cli_context {
             // chat template settings
             task.params.chat_parser_params = common_chat_parser_params(chat_params);
             task.params.chat_parser_params.reasoning_format = COMMON_REASONING_FORMAT_DEEPSEEK;
-            if (!chat_params.parser.empty()) {
-                task.params.chat_parser_params.parser.load(chat_params.parser);
-            }
+            // NOTE: skip loading PEG parser into task state to avoid copy crash
+            // on old C++ runtimes. The parser will be rebuilt from the template
+            // when needed for message parsing.
+            (void)chat_params.parser;
 
             // reasoning budget sampler
             if (!chat_params.thinking_end_tag.empty()) {

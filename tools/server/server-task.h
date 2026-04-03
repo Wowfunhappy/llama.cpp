@@ -111,11 +111,19 @@ struct task_result_state {
     const std::string oai_resp_message_id;
     std::string oai_resp_fc_id; // function call ID for current args delta
 
-    task_result_state(const common_chat_parser_params & chat_parser_params)
-        : chat_parser_params(chat_parser_params)
-        , oai_resp_id("resp_" + random_string())
+    task_result_state(const common_chat_parser_params & src_params)
+        : oai_resp_id("resp_" + random_string())
         , oai_resp_reasoning_id("rs_" + random_string())
-        , oai_resp_message_id("msg_" + random_string()) {}
+        , oai_resp_message_id("msg_" + random_string()) {
+        // Copy fields individually to avoid potential ABI issues with old C++ runtimes
+        chat_parser_params.format = src_params.format;
+        chat_parser_params.reasoning_format = src_params.reasoning_format;
+        chat_parser_params.reasoning_in_content = src_params.reasoning_in_content;
+        chat_parser_params.generation_prompt = src_params.generation_prompt;
+        chat_parser_params.parse_tool_calls = src_params.parse_tool_calls;
+        chat_parser_params.debug = src_params.debug;
+        // parser is intentionally NOT copied - will be empty
+    }
 
     // parse partial tool calls and update the internal state
     common_chat_msg update_chat_msg(

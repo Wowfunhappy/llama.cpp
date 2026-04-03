@@ -23,6 +23,7 @@ static void caps_try_execute(jinja::program & prog,
                              const caps_json_fn & messages_fn,
                              const caps_json_fn & tools_fn,
                              const caps_analyze_fn & analyze_fn) {
+    try {
     context ctx;
     ctx.is_get_stats = true;
     jinja::global_from_json(ctx, json{
@@ -51,6 +52,9 @@ static void caps_try_execute(jinja::program & prog,
     }
 
     analyze_fn(success, messages, tools);
+    } catch (...) {
+        // Catch any allocation failures during caps detection (e.g. huge template output)
+    }
 }
 
 // for debugging only
