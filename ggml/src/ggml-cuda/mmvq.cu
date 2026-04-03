@@ -796,6 +796,12 @@ static void mul_mat_vec_q_switch_ncols_dst(
 
             bool use_small_k = should_use_small_k(c_ncols_dst);
 
+            // Disable small_k on Kepler (sm_35) - causes illegal memory access
+            // with small K dimensions (e.g. Gemma 4 per-layer embeddings, K=256)
+            if (cc < GGML_CUDA_CC_VOLTA) {
+                use_small_k = false;
+            }
+
             if (use_small_k) {
                 std::pair<dim3, dim3> dims = calc_launch_params<type>(c_ncols_dst, nrows_x, nchannels_dst,
                                                                         nsamples_dst, warp_size, table_id, true);
