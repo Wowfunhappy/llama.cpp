@@ -23,7 +23,8 @@ void llama_model_lfm2::load_arch_hparams(llama_model_loader & ml) {
         default:    type = LLM_TYPE_UNKNOWN;
     }
 
-    if (const auto is_swa = ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa, false); is_swa && hparams.n_swa > 0) {
+    const auto is_swa = ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa, false);
+    if (is_swa && hparams.n_swa > 0) {
         hparams.swa_type = LLAMA_SWA_TYPE_STANDARD;
         for (uint32_t il = 0; il < hparams.n_layer(); ++il) {
             hparams.is_swa_impl[il] = !hparams.is_recr_impl[il];

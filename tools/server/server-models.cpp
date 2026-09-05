@@ -2325,7 +2325,9 @@ void server_models_routes::init_routes() {
             cli.set_write_timeout(0, STREAM_LOOKUP_TIMEOUT_MS * 1000);
             auto resp = cli.Delete(child_path.c_str());
             (void) resp; // the child logs its own miss when the session is unknown there
-        } else if (auto tracked = models.conv_models.lookup(conv_id); tracked.has_value()) {
+        } else {
+            auto tracked = models.conv_models.lookup(conv_id);
+            if (tracked.has_value()) {
             // the entry exists but its model is still loading: the forget below erases it,
             // which cancels the request parked in proxy_post before the generation starts
             SRV_INF("router stop for conv_id=%s while model name=%s is loading, cancelling the pending request\n",

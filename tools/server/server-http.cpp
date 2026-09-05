@@ -332,7 +332,8 @@ bool server_http_context::init(const common_params & params) {
         // register static assets routes
         if (!params.public_path.empty()) {
             // Set the base directory for serving static files
-            if (const auto is_found = srv->set_mount_point(params.api_prefix + "/", params.public_path); !is_found) {
+            const auto is_found = srv->set_mount_point(params.api_prefix + "/", params.public_path);
+            if (!is_found) {
                 SRV_ERR("static assets path not found: %s\n", params.public_path.c_str());
                 return false;
             }

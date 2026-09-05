@@ -168,7 +168,8 @@ static void compute_statistics(std::vector<tensor_statistics> & tstats, const st
     float entropy = 0;
     if (act_total > 0) {
         for (const auto act : activations) {
-            if (const float p = act / act_total; p > 0) {
+            const float p = act / act_total;
+            if (p > 0) {
                 entropy -= p * std::log2(p);
             }
         }
@@ -177,7 +178,8 @@ static void compute_statistics(std::vector<tensor_statistics> & tstats, const st
     int z_score = 0;
     if (act_dev > 0.0f) {
         for (const auto act : activations) {
-            if (const float p = (act - act_mean) / act_dev; p > 1) {
+            const float p = (act - act_mean) / act_dev;
+            if (p > 1) {
                 z_score++;
             }
         }
@@ -200,7 +202,8 @@ static void compute_statistics(std::vector<tensor_statistics> & tstats, const st
 static void compute_cossim(std::vector<tensor_statistics> & tstats) {
     static const std::regex pattern(R"(blk\.(\d+)\.)");
     for (auto & ts : tstats) {
-        if (std::smatch match; std::regex_search(ts.tensor, match, pattern)) {
+        std::smatch match;
+        if (std::regex_search(ts.tensor, match, pattern)) {
             const int blk = std::stoi(match[1]);
             std::string tname(ts.tensor);
             tname.replace(match.position(1), match.length(1), std::to_string(blk-1));

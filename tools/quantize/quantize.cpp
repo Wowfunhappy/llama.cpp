@@ -329,7 +329,8 @@ static bool parse_tensor_type(const char * data, std::vector<tensor_type_option>
         printf("\n%s: missing tensor name\n\n", __func__);
         return false;
     }
-    if (const size_t qt_len = strlen(sep); qt_len == 1) {
+    const size_t qt_len = strlen(sep);
+    if (qt_len == 1) {
         printf("\n%s: missing quantization type\n\n", __func__);
         return false;
     }
@@ -621,7 +622,8 @@ int llama_quantize(int argc, char ** argv) {
     }
 
     if (!params.dry_run) {
-        if (std::error_code ec; std::filesystem::equivalent(fname_inp, fname_out, ec)) {
+        std::error_code ec;
+        if (std::filesystem::equivalent(fname_inp, fname_out, ec)) {
             fprintf(stderr, "%s: error: input and output files are the same: '%s'\n", __func__, fname_inp.c_str());
             return 1;
         }

@@ -40,6 +40,24 @@
 #include <string>
 #include <vector>
 
+// std::gcd and std::lcm are C++17
+static int64_t llama_gcd(int64_t a, int64_t b) {
+    while (b != 0) {
+        const int64_t t = b;
+        b = a % b;
+        a = t;
+    }
+    return a < 0 ? -a : a;
+}
+
+static int64_t llama_lcm(int64_t a, int64_t b) {
+    if (a == 0 || b == 0) {
+        return 0;
+    }
+    const int64_t r = (a / llama_gcd(a, b)) * b;
+    return r < 0 ? -r : r;
+}
+
 static llama_model * llama_model_mapping(llm_arch arch, const llama_model_params & params) {
     switch (arch) {
         case LLM_ARCH_CLIP:
@@ -671,8 +689,8 @@ struct ggml_backend_meta_split_state llama_meta_device_get_split_state(const str
         if (hparams.is_recr(il)) {
             // linear attention
             const int64_t head_dim        = hparams.ssm_d_state;
-            const int64_t blck_size_perf  = std::lcm(blck_size, 128);
-            const int64_t granularity_qkv = std::lcm(blck_size_perf, head_dim);
+            const int64_t blck_size_perf  = llama_lcm(blck_size, 128);
+            const int64_t granularity_qkv = llama_lcm(blck_size_perf, head_dim);
             if (std::regex_match(tensor_name, pattern_qkv_weight) || std::regex_match(tensor_name, pattern_attn_gate_weight) ||
                     std::regex_match(tensor_name, pattern_ssm_conv1d) || std::regex_match(tensor_name, pattern_ssm_out_weight)) {
                 return std::vector<int64_t>(segments.size(), granularity_qkv);
@@ -701,7 +719,7 @@ struct ggml_backend_meta_split_state llama_meta_device_get_split_state(const str
                 blck_size_perf *= 2;
             }
 
-            const int64_t granularity_q    = std::lcm(n_embd_q, blck_size_perf);
+            const int64_t granularity_q    = llama_lcm(n_embd_q, blck_size_perf);
             const int64_t granularity_head = granularity_q / hparams.n_embd_head_k(il); // for tensors with one value per head
             if (std::regex_match(tensor_name, pattern_attn_sinks)) {
                 GGML_ASSERT(segments.size() == 1);
@@ -734,7 +752,7 @@ struct ggml_backend_meta_split_state llama_meta_device_get_split_state(const str
                 // some models have Q gate tensors, for those cases the granularity needs to be doubled:
                 if (ud->model->arch == LLM_ARCH_QWEN3NEXT || ud->model->arch == LLM_ARCH_QWEN35 || ud->model->arch == LLM_ARCH_QWEN35MOE ||
                         ud->model->arch == LLM_ARCH_QWEN4EXP) {
-                    return {std::lcm(2*n_embd_q, blck_size_perf)};
+                    return {llama_lcm(2*n_embd_q, blck_size_perf)};
                 }
                 return {granularity_q};
             }
@@ -771,7 +789,7 @@ struct ggml_backend_meta_split_state llama_meta_device_get_split_state(const str
                 std::regex_match(tensor_name, pattern_ffn_up_shexp_weight) ||
                 std::regex_match(tensor_name, pattern_ffn_gate_shexp_weight) ||
                 std::regex_match(tensor_name, pattern_ffn_down_shexp_weight)) {
-            const int64_t blck_size_perf = std::lcm(blck_size, 128);
+            const int64_t blck_size_perf = llama_lcm(blck_size, 128);
             GGML_ASSERT(segments.size() == 1);
             return {blck_size_perf};
         }
@@ -2016,7 +2034,8 @@ void llama_model::print_info() const {
                            hparams.n_layer_all).c_str());
         }
         // MRoPE (Multi-axis Rotary Position Embedding) sections
-        if (const auto & s = hparams.rope_sections; s[0] || s[1] || s[2] || s[3]) {
+        const auto & s = hparams.rope_sections;
+        if (s[0] || s[1] || s[2] || s[3]) {
             LLAMA_LOG_INFO("%s: mrope sections        = [%d, %d, %d, %d]\n", __func__, s[0], s[1], s[2], s[3]);
         }
         if (!classifier_labels.empty()) {
@@ -3018,13 +3037,15 @@ llama_rope_type llama_model_rope_type(const llama_model * model) {
         case LLM_ARCH_MELLUM:
             return LLAMA_ROPE_TYPE_NEOX;
 
-        case LLM_ARCH_DFLASH:
+        case LLM_ARCH_DFLASH: {
             // drafts for M-RoPE targets carry rope sections and follow the target's temporal dim
-            if (const auto & s = model->hparams.rope_sections; s[0] || s[1] || s[2] || s[3]) {
+            const auto & s = model->hparams.rope_sections;
+            if (s[0] || s[1] || s[2] || s[3]) {
                 return LLAMA_ROPE_TYPE_MROPE;
             }
             // DSV4 DSpark drafters use DeepSeek-V4's normal RoPE; legacy DFlash backbones are NeoX
             return model->hparams.dsv4_hc_mult > 0 ? LLAMA_ROPE_TYPE_NORM : LLAMA_ROPE_TYPE_NEOX;
+        }
 
         case LLM_ARCH_QWEN2VL:
         case LLM_ARCH_PADDLEOCR:

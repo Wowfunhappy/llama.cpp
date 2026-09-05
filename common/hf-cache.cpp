@@ -44,7 +44,8 @@ static fs::path get_cache_directory() {
             {HOME_DIR,                fs::path(".cache") / "huggingface" / "hub"}
         };
         for (const auto & entry : entries) {
-            if (auto * p = std::getenv(entry.var); p && *p) {
+            auto * p = std::getenv(entry.var);
+            if (p && *p) {
                 fs::path base(p);
                 return entry.path.empty() ? base : base / entry.path;
             }

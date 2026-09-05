@@ -140,10 +140,12 @@ public:
     void on_start(const common_download_progress & p) override {
         filename = p.url;
 
-        if (auto pos = filename.rfind('/'); pos != std::string::npos) {
+        auto pos = filename.rfind('/');
+        if (pos != std::string::npos) {
             filename = filename.substr(pos + 1);
         }
-        if (auto pos = filename.find('?'); pos != std::string::npos) {
+        auto pos = filename.find('?');
+        if (pos != std::string::npos) {
             filename = filename.substr(0, pos);
         }
         for (size_t i = 0; i < filename.size(); ++i) {
@@ -670,7 +672,8 @@ static bool gguf_filename_is_model(const std::string & filepath) {
     }
 
     std::string filename = filepath;
-    if (auto pos = filename.rfind('/'); pos != std::string::npos) {
+    auto pos = filename.rfind('/');
+    if (pos != std::string::npos) {
         filename = filename.substr(pos + 1);
     }
 
