@@ -152,7 +152,10 @@ llama_model_gemma3n::graph::graph(const llama_model & model, const llm_graph_par
 
         // self-attention
         if (hparams.has_kv(il)) {
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            auto _qcur = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             Qcur = build_norm(Qcur, model.layers[il].attn_q_norm, NULL, LLM_NORM_RMS, il);
             Kcur = build_norm(Kcur, model.layers[il].attn_k_norm, NULL, LLM_NORM_RMS, il);

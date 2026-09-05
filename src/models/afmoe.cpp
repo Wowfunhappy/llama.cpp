@@ -147,8 +147,11 @@ llama_model_afmoe::graph::graph(const llama_model & model, const llm_graph_param
         {
             ggml_tensor * attn_inp = cur;  // save input for gate computation
 
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur,
+            auto _qcur = build_qkv(model.layers[il], cur,
                     n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             // compute gate from input
             ggml_tensor * gate = build_lora_mm(model.layers[il].wqkv_gate, attn_inp);

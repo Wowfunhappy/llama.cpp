@@ -205,8 +205,11 @@ ggml_tensor * llama_model_granite_swa::graph::build_attention_layer(
     const int64_t                        n_embd_head,
     const int                            il) {
 
-    auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur,
+    auto _qcur = build_qkv(model.layers[il], cur,
             n_embd_head, hparams.n_head(il), hparams.n_head_kv(il), il);
+    ggml_tensor * Qcur = _qcur.q;
+    ggml_tensor * Kcur = _qcur.k;
+    ggml_tensor * Vcur = _qcur.v;
 
     const bool use_rope = hparams.has_rope(il);
     if (use_rope) {

@@ -114,8 +114,11 @@ llama_model_mellum::graph<iswa>::graph(const llama_model & model, const llm_grap
         // self_attention
         {
             // compute Q and K and RoPE them
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur,
+            auto _qcur = build_qkv(model.layers[il], cur,
                     n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             Qcur = build_norm(Qcur, model.layers[il].attn_q_norm, nullptr, LLM_NORM_RMS, il);
             cb(Qcur, "Qcur_normed", il);

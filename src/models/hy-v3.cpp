@@ -130,7 +130,10 @@ llama_model_hy_v3::graph::graph(const llama_model & model, const llm_graph_param
         {
             ggml_tensor * rope_factors = model.get_rope_factors(cparams, il);
 
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            auto _qcur = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             Qcur = build_norm(Qcur, model.layers[il].attn_q_norm, nullptr, LLM_NORM_RMS, il);
             Kcur = build_norm(Kcur, model.layers[il].attn_k_norm, nullptr, LLM_NORM_RMS, il);
@@ -296,7 +299,10 @@ llama_model_hy_v3::graph_mtp::graph_mtp(const llama_model & model, const llm_gra
     {
         ggml_tensor * rope_factors = model.get_rope_factors(cparams, il);
 
-        auto [Qcur, Kcur, Vcur] = build_qkv(layer, cur, n_embd_head, n_head, n_head_kv, il);
+        auto _qcur = build_qkv(layer, cur, n_embd_head, n_head, n_head_kv, il);
+        ggml_tensor * Qcur = _qcur.q;
+        ggml_tensor * Kcur = _qcur.k;
+        ggml_tensor * Vcur = _qcur.v;
 
         Qcur = build_norm(Qcur, layer.attn_q_norm, nullptr, LLM_NORM_RMS, il);
         Kcur = build_norm(Kcur, layer.attn_k_norm, nullptr, LLM_NORM_RMS, il);

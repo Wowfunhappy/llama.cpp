@@ -2399,7 +2399,10 @@ static std::string build_multipart_body(
 
     std::ostringstream body;
 
-    for (const auto & [key, value] : form_fields.items()) {
+    for (const auto & _key_value : form_fields.items()) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         if (value.is_array()) {
             for (const auto & item : value) {
                 body << "--" << boundary << "\r\n";

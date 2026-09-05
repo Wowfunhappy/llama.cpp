@@ -101,7 +101,10 @@ std::map<std::string, bool> caps::to_map() const {
 std::string caps::to_string() const {
     std::ostringstream ss;
     ss << "Caps(\n";
-    for (const auto & [key, value] : to_map()) {
+    for (const auto & _key_value : to_map()) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         ss << "  " << key << "=" << (value ? "true" : "false") << "\n";
     }
     ss << ")";

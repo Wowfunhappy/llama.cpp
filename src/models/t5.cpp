@@ -153,7 +153,10 @@ llama_model_t5::graph<false>::graph(const llama_model & model, const llm_graph_p
 
         // self-attention
         {
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            auto _qcur = build_qkv(model.layers[il], cur, n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             ggml_tensor * attn_rel_b = model.layers[il].attn_rel_b ? model.layers[il].attn_rel_b : model.layers[0].attn_rel_b;
             ggml_tensor * kq_b = build_pos_bias(pos_bucket_dec, attn_rel_b);

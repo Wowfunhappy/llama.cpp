@@ -143,7 +143,10 @@ std::vector<server_mcp_server_config> server_mcp_server_config::parse_cursor_for
         return result;
     }
 
-    for (const auto & [name, cfg] : j.at("mcpServers").items()) {
+    for (const auto & _name_cfg : j.at("mcpServers").items()) {
+        const auto & name = _name_cfg.first;
+        const auto & cfg = _name_cfg.second;
+        (void) name; (void) cfg;
         server_mcp_server_config sc;
         sc.name = name;
         sc.command = cfg.value("command", std::string());
@@ -156,7 +159,10 @@ std::vector<server_mcp_server_config> server_mcp_server_config::parse_cursor_for
             }
         }
         if (cfg.contains("env") && cfg.at("env").is_object()) {
-            for (const auto & [k, v] : cfg.at("env").items()) {
+            for (const auto & _k_v : cfg.at("env").items()) {
+                const auto & k = _k_v.first;
+                const auto & v = _k_v.second;
+                (void) k; (void) v;
                 sc.env[k] = v.get<std::string>();
             }
         }

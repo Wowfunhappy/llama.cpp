@@ -71,8 +71,11 @@ llama_model_baichuan::graph::graph(const llama_model & model, const llm_graph_pa
 
         // self-attention
         {
-            auto [Qcur, Kcur, Vcur] = build_qkv(model.layers[il], cur,
+            auto _qcur = build_qkv(model.layers[il], cur,
                     n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             switch (model.type) {
                 case LLM_TYPE_7B:

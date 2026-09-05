@@ -133,8 +133,11 @@ llama_model_lfm2::graph<iswa>::graph(const llama_model & model, const llm_graph_
         const auto n_embd_head = hparams.n_embd_head_v();
         const auto n_head_kv   = hparams.n_head_kv(il);
 
-        auto [q, k, v] = build_qkv(model.layers[il], cur,
+        auto _q = build_qkv(model.layers[il], cur,
                 n_embd_head, n_head, n_head_kv, il);
+        ggml_tensor * q = _q.q;
+        ggml_tensor * k = _q.k;
+        ggml_tensor * v = _q.v;
 
         // qk norm
         q = build_norm(q, model.layers[il].attn_q_norm, NULL, LLM_NORM_RMS, il);

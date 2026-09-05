@@ -183,8 +183,11 @@ llama_model_cohere2moe::graph::graph(const llama_model & model, const llm_graph_
         {
             const auto & layer = model.layers[il];
 
-            auto [Qcur, Kcur, Vcur] = build_qkv(layer, cur,
+            auto _qcur = build_qkv(layer, cur,
                     n_embd_head, n_head, n_head_kv, il);
+            ggml_tensor * Qcur = _qcur.q;
+            ggml_tensor * Kcur = _qcur.k;
+            ggml_tensor * Vcur = _qcur.v;
 
             if (is_swa || force_rope) {
                 ggml_tensor * rope_factors = model.get_rope_factors(cparams, il);
@@ -360,7 +363,10 @@ llama_model_cohere2moe::graph_mtp::graph_mtp(const llama_model & model, const ll
     cb(cur, "mtp_attn_norm", il);
     ggml_tensor * ffn_inp = cur;
 
-    auto [Qcur, Kcur, Vcur] = build_qkv(layer, cur, n_embd_head, n_head, n_head_kv, il);
+    auto _qcur = build_qkv(layer, cur, n_embd_head, n_head, n_head_kv, il);
+    ggml_tensor * Qcur = _qcur.q;
+    ggml_tensor * Kcur = _qcur.k;
+    ggml_tensor * Vcur = _qcur.v;
     ggml_tensor * rope_factors = model.get_rope_factors(cparams, il);
     Qcur = ggml_rope_ext(
             ctx0, Qcur, inp_pos, rope_factors,

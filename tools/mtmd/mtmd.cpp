@@ -2714,7 +2714,10 @@ std::map<ggml_backend_dev_t, size_t> mtmd_get_memory_usage(const char * mmproj_f
         mtmd_log_set(saved_log_callback, saved_log_user_data); // restore log callback
         std::map<ggml_backend_dev_t, size_t> total_mem;
         auto merge = [&](const struct clip_ctx * c) {
-            for (auto & [dev, size] : clip_get_mem_usage(c)) {
+            for (auto & _dev_size : clip_get_mem_usage(c)) {
+                auto & dev = _dev_size.first;
+                auto & size = _dev_size.second;
+                (void) dev; (void) size;
                 total_mem[dev] += size;
             }
         };

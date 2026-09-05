@@ -922,7 +922,10 @@ static void foreach_parameter(const json &                                      
     if (params.contains("required") && params.at("required").is_array()) {
         required = params.at("required").get<std::set<std::string>>();
     }
-    for (const auto & [name, prop] : props.items()) {
+    for (const auto & _name_prop : props.items()) {
+        const auto & name = _name_prop.first;
+        const auto & prop = _name_prop.second;
+        (void) name; (void) prop;
         bool is_required = (required.find(name) != required.end());
         fn(name, prop, is_required);
     }
@@ -950,13 +953,19 @@ static std::string common_chat_template_direct_apply_impl(
     }
     if (inputs.extra_context.is_object()) {
         // TODO: do we need to merge, or replacing is fine?
-        for (const auto & [k, v] : inputs.extra_context.items()) {
+        for (const auto & _k_v : inputs.extra_context.items()) {
+            const auto & k = _k_v.first;
+            const auto & v = _k_v.second;
+            (void) k; (void) v;
             inp[k] = v;
         }
     }
     if (additional_context.has_value()) {
         // TODO: merge properly instead of overwriting (matching old behavior)
-        for (const auto & [k, v] : additional_context->items()) {
+        for (const auto & _k_v : additional_context->items()) {
+            const auto & k = _k_v.first;
+            const auto & v = _k_v.second;
+            (void) k; (void) v;
             inp[k] = v;
         }
     }
@@ -2253,7 +2262,10 @@ static common_chat_params common_chat_params_init_deepseek_v3_2(const common_cha
 
                 std::vector<common_peg_parser> required_parsers;
                 std::vector<common_peg_parser> optional_parsers;
-                for (const auto & [param_name, param_schema] : props.items()) {
+                for (const auto & _param_name_param_schema : props.items()) {
+                    const auto & param_name = _param_name_param_schema.first;
+                    const auto & param_schema = _param_name_param_schema.second;
+                    (void) param_name; (void) param_schema;
                     bool is_required = required.find(param_name) != required.end();
                     bool is_string   = schema_info.resolves_to_string(param_schema);
 
@@ -2872,7 +2884,10 @@ static common_chat_params common_chat_params_init_minimax_m3(const common_chat_t
 
                 std::vector<common_peg_parser> required_elements;
                 std::vector<common_peg_parser> optional_elements;
-                for (const auto & [key, key_schema] : props.items()) {
+                for (const auto & _key_key_schema : props.items()) {
+                    const auto & key = _key_key_schema.first;
+                    const auto & key_schema = _key_key_schema.second;
+                    (void) key; (void) key_schema;
                     auto element = element_of(key, key_schema, rule_prefix + "-" + key);
                     if (required.find(key) != required.end()) {
                         required_elements.push_back(element);
@@ -3258,7 +3273,10 @@ static common_chat_params common_chat_params_init_minicpm5(const common_chat_tem
                     schema_info.resolve_refs(params);
 
                     auto arg_choice = p.choice();
-                    for (const auto & [prop_name, prop_schema] : params.at("properties").items()) {
+                    for (const auto & _prop_name_prop_schema : params.at("properties").items()) {
+                        const auto & prop_name = _prop_name_prop_schema.first;
+                        const auto & prop_schema = _prop_name_prop_schema.second;
+                        (void) prop_name; (void) prop_schema;
                         auto value_parser = p.eps();
                         if (schema_info.resolves_to_string(prop_schema)) {
                             value_parser = string_value;
@@ -3404,7 +3422,10 @@ static common_chat_params common_chat_params_init_muse_glimmer(const common_chat
                     schema_info.resolve_refs(params);
 
                     auto arg_choice = p.choice();
-                    for (const auto & [prop_name, prop_schema] : params.at("properties").items()) {
+                    for (const auto & _prop_name_prop_schema : params.at("properties").items()) {
+                        const auto & prop_name = _prop_name_prop_schema.first;
+                        const auto & prop_schema = _prop_name_prop_schema.second;
+                        (void) prop_name; (void) prop_schema;
                         auto value_parser = p.eps();
                         if (schema_info.resolves_to_string(prop_schema)) {
                             value_parser = string_value;

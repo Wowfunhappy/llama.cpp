@@ -3373,11 +3373,17 @@ void llama_context::perf_reset() {
 
 llama_memory_breakdown llama_context::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, llama_memory_breakdown_data> ret;
-    for (const auto & [buft, size] : model.memory_breakdown()) {
+    for (const auto & _buft_size : model.memory_breakdown()) {
+        const auto & buft = _buft_size.first;
+        const auto & size = _buft_size.second;
+        (void) buft; (void) size;
         ret[buft].model += size;
     }
     if (memory) {
-        for (const auto & [buft, size] : memory->memory_breakdown()) {
+        for (const auto & _buft_size : memory->memory_breakdown()) {
+            const auto & buft = _buft_size.first;
+            const auto & size = _buft_size.second;
+            (void) buft; (void) size;
             ret[buft].context += size;
         }
     }

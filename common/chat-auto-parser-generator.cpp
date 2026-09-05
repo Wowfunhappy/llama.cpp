@@ -399,7 +399,10 @@ common_peg_parser analyze_tools::build_tool_parser_tag_tagged(parser_build_conte
         // Build parser for each argument, separating required and optional
         std::vector<common_peg_parser> required_parsers;
         std::vector<common_peg_parser> optional_parsers;
-        for (const auto & [param_name, param_schema] : properties.items()) {
+        for (const auto & _param_name_param_schema : properties.items()) {
+            const auto & param_name = _param_name_param_schema.first;
+            const auto & param_schema = _param_name_param_schema.second;
+            (void) param_name; (void) param_schema;
             bool is_required = required.find(param_name) != required.end();
 
             auto arg =
