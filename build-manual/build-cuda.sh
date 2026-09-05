@@ -18,7 +18,7 @@ COMPAT="-include ./build-manual/compat-macos109.h"
 COMMON_FLAGS="-O3 -DNDEBUG -DGGML_USE_CPU -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE -DGGML_USE_CUDA -DJSON_HAS_CPP_11 -DSTBI_NO_THREAD_LOCALS"
 COMMON_FLAGS="$COMMON_FLAGS -mavx2 -mfma -mf16c -mbmi -mbmi2 -msse4.2 -mpopcnt"
 COMMON_FLAGS="$COMMON_FLAGS $COMPAT"
-COMMON_FLAGS="$COMMON_FLAGS -DGGML_VERSION='\"0.9.7-manual\"' -DGGML_COMMIT='\"manual\"'"
+# GGML_VERSION and GGML_COMMIT come from build-manual/ggml-version.h
 CFLAGS="-std=c11 $COMMON_FLAGS"
 CXXFLAGS="-std=c++1y $COMMON_FLAGS"
 INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./src"

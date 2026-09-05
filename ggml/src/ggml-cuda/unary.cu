@@ -65,12 +65,12 @@ __device__ __forceinline__ float op_sqr(float x) {
     return x * x;
 }
 
-static __device__ __forceinline__ float op_relu_sqr(float x) {
+__device__ __forceinline__ float op_relu_sqr(float x) {
     const float r = fmaxf(x, 0.0f);
     return r * r;
 }
 
-static __device__ __forceinline__ float op_sqrt(float x) {
+__device__ __forceinline__ float op_sqrt(float x) {
     return sqrtf(x);
 }
 

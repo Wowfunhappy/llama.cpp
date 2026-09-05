@@ -14,6 +14,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <cerrno>
 #include <system_error>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -81,6 +82,15 @@ inline path current_path() {
     return path(".");
 }
 
+inline path current_path(std::error_code & ec) {
+    char buf[4096];
+    if (getcwd(buf, sizeof(buf))) {
+        return path(buf);
+    }
+    ec = std::error_code(errno, std::generic_category());
+    return path(".");
+}
+
 enum class directory_options { none = 0, skip_permission_denied = 1 };
 
 struct directory_entry {
@@ -121,6 +131,13 @@ public:
         : dir_(opendir(p.c_str())), base_(p.native()), done_(false) {
         advance();
     }
+    directory_iterator(const fs::path & p, directory_options, std::error_code & ec)
+        : dir_(opendir(p.c_str())), base_(p.native()), done_(false) {
+        if (!dir_) {
+            ec = std::error_code(errno, std::generic_category());
+        }
+        advance();
+    }
     ~directory_iterator() { if (dir_) closedir(dir_); }
 
     // Copy: only valid for sentinel (end) iterators
@@ -138,6 +155,7 @@ public:
 
     const directory_entry & operator*() const { return current_; }
     directory_iterator & operator++() { advance(); return *this; }
+    directory_iterator & increment(std::error_code & /*ec*/) { advance(); return *this; }
     bool operator!=(const directory_iterator & other) const { return done_ != other.done_; }
 
     // For range-based for
