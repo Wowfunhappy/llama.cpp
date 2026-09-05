@@ -1216,11 +1216,13 @@ struct mtmd_tokenizer {
                     if (res == 0) {
                         // OK, append the returned chunk; lazy part is not yet added
                         if (out_bm) {
-                            auto & ptr = bm_from_lazy.emplace_back(out_bm); // remember to free it later
+                            bm_from_lazy.emplace_back(out_bm); // remember to free it later
+                            auto & ptr = bm_from_lazy.back();
                             expanded.push_back({"", ptr.ptr.get()});
                             LOG_DBG("%s: lazy callback returned bitmap with dimensions %d x %d\n", __func__, out_bm->nx, out_bm->ny);
                         } else if (out_str) {
-                            auto & ptr = text_from_lazy.emplace_back(out_str); // remember to free it later
+                            text_from_lazy.emplace_back(out_str); // remember to free it later
+                            auto & ptr = text_from_lazy.back();
                             expanded.push_back({ptr, nullptr, parse_special});
                             LOG_DBG("%s: lazy callback returned text: %s\n", __func__, out_str);
                         }
@@ -2731,6 +2733,6 @@ std::map<ggml_backend_dev_t, size_t> mtmd_get_memory_usage(const char * mmproj_f
     } catch (const std::exception & e) {
         mtmd_log_set(saved_log_callback, saved_log_user_data); // restore log callback
         LOG_ERR("%s: error: %s\n", __func__, e.what());
-        return {};
+        return std::map<ggml_backend_dev_t, size_t>();
     }
 }

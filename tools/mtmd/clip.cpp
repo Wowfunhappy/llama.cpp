@@ -2189,7 +2189,8 @@ struct clip_model_loader {
                 throw std::runtime_error(string_format("%s: failed to find tensor %s\n", __func__, name.c_str()));
             }
 
-            if (const auto type = gguf_get_tensor_type(ctx_gguf.get(), idx); type != GGML_TYPE_F32) {
+            const auto type = gguf_get_tensor_type(ctx_gguf.get(), idx);
+            if (type != GGML_TYPE_F32) {
                 throw std::runtime_error(string_format("%s: %s must be %s, was %s\n", __func__,
                             name.c_str(), ggml_type_name(GGML_TYPE_F32), ggml_type_name(type)));
             }
@@ -5225,7 +5226,7 @@ bool clip_encode(struct clip_ctx * ctx, struct clip_encode_params * params) {
                     //   144 for 768 tile views
                     const int   num_image_tokens = num_patches / 16;
                     const int   seq_len          = num_image_tokens * 2;
-                    std::vector qwen2_mask(static_cast<size_t>(seq_len) * seq_len, 0.0f);
+                    std::vector<float> qwen2_mask(static_cast<size_t>(seq_len) * seq_len, 0.0f);
 
                     // attention mask layout
                     //  +--------------+---------------+

@@ -56,8 +56,12 @@ struct mtmd_helper_logger {
     }
 };
 
-// inline, so all TUs including this header share one instance
-inline mtmd_helper_logger g_logger;
+// function-local static, so all TUs including this header share one instance
+inline mtmd_helper_logger & mtmd_helper_get_logger() {
+    static mtmd_helper_logger logger;
+    return logger;
+}
+#define g_logger mtmd_helper_get_logger()
 
 #define LOG_DBG(...) g_logger.log(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
 #define LOG_INF(...) g_logger.log(GGML_LOG_LEVEL_INFO,  __VA_ARGS__)
