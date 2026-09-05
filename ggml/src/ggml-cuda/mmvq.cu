@@ -474,7 +474,7 @@ static constexpr __host__ __device__ int calc_rows_per_block(int ncols_dst, int 
 template <ggml_type type, int ncols_dst, bool has_fusion, bool small_k = false, bool halve_iters = false>
 __launch_bounds__(MMVQ_NWARPS_ATTR(ncols_dst)*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
 static __global__ void mul_mat_vec_q(
-        const void * vx_ptr, const void * vy_ptr, const int32_t * ids_ptr, const ggml_cuda_mm_fusion_args_device fusion, float * dst_ptr,
+        const void * GGML_CUDA_RESTRICT vx_ptr, const void * GGML_CUDA_RESTRICT vy_ptr, const int32_t * GGML_CUDA_RESTRICT ids_ptr, const ggml_cuda_mm_fusion_args_device fusion, float * GGML_CUDA_RESTRICT dst_ptr,
         const uint32_t ncols_x, const uint3 nchannels_y, const uint32_t stride_row_x, const uint32_t stride_col_y,
         const uint32_t stride_col_dst, const uint3 channel_ratio, const uint32_t stride_channel_x,
         const uint32_t stride_channel_y, const uint32_t stride_channel_dst, const uint3 sample_ratio,
@@ -733,8 +733,8 @@ static __global__ void mul_mat_vec_q(
 template <ggml_type type, int c_rows_per_block, bool has_fusion = false>
 __launch_bounds__(MMVQ_MMID_MAX_BATCH_ATTR(type)*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
 static __global__ void mul_mat_vec_q_moe(
-        const void * vx_ptr, const void * vy_ptr, const int32_t * ids_ptr, const ggml_cuda_mm_fusion_args_device fusion,
-        float * dst_ptr,
+        const void * GGML_CUDA_RESTRICT vx_ptr, const void * GGML_CUDA_RESTRICT vy_ptr, const int32_t * GGML_CUDA_RESTRICT ids_ptr, const ggml_cuda_mm_fusion_args_device fusion,
+        float * GGML_CUDA_RESTRICT dst_ptr,
         const uint32_t ncols_x, const uint3 nchannels_y, const uint32_t nrows_x,
         const uint32_t stride_row_x, const uint32_t stride_col_y, const uint32_t stride_col_dst,
         const uint32_t stride_channel_x, const uint32_t stride_channel_y, const uint32_t stride_channel_dst,

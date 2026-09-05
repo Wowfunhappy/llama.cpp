@@ -111,9 +111,9 @@ static void set_rows_cuda_quant(
 }
 
 template <typename src_t, typename idx_t, typename dst_t>
-static __global__ void k_set_rows(const src_t * src0_ptr,
-                                  const idx_t * src1_ptr,
-                                  dst_t * dst_ptr,
+static __global__ void k_set_rows(const src_t * GGML_CUDA_RESTRICT src0_ptr,
+                                  const idx_t * GGML_CUDA_RESTRICT src1_ptr,
+                                  dst_t * GGML_CUDA_RESTRICT dst_ptr,
                                   const int64_t ne_total,
                                   const int64_t ne10,
                                   const int64_t ne11,

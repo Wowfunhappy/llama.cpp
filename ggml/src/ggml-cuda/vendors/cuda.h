@@ -5,6 +5,9 @@
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
 
+#include <cstring>
+#include <vector>
+
 #if CUDART_VERSION >= 11000
 #include <cuda_bf16.h>
 #else
@@ -104,31 +107,123 @@ static __device__ __forceinline__ float ggml_cuda_to_float(__half x) { return __
 static __device__ __forceinline__ float ggml_cuda_to_float(nv_bfloat16 x) { return __bfloat162float(x); }
 static __device__ __forceinline__ float ggml_cuda_to_float(int x) { return (float)x; }
 
-/* cublasGemmEx: stub for CUDA 7.5 (CUDA 8.0+ has the real version) */
+/* The *Ex GEMM entry points arrive in CUDA 8.0/9.0; run them on the 7.5 primitives.
+   cublasSgemmEx already accepts half inputs with an FP32 accumulator, which is what
+   the callers ask for, and alpha/beta are host scalars in the pointer mode ggml uses. */
+
+static inline float cublas_compat_scalar(const void * p, cudaDataType_t compute_type) {
+    if (compute_type == CUDA_R_16F) {
+        unsigned short h;
+        memcpy(&h, p, sizeof(h));
+        const unsigned sign = (unsigned) (h >> 15) << 31;
+        const unsigned exp  = (h >> 10) & 0x1f;
+        const unsigned mant = h & 0x3ff;
+        unsigned bits;
+        if (exp == 0) {
+            if (mant == 0) {
+                bits = sign;
+            } else {
+                // subnormal half: renormalize into a float
+                unsigned e = 0;
+                unsigned m = mant;
+                while ((m & 0x400) == 0) {
+                    m <<= 1;
+                    e++;
+                }
+                m &= 0x3ff;
+                bits = sign | ((127 - 15 - e + 1) << 23) | (m << 13);
+            }
+        } else if (exp == 0x1f) {
+            bits = sign | 0x7f800000u | (mant << 13);
+        } else {
+            bits = sign | ((exp - 15 + 127) << 23) | (mant << 13);
+        }
+        float f;
+        memcpy(&f, &bits, sizeof(f));
+        return f;
+    }
+    return *(const float *) p;
+}
+
+static inline size_t cublas_compat_type_size(cudaDataType_t type) {
+    return type == CUDA_R_16F ? sizeof(unsigned short) : sizeof(float);
+}
+
 static inline cublasStatus_t cublasGemmEx(
-    cublasHandle_t, cublasOperation_t, cublasOperation_t,
-    int, int, int, const void*, const void*, cudaDataType_t, int,
-    const void*, cudaDataType_t, int, const void*, void*, cudaDataType_t, int,
-    cudaDataType_t, int) {
-    return CUBLAS_STATUS_NOT_SUPPORTED;
+    cublasHandle_t handle, cublasOperation_t transa, cublasOperation_t transb,
+    int m, int n, int k, const void * alpha, const void * A, cudaDataType_t Atype, int lda,
+    const void * B, cudaDataType_t Btype, int ldb, const void * beta, void * C, cudaDataType_t Ctype, int ldc,
+    cudaDataType_t computeType, int) {
+    const float alpha_f = cublas_compat_scalar(alpha, computeType);
+    const float beta_f  = cublas_compat_scalar(beta,  computeType);
+    if (Atype == CUDA_R_32F && Btype == CUDA_R_32F && Ctype == CUDA_R_32F) {
+        return cublasSgemm(handle, transa, transb, m, n, k, &alpha_f,
+            (const float *) A, lda, (const float *) B, ldb, &beta_f, (float *) C, ldc);
+    }
+    return cublasSgemmEx(handle, transa, transb, m, n, k, &alpha_f,
+        A, (cublasDataType_t) Atype, lda, B, (cublasDataType_t) Btype, ldb,
+        &beta_f, C, (cublasDataType_t) Ctype, ldc);
 }
+
 static inline cublasStatus_t cublasGemmBatchedEx(
-    cublasHandle_t, cublasOperation_t, cublasOperation_t,
-    int, int, int, const void*,
-    const void* const*, cudaDataType_t, int,
-    const void* const*, cudaDataType_t, int,
-    const void*, void* const*, cudaDataType_t, int,
-    int, cudaDataType_t, int) {
-    return CUBLAS_STATUS_NOT_SUPPORTED;
+    cublasHandle_t handle, cublasOperation_t transa, cublasOperation_t transb,
+    int m, int n, int k, const void * alpha,
+    const void * const * Aarray, cudaDataType_t Atype, int lda,
+    const void * const * Barray, cudaDataType_t Btype, int ldb,
+    const void * beta, void * const * Carray, cudaDataType_t Ctype, int ldc,
+    int batchCount, cudaDataType_t computeType, int algo) {
+    const float alpha_f = cublas_compat_scalar(alpha, computeType);
+    const float beta_f  = cublas_compat_scalar(beta,  computeType);
+    if (Atype == CUDA_R_32F && Btype == CUDA_R_32F && Ctype == CUDA_R_32F) {
+        return cublasSgemmBatched(handle, transa, transb, m, n, k, &alpha_f,
+            (const float **) Aarray, lda, (const float **) Barray, ldb, &beta_f,
+            (float **) Carray, ldc, batchCount);
+    }
+
+    // no batched half GEMM here: read the pointer arrays back and run the batch one GEMM at a time
+    cudaStream_t stream = nullptr;
+    cublasStatus_t status = cublasGetStream(handle, &stream);
+    if (status != CUBLAS_STATUS_SUCCESS) {
+        return status;
+    }
+    std::vector<const void *> a_host(batchCount);
+    std::vector<const void *> b_host(batchCount);
+    std::vector<void *>       c_host(batchCount);
+    if (cudaMemcpyAsync(a_host.data(), Aarray, batchCount*sizeof(void *), cudaMemcpyDeviceToHost, stream) != cudaSuccess ||
+        cudaMemcpyAsync(b_host.data(), Barray, batchCount*sizeof(void *), cudaMemcpyDeviceToHost, stream) != cudaSuccess ||
+        cudaMemcpyAsync(c_host.data(), Carray, batchCount*sizeof(void *), cudaMemcpyDeviceToHost, stream) != cudaSuccess ||
+        cudaStreamSynchronize(stream) != cudaSuccess) {
+        return CUBLAS_STATUS_EXECUTION_FAILED;
+    }
+    for (int i = 0; i < batchCount; ++i) {
+        status = cublasGemmEx(handle, transa, transb, m, n, k, alpha,
+            a_host[i], Atype, lda, b_host[i], Btype, ldb, beta, c_host[i], Ctype, ldc, computeType, algo);
+        if (status != CUBLAS_STATUS_SUCCESS) {
+            return status;
+        }
+    }
+    return CUBLAS_STATUS_SUCCESS;
 }
+
 static inline cublasStatus_t cublasGemmStridedBatchedEx(
-    cublasHandle_t, cublasOperation_t, cublasOperation_t,
-    int, int, int, const void*,
-    const void*, cudaDataType_t, int, long long,
-    const void*, cudaDataType_t, int, long long,
-    const void*, void*, cudaDataType_t, int, long long,
-    int, cudaDataType_t, int) {
-    return CUBLAS_STATUS_NOT_SUPPORTED;
+    cublasHandle_t handle, cublasOperation_t transa, cublasOperation_t transb,
+    int m, int n, int k, const void * alpha,
+    const void * A, cudaDataType_t Atype, int lda, long long strideA,
+    const void * B, cudaDataType_t Btype, int ldb, long long strideB,
+    const void * beta, void * C, cudaDataType_t Ctype, int ldc, long long strideC,
+    int batchCount, cudaDataType_t computeType, int algo) {
+    for (int i = 0; i < batchCount; ++i) {
+        const cublasStatus_t status = cublasGemmEx(handle, transa, transb, m, n, k, alpha,
+            (const char *) A + i*strideA*cublas_compat_type_size(Atype), Atype, lda,
+            (const char *) B + i*strideB*cublas_compat_type_size(Btype), Btype, ldb,
+            beta,
+            (      char *) C + i*strideC*cublas_compat_type_size(Ctype), Ctype, ldc,
+            computeType, algo);
+        if (status != CUBLAS_STATUS_SUCCESS) {
+            return status;
+        }
+    }
+    return CUBLAS_STATUS_SUCCESS;
 }
 
 #elif CUDART_VERSION < 11020

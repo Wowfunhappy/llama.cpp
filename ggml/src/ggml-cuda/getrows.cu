@@ -71,7 +71,7 @@ static __global__ void k_get_rows_kq(
 
 template<typename src0_t, typename dst_t>
 static __global__ void k_get_rows_float(
-        const src0_t * src0_ptr, const int32_t * src1_ptr, dst_t * dst_ptr,
+        const src0_t * GGML_CUDA_RESTRICT src0_ptr, const int32_t * GGML_CUDA_RESTRICT src1_ptr, dst_t * GGML_CUDA_RESTRICT dst_ptr,
         const int64_t ne00, /*const int64_t ne01, const int64_t ne02, const int64_t ne03,*/
         /*const int64_t ne10,*/ const int64_t ne11, const uint3 ne12_fdv, /*const int64_t ne13,*/
         /*const size_t s0,*/ const size_t s1, const size_t s2, const size_t s3,
@@ -103,7 +103,7 @@ static __global__ void k_get_rows_float(
 
 template<typename dst_t>
 static __global__ void k_get_rows_float_vec(
-        const dst_t * src0_ptr, const int32_t * src1_ptr, dst_t * dst_ptr,
+        const dst_t * GGML_CUDA_RESTRICT src0_ptr, const int32_t * GGML_CUDA_RESTRICT src1_ptr, dst_t * GGML_CUDA_RESTRICT dst_ptr,
         const int64_t ne00v,
         const int64_t ne11, const uint3 ne12_fdv,
         const size_t s1, const size_t s2, const size_t s3,

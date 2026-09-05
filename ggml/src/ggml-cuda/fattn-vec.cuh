@@ -20,14 +20,14 @@ static __device__ int ggml_cuda_fattn_vec_get_nthreads_device() {
 template<int D, int ncols, ggml_type type_K, ggml_type type_V, bool use_logit_softcap> // D == head size
 __launch_bounds__(FATTN_VEC_NTHREADS, 1)
 static __global__ void flash_attn_ext_vec(
-        const char * Q_ptr,
-        const char * K_ptr,
-        const char * V_ptr,
-        const char * mask_ptr,
-        const char * sinks_ptr,
-        const int  * KV_max_ptr,
-        float      * dst_ptr,
-        float2     * dst_meta_ptr,
+        const char * GGML_CUDA_RESTRICT Q_ptr,
+        const char * GGML_CUDA_RESTRICT K_ptr,
+        const char * GGML_CUDA_RESTRICT V_ptr,
+        const char * GGML_CUDA_RESTRICT mask_ptr,
+        const char * GGML_CUDA_RESTRICT sinks_ptr,
+        const int  * GGML_CUDA_RESTRICT KV_max_ptr,
+        float      * GGML_CUDA_RESTRICT dst_ptr,
+        float2     * GGML_CUDA_RESTRICT dst_meta_ptr,
         const float scale,
         const float max_bias,
         const float m0,

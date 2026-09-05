@@ -52,7 +52,7 @@ static __device__ __forceinline__ float nvfp4_native_scale_error(
 
 __launch_bounds__(CUDA_QUANTIZE_BLOCK_SIZE, 1)
 static __global__ void quantize_q8_1(
-        const float * x_ptr, void * vy_ptr,
+        const float * GGML_CUDA_RESTRICT x_ptr, void * GGML_CUDA_RESTRICT vy_ptr,
         const int64_t ne00, const int64_t s01, const int64_t s02, const int64_t s03,
         const int64_t ne0, const uint32_t ne1, const uint3 ne2) {
     ggml_cuda_pdl_lc();

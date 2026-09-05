@@ -32,9 +32,9 @@ using namespace cub;
 #endif // __clang__
 template <size_t splitD, size_t N, size_t L_template>
 __global__ void __launch_bounds__(splitD, 1)
-    ssm_scan_f32(const float * src0_ptr, const float * src1_ptr, const float * src2_ptr,
-                 const float * src3_ptr, const float * src4_ptr, const float * src5_ptr,
-                 const int32_t * src6_ptr, float * dst_ptr,
+    ssm_scan_f32(const float * GGML_CUDA_RESTRICT src0_ptr, const float * GGML_CUDA_RESTRICT src1_ptr, const float * GGML_CUDA_RESTRICT src2_ptr,
+                 const float * GGML_CUDA_RESTRICT src3_ptr, const float * GGML_CUDA_RESTRICT src4_ptr, const float * GGML_CUDA_RESTRICT src5_ptr,
+                 const int32_t * GGML_CUDA_RESTRICT src6_ptr, float * GGML_CUDA_RESTRICT dst_ptr,
                  const int src0_nb2, const int src0_nb3, const int src1_nb2, const int src1_nb3,
                  const int src2_nb1, const int src2_nb2, const int src3_nb1,
                  const int src4_nb2, const int src4_nb3, const int src5_nb2, const int src5_nb3,
@@ -143,9 +143,9 @@ __global__ void __launch_bounds__(splitD, 1)
 template <int c_factor, int d_state>
 __global__ void __launch_bounds__(d_state, 1)
     ssm_scan_f32_group(
-        const float * src0_ptr, const float * src1_ptr, const float * src2_ptr,
-        const float * src3_ptr, const float * src4_ptr, const float * src5_ptr,
-        const int32_t * src6_ptr, float * dst_ptr,
+        const float * GGML_CUDA_RESTRICT src0_ptr, const float * GGML_CUDA_RESTRICT src1_ptr, const float * GGML_CUDA_RESTRICT src2_ptr,
+        const float * GGML_CUDA_RESTRICT src3_ptr, const float * GGML_CUDA_RESTRICT src4_ptr, const float * GGML_CUDA_RESTRICT src5_ptr,
+        const int32_t * GGML_CUDA_RESTRICT src6_ptr, float * GGML_CUDA_RESTRICT dst_ptr,
         const int src0_nb2, const int src0_nb3, const int src1_nb2, const int src1_nb3,
         const int src2_nb1, const int src2_nb2, const int src3_nb1,
         const int src4_nb2, const int src4_nb3, const int src5_nb2, const int src5_nb3,

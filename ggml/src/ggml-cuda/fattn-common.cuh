@@ -661,7 +661,7 @@ __device__ dequantize_V_t get_dequantize_V() {
 template <int ncols1>
 __launch_bounds__(FATTN_KQ_STRIDE/2, 1)
 static __global__ void flash_attn_mask_to_KV_max(
-        const half2 * mask_ptr, int * KV_max_ptr, const int ne30, const int64_t s31, const int64_t s33) {
+        const half2 * GGML_CUDA_RESTRICT mask_ptr, int * GGML_CUDA_RESTRICT KV_max_ptr, const int ne30, const int64_t s31, const int64_t s33) {
     const half2 * GGML_CUDA_RESTRICT mask   = mask_ptr;
     int         * GGML_CUDA_RESTRICT KV_max = KV_max_ptr;
 
@@ -721,8 +721,8 @@ void ggml_cuda_flash_attn_ext_compact_mask(
 template<int D, int ncols1, int ncols2> // D == head size
 __launch_bounds__(D, 1)
 static __global__ void flash_attn_stream_k_fixup_uniform(
-        float * dst_ptr,
-        const float2 * dst_fixup_ptr,
+        float * GGML_CUDA_RESTRICT dst_ptr,
+        const float2 * GGML_CUDA_RESTRICT dst_fixup_ptr,
         const int ne01, const int ne02,
         const int ne12, const int nblocks_stream_k,
         const int gqa_ratio,
@@ -805,8 +805,8 @@ static __global__ void flash_attn_stream_k_fixup_uniform(
 template <int D, int ncols1, int ncols2> // D == head size
 __launch_bounds__(D, 1)
 static __global__ void flash_attn_stream_k_fixup_general(
-        float * dst_ptr,
-        const float2 * dst_fixup_ptr,
+        float * GGML_CUDA_RESTRICT dst_ptr,
+        const float2 * GGML_CUDA_RESTRICT dst_fixup_ptr,
         const int ne01, const int ne02,
         const int gqa_ratio,
         const int total_work,
@@ -914,9 +914,9 @@ static __global__ void flash_attn_stream_k_fixup_general(
 template<int D> // D == head size
 __launch_bounds__(D, 1)
 static __global__ void flash_attn_combine_results(
-        const float  * VKQ_parts_ptr,
-        const float2 * VKQ_meta_ptr,
-        float * dst_ptr,
+        const float  * GGML_CUDA_RESTRICT VKQ_parts_ptr,
+        const float2 * GGML_CUDA_RESTRICT VKQ_meta_ptr,
+        float * GGML_CUDA_RESTRICT dst_ptr,
         const int parallel_blocks) {
     ggml_cuda_pdl_lc();
     const float  * GGML_CUDA_RESTRICT VKQ_parts = VKQ_parts_ptr;
