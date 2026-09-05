@@ -15,9 +15,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q8_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q8_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q8_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q8_0, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int blocks_per_iter = MMQ_ITER_K / QK1_0;
@@ -106,9 +108,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q8_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q8_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q8_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q8_0, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int blocks_per_iter = MMQ_ITER_K / QK2_0;
@@ -195,9 +199,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_0, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_0);
@@ -258,9 +264,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_dm = (half2 *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_1, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_1, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_1, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_1, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_dm = (half2 *) (x_qs + txs.qs);
+    half2 * x_dm = (half2 *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)  || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_1);
@@ -321,9 +329,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q5_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q5_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q5_0, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_0);
@@ -401,9 +411,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_dm = (half2 *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_1, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q5_1, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q5_1, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q5_1, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_dm = (half2 *) (x_qs + txs.qs);
+    half2 * x_dm = (half2 *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_1);
@@ -479,9 +491,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_tile + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q8_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q8_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q8_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q8_0, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     // MMQ_ITER_K / (4 * QR8_0) == 64 required. but NV has only 32 threads per warp
@@ -545,9 +559,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_dm = (half2 *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q2_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q2_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q2_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q2_K, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_dm = (half2 *) (x_qs + txs.qs);
+    half2 * x_dm = (half2 *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR2_K);
@@ -606,10 +622,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q3_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q3_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q3_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q3_K, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
-    int   * x_sc = (int   *) (x_df + txs.dm);
+    float * x_df = (float *) (x_qs + txs_qs);
+    int   * x_sc = (int   *) (x_df + txs_dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR3_K);
@@ -719,10 +737,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_dm = (half2 *) (x_qs + 2*MMQ_TILE_NE_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_K, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_dm = (half2 *) (x_qs + txs.qs);
-    int   * x_sc = (int   *) (x_dm + txs.dm);
+    half2 * x_dm = (half2 *) (x_qs + txs_qs);
+    int   * x_sc = (int   *) (x_dm + txs_dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_K);
@@ -830,10 +850,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_dm = (half2 *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q5_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q5_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q5_K, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_dm = (half2 *) (x_qs + txs.qs);
-    int   * x_sc = (int   *) (x_dm + txs.dm);
+    half2 * x_dm = (half2 *) (x_qs + txs_qs);
+    int   * x_sc = (int   *) (x_dm + txs_dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR5_K);
@@ -955,10 +977,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
     int   * x_sc = (int   *) (x_df + MMQ_TILE_NE_K/QI6_K);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q6_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q6_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q6_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q6_K, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
-    int   * x_sc = (int   *) (x_df + txs.dm);
+    float * x_df = (float *) (x_qs + txs_qs);
+    int   * x_sc = (int   *) (x_df + txs_dm);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR6_K);
@@ -1044,9 +1068,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     half2 * x_ds = (half2 *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ3_S, I);
     int   * x_qs = (int   *)  x_tile;
-    half2 * x_ds = (half2 *) (x_qs + txs.qs);
+    half2 * x_ds = (half2 *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR1_S);
@@ -1106,9 +1132,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ2_XXS, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ2_XXS, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ2_XXS, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ2_XXS, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_XXS)) / 2;
@@ -1170,9 +1198,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ2_XS, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ2_XS, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ2_XS, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ2_XS, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_XS)) / 2;
@@ -1235,9 +1265,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ2_S, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ2_S, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ2_S, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ2_S, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
     constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR2_S)) / 2;
     constexpr int nrows = warp_size / threads_per_row;
@@ -1303,9 +1335,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ3_XXS, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ3_XXS, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ3_XXS, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ3_XXS, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR3_XXS)) / 2;
@@ -1367,9 +1401,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ3_S, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ3_S, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = (MMQ_ITER_K / (4 * QR3_S)) / 2;
@@ -1436,9 +1472,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ4_XS, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ4_XS, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ4_XS, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ4_XS, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_XS);
@@ -1503,9 +1541,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ4_NL, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_IQ4_NL, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_IQ4_NL, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_IQ4_NL, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR4_NL);
@@ -1572,9 +1612,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_MXFP4, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_MXFP4, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_MXFP4, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_MXFP4, I);
     int   * x_qs = (int   *)  x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / (4 * QR_MXFP4);
@@ -1681,9 +1723,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     int   * x_qs = (int   *) x_tile;
     float * x_df = (float *) (x_qs + MMQ_TILE_NE_K*2);
 #else
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_NVFP4, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_NVFP4, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_NVFP4, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_NVFP4, I);
     int   * x_qs = (int   *) x_tile;
-    float * x_df = (float *) (x_qs + txs.qs);
+    float * x_df = (float *) (x_qs + txs_qs);
 #endif // defined(AMD_MFMA_AVAILABLE) || defined(TURING_MMA_AVAILABLE) || defined(AMD_WMMA_AVAILABLE)
 
     constexpr int threads_per_row = MMQ_ITER_K / QK_NVFP4;

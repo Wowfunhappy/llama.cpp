@@ -13,9 +13,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_0, I);
     const int   * x_qs = (const int   *) x;
-    const float * x_df = (const float *) x_qs + txs.qs;
+    const float * x_df = (const float *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -63,9 +65,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_1, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_1, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_1, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_1, I);
     const int   * x_qs = (const int   *) x;
-    const half2 * x_dm = (const half2 *) x_qs + txs.qs;
+    const half2 * x_dm = (const half2 *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -113,9 +117,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q8_0, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q8_0, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q8_0, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q8_0, I);
     const int   * x_qs = (const int   *) x;
-    const float * x_df = (const float *) x_qs + txs.qs;
+    const float * x_df = (const float *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const float * y_df = (const float *) y;
 
@@ -284,9 +290,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_1, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q5_1, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q5_1, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q5_1, I);
     const int   * x_qs = (const int   *) x;
-    const half2 * x_dm = (const half2 *) x_qs + txs.qs;
+    const half2 * x_dm = (const half2 *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -445,9 +453,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(type, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(type, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(type, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(type, I);
     const int   * x_qs = (const int   *) x;
-    const float * x_df = (const float *) x_qs + txs.qs;
+    const float * x_df = (const float *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const float * y_df = (const float *) y;
 
@@ -613,9 +623,11 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q2_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q2_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q2_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q2_K, I);
     const int   * x_qs = (const int   *) x;
-    const half2 * x_dm = (const half2 *) x_qs + txs.qs;
+    const half2 * x_dm = (const half2 *) x_qs + txs_qs;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -873,10 +885,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q3_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q3_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q3_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q3_K, I);
     const int   * x_qs = (const int   *) x;
-    const float * x_df = (const float *) x_qs + txs.qs;
-    const int   * x_sc = (const int   *) x_df + txs.dm;
+    const float * x_df = (const float *) x_qs + txs_qs;
+    const int   * x_sc = (const int   *) x_df + txs_dm;
     const int   * y_qs = (const int   *) y + 4;
     const float * y_df = (const float *) y;
 
@@ -908,10 +922,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q4_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q4_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q4_K, I);
     const int   * x_qs = (const int   *) x;
-    const half2 * x_dm = (const half2 *) x_qs + txs.qs;
-    const int   * x_sc = (const int   *) x_dm + txs.dm;
+    const half2 * x_dm = (const half2 *) x_qs + txs_qs;
+    const int   * x_sc = (const int   *) x_dm + txs_dm;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -943,10 +959,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q5_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q5_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q5_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q5_K, I);
     const int   * x_qs = (const int   *) x;
-    const half2 * x_dm = (const half2 *) x_qs + txs.qs;
-    const int   * x_sc = (const int   *) x_dm + txs.dm;
+    const half2 * x_dm = (const half2 *) x_qs + txs_qs;
+    const int   * x_sc = (const int   *) x_dm + txs_dm;
     const int   * y_qs = (const int   *) y + 4;
     const half2 * y_ds = (const half2 *) y;
 
@@ -978,10 +996,12 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q6_K, I);
+    constexpr int txs_qs = mmq_get_dp4a_txs_qs(GGML_TYPE_Q6_K, I);
+    constexpr int txs_dm = mmq_get_dp4a_txs_dm(GGML_TYPE_Q6_K, I);
+    constexpr int txs_sc = mmq_get_dp4a_txs_sc(GGML_TYPE_Q6_K, I);
     const int   * x_qs = (const int   *) x;
-    const float * x_df = (const float *) x_qs + txs.qs;
-    const int   * x_sc = (const int   *) x_df + txs.dm;
+    const float * x_df = (const float *) x_qs + txs_qs;
+    const int   * x_sc = (const int   *) x_df + txs_dm;
     const int   * y_qs = (const int   *) y + 4;
     const float * y_df = (const float *) y;
 

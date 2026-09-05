@@ -41,6 +41,24 @@ static inline cudaError_t cudaStreamWaitEvent(cudaStream_t stream, cudaEvent_t e
     return cudaStreamWaitEvent(stream, event, 0);
 }
 
+/* cublasSgemmStridedBatched arrived in CUDA 8.0; run the batch as individual GEMMs */
+static inline cublasStatus_t cublasSgemmStridedBatched(
+        cublasHandle_t handle, cublasOperation_t transa, cublasOperation_t transb,
+        int m, int n, int k, const float * alpha,
+        const float * A, int lda, long long int strideA,
+        const float * B, int ldb, long long int strideB,
+        const float * beta,
+        float * C, int ldc, long long int strideC, int batchCount) {
+    for (int i = 0; i < batchCount; ++i) {
+        const cublasStatus_t status = cublasSgemm(handle, transa, transb, m, n, k, alpha,
+            A + i*strideA, lda, B + i*strideB, ldb, beta, C + i*strideC, ldc);
+        if (status != CUBLAS_STATUS_SUCCESS) {
+            return status;
+        }
+    }
+    return CUBLAS_STATUS_SUCCESS;
+}
+
 /* CUBLAS_TENSOR_OP_MATH and cublasSetMathMode don't exist before CUDA 9.0 */
 #define CUBLAS_TENSOR_OP_MATH 0
 #define CUBLAS_TF32_TENSOR_OP_MATH 0
@@ -59,6 +77,9 @@ static inline cudaError_t cudaFuncSetAttribute(T, int, size_t) { return cudaSucc
 
 /* cudaDevAttrCooperativeLaunch doesn't exist before CUDA 9.0 */
 #define cudaDevAttrCooperativeLaunch ((cudaDeviceAttr)95)
+
+/* cublasGemmAlgo_t doesn't exist before CUDA 8.0 */
+#define CUBLAS_GEMM_DEFAULT 0
 
 /* CUBLAS_GEMM_DEFAULT_TENSOR_OP doesn't exist before CUDA 9.0 */
 #define CUBLAS_GEMM_DEFAULT_TENSOR_OP 99

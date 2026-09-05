@@ -104,9 +104,6 @@ struct tile_x_sizes {
     int qs;
     int dm;
     int sc;
-
-    // nvcc 7.5 mis-lowers brace-initialized aggregates inside conditional expressions.
-    constexpr tile_x_sizes(int qs_ = 0, int dm_ = 0, int sc_ = 0) : qs(qs_), dm(dm_), sc(sc_) {}
 };
 
 // Decouple shared memory tile sizes from WARP_SIZE to allow for different warp sizes.
@@ -308,7 +305,7 @@ static __host__ int ggml_cuda_mmq_get_type(const ggml_type type, const int J, co
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_type(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).type;
+    return (ggml_type) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >>  0) & 0xFFull);
 }
 
 static __host__ int ggml_cuda_mmq_get_nthreads(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -316,7 +313,7 @@ static __host__ int ggml_cuda_mmq_get_nthreads(const ggml_type type, const int J
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_nthreads(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).nthreads;
+    return (int) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >>  8) & 0x3FFull);
 }
 
 static __host__ int ggml_cuda_mmq_get_occupancy(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -324,7 +321,7 @@ static __host__ int ggml_cuda_mmq_get_occupancy(const ggml_type type, const int 
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_occupancy(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).occupancy;
+    return (int) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 18) & 0xFull);
 }
 
 static __host__ int ggml_cuda_mmq_get_I(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -332,7 +329,7 @@ static __host__ int ggml_cuda_mmq_get_I(const ggml_type type, const int J, const
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_I(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).I;
+    return (int) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 22) & 0x1FFull);
 }
 
 static __host__ int ggml_cuda_mmq_get_J(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -340,7 +337,7 @@ static __host__ int ggml_cuda_mmq_get_J(const ggml_type type, const int J, const
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_J(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).J;
+    return (int) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 31) & 0x1FFull);
 }
 
 static __host__ ggml_cuda_mmq_sram_layout ggml_cuda_mmq_get_sram_layout(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -348,7 +345,7 @@ static __host__ ggml_cuda_mmq_sram_layout ggml_cuda_mmq_get_sram_layout(const gg
 }
 
 static constexpr __device__ ggml_cuda_mmq_sram_layout ggml_cuda_mmq_get_sram_layout(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).sram_layout;
+    return (ggml_cuda_mmq_sram_layout) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 40) & 0x7ull);
 }
 
 static __host__ int ggml_cuda_mmq_get_K_vram(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -356,7 +353,7 @@ static __host__ int ggml_cuda_mmq_get_K_vram(const ggml_type type, const int J, 
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_K_vram(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).K_vram;
+    return (int) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 43) & 0xFFFFull);
 }
 
 static __host__ bool ggml_cuda_mmq_get_stream_k(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -364,7 +361,7 @@ static __host__ bool ggml_cuda_mmq_get_stream_k(const ggml_type type, const int 
 }
 
 static constexpr __device__ bool ggml_cuda_mmq_get_stream_k(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).stream_k;
+    return (bool) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 59) & 0x1ull);
 }
 
 static __host__ int ggml_cuda_mmq_get_fallback(const ggml_type type, const int J, const bool fallback, const int cc) {
@@ -372,7 +369,7 @@ static __host__ int ggml_cuda_mmq_get_fallback(const ggml_type type, const int J
 }
 
 static constexpr __device__ int ggml_cuda_mmq_get_fallback(ggml_type type, int J, bool fallback) {
-    return ggml_cuda_mmq_get_config(type, J, fallback).fallback;
+    return (bool) ((ggml_cuda_mmq_get_config_packed(type, J, fallback) >> 60) & 0x1ull);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -400,18 +397,23 @@ static constexpr __device__ int ggml_cuda_mmq_get_rows_per_warp(ggml_type type, 
     return ggml_cuda_mmq_get_config(type, J, fallback).rows_per_warp();
 }
 
-#define MMQ_DP4A_TXS_Q4_0    tile_x_sizes{I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_0   + I/QI4_0,     0}
-#define MMQ_DP4A_TXS_Q4_1    tile_x_sizes{I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_1   + I/QI4_1,     0}
-#define MMQ_DP4A_TXS_Q8_0    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*2/QI8_0 + I/(QI8_0/2), 0}
-#define MMQ_DP4A_TXS_Q8_0_16 tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*4/QI8_0 + I/(QI8_0/4), 0}
-#define MMQ_DP4A_TXS_Q8_1    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*2/QI8_1 + I/(QI8_1/2), 0}
-#define MMQ_DP4A_TXS_Q2_K    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K         + I,           0}
-#define MMQ_DP4A_TXS_Q3_K    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I,                                     I*MMQ_TILE_NE_K/8 + I/8}
-#define MMQ_DP4A_TXS_Q4_K    tile_x_sizes{I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_K,                 I*MMQ_TILE_NE_K/8 + I/8}
-#define MMQ_DP4A_TXS_Q5_K    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K/QI5_K   + I/QI5_K,     I*MMQ_TILE_NE_K/8 + I/8}
-#define MMQ_DP4A_TXS_Q6_K    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K/QI6_K   + I/QI6_K,     I*MMQ_TILE_NE_K/8 + I/8}
+// nvcc 7.5 mis-lowers brace-initialized aggregates inside conditional expressions, so the
+// table holds packed integers and the sizes are unpacked once at the lookup.
+#define MMQ_DP4A_TXS_PACK(qs_, dm_, sc_) \
+    ( (((uint64_t) (qs_)) << 0) | (((uint64_t) (dm_)) << 20) | (((uint64_t) (sc_)) << 40) )
 
-static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml_type type, int I) {
+#define MMQ_DP4A_TXS_Q4_0 MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_0   + I/QI4_0,     0)
+#define MMQ_DP4A_TXS_Q4_1 MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_1   + I/QI4_1,     0)
+#define MMQ_DP4A_TXS_Q8_0 MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*2/QI8_0 + I/(QI8_0/2), 0)
+#define MMQ_DP4A_TXS_Q8_0_16 MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*4/QI8_0 + I/(QI8_0/4), 0)
+#define MMQ_DP4A_TXS_Q8_1 MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K*2/QI8_1 + I/(QI8_1/2), 0)
+#define MMQ_DP4A_TXS_Q2_K MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K         + I,           0)
+#define MMQ_DP4A_TXS_Q3_K MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I,                                     I*MMQ_TILE_NE_K/8 + I/8)
+#define MMQ_DP4A_TXS_Q4_K MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K   + I, I*MMQ_TILE_NE_K/QI4_K,                 I*MMQ_TILE_NE_K/8 + I/8)
+#define MMQ_DP4A_TXS_Q5_K MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K/QI5_K   + I/QI5_K,     I*MMQ_TILE_NE_K/8 + I/8)
+#define MMQ_DP4A_TXS_Q6_K MMQ_DP4A_TXS_PACK(I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K/QI6_K   + I/QI6_K,     I*MMQ_TILE_NE_K/8 + I/8)
+
+static constexpr __host__ __device__ uint64_t mmq_get_dp4a_tile_x_sizes_packed(ggml_type type, int I) {
         return type == GGML_TYPE_Q1_0 ? MMQ_DP4A_TXS_Q8_0 :
            type == GGML_TYPE_Q2_0 ? MMQ_DP4A_TXS_Q8_0 :
            type == GGML_TYPE_Q4_0 ? MMQ_DP4A_TXS_Q4_0 :
@@ -434,7 +436,21 @@ static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml
            type == GGML_TYPE_IQ1_S ? MMQ_DP4A_TXS_Q8_0 :
            type == GGML_TYPE_IQ4_XS ? MMQ_DP4A_TXS_Q8_0 :
            type == GGML_TYPE_IQ4_NL ? MMQ_DP4A_TXS_Q8_0 :
-           tile_x_sizes{0, 0, 0};
+           MMQ_DP4A_TXS_PACK(0, 0, 0);
+}
+
+// Accessors rather than a tile_x_sizes value: nvcc 7.5 either mishandles a constexpr
+// local of class type or hoists a const one into static storage, and each path crashes it.
+static constexpr __host__ __device__ int mmq_get_dp4a_txs_qs(ggml_type type, int I) {
+    return (int) ((mmq_get_dp4a_tile_x_sizes_packed(type, I) >>  0) & 0xFFFFFull);
+}
+
+static constexpr __host__ __device__ int mmq_get_dp4a_txs_dm(ggml_type type, int I) {
+    return (int) ((mmq_get_dp4a_tile_x_sizes_packed(type, I) >> 20) & 0xFFFFFull);
+}
+
+static constexpr __host__ __device__ int mmq_get_dp4a_txs_sc(ggml_type type, int I) {
+    return (int) ((mmq_get_dp4a_tile_x_sizes_packed(type, I) >> 40) & 0xFFFFFull);
 }
 
 // FIXME temporary until all combinations of data types and GPUs can use the MMA data layout
@@ -442,8 +458,9 @@ static __host__ int ggml_cuda_mmq_get_nbytes_shared_x(const ggml_cuda_mmq_config
     if (config.use_mma_data_layout(cc)) {
         return config.I * ggml_cuda_mmq_get_sram_stride(config.sram_layout) * 4;
     }
-    const tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(config.type, config.I);
-    return (txs.qs + txs.dm + txs.sc) * 4;
+    return (mmq_get_dp4a_txs_qs(config.type, config.I) +
+            mmq_get_dp4a_txs_dm(config.type, config.I) +
+            mmq_get_dp4a_txs_sc(config.type, config.I)) * 4;
 }
 
 // ------------------------------------------------------------
@@ -897,9 +914,9 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
     constexpr int              nwarps     = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int              qk         = ggml_cuda_type_traits<type>::qk;
     constexpr int              I          = ggml_cuda_mmq_get_I(type, J, fallback);
-    const ggml_cuda_mmq_load_tiles_t load_tiles = ggml_cuda_mmq_get_load_tiles<type, J, fallback>();
-    const ggml_cuda_mmq_vec_dot_t    vec_dot    = ggml_cuda_mmq_get_vec_dot<type, J, fallback>();
-    const ggml_cuda_mmq_write_back_t write_back = ggml_cuda_mmq_get_write_back<type, J, fallback>();
+    ggml_cuda_mmq_load_tiles_t load_tiles = ggml_cuda_mmq_get_load_tiles<type, J, fallback>();
+    ggml_cuda_mmq_vec_dot_t    vec_dot    = ggml_cuda_mmq_get_vec_dot<type, J, fallback>();
+    ggml_cuda_mmq_write_back_t write_back = ggml_cuda_mmq_get_write_back<type, J, fallback>();
 
     extern __shared__ int data_mul_mat_q[];
     int * tile_y = data_mul_mat_q + J;
@@ -964,8 +981,12 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
 
 // The mul_mat_q kernel implements "stream-k" work partitioning as described in https://arxiv.org/abs/2301.03598
 
-template <ggml_type type, int J, bool fallback>
-__launch_bounds__(ggml_cuda_mmq_get_nthreads(type, J, fallback), ggml_cuda_mmq_get_occupancy(type, J, fallback))
+// The launch config travels as template parameters: nvcc 7.5 rejects a constexpr call
+// during attribute argument substitution.
+template <ggml_type type, int J, bool fallback,
+          int nthreads_  = ggml_cuda_mmq_get_nthreads (type, J, fallback),
+          int occupancy_ = ggml_cuda_mmq_get_occupancy(type, J, fallback)>
+__launch_bounds__(nthreads_, occupancy_)
 static __global__ void mul_mat_q(
         const char * __restrict__ x, const int * __restrict__ y, const int32_t * __restrict__ ids_dst,
         const int32_t * __restrict__ expert_bounds, float * __restrict__ dst, float * __restrict__ tmp_fixup,
@@ -1251,8 +1272,9 @@ static __global__ void mul_mat_q(
          tile_x_max_i, tile_y_max_j, kb0_start, kb0_stop);
 }
 
-template <ggml_type type, int J, bool fallback>
-__launch_bounds__(ggml_cuda_mmq_get_nthreads(type, J, fallback)/2, 1)
+template <ggml_type type, int J, bool fallback,
+          int nthreads_ = ggml_cuda_mmq_get_nthreads(type, J, fallback)/2>
+__launch_bounds__(nthreads_, 1)
 static __global__ void mul_mat_q_stream_k_fixup(
         const int32_t * __restrict__ ids_dst, const int32_t * __restrict__ expert_bounds, float * __restrict__ dst,
         float * __restrict__ tmp_last_tile, const uint3 blocks_per_ne00, const int nrows_x, const int ncols_dst,
