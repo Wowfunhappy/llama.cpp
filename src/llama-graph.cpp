@@ -1295,7 +1295,10 @@ bool llm_graph_input_sampling::can_reuse(const llm_graph_params & params) {
         return false;
     }
 
-    for (const auto & [seq_id, sampler] : params.samplers) {
+    for (const auto & _seq_id_sampler : params.samplers) {
+        const auto & seq_id = _seq_id_sampler.first;
+        const auto & sampler = _seq_id_sampler.second;
+        (void) seq_id; (void) sampler;
         if (samplers[seq_id] != sampler) {
             return false;
         }
@@ -3748,7 +3751,10 @@ void llm_graph_context::build_sampling() const {
 
     static const std::vector<uint32_t> dummy_row = { 0 };
 
-    for (const auto & [seq_id, sampler] : samplers) {
+    for (const auto & _seq_id_sampler : samplers) {
+        const auto & seq_id = _seq_id_sampler.first;
+        const auto & sampler = _seq_id_sampler.second;
+        (void) seq_id; (void) sampler;
         const auto it = sampling_rows.find(seq_id);
 
         // inactive samplers always work on the first row
@@ -3806,7 +3812,10 @@ void llm_graph_context::build_sampling() const {
 
     // TODO: Call backend_accept after all samplers have been applied.
     /*
-    for (const auto & [seq_id, sampler] : samplers) {
+    for (const auto & _seq_id_sampler : samplers) {
+        const auto & seq_id = _seq_id_sampler.first;
+        const auto & sampler = _seq_id_sampler.second;
+        (void) seq_id; (void) sampler;
         const auto it = sampling_rows.find(seq_id);
         if (it == sampling_rows.end()) {
             continue;

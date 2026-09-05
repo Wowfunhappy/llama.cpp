@@ -425,7 +425,9 @@ static struct llama_model * llama_model_load_from_file_impl(
         };
     }
 
-    const auto [status, model] = llama_model_load(metadata, set_tensor_data, set_tensor_data_ud, path_model, splits, file, params);
+    const auto _status_model = llama_model_load(metadata, set_tensor_data, set_tensor_data_ud, path_model, splits, file, params);
+    const auto & status = _status_model.first;
+    const auto & model = _status_model.second;
     GGML_ASSERT(status <= 0);
     if (status < 0) {
         if (status == -1) {

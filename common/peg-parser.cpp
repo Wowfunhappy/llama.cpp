@@ -118,12 +118,16 @@ static std::pair<std::vector<common_peg_chars_parser::char_range>, bool> parse_c
 
     size_t i = 0;
     while (i < content.length()) {
-        auto [start, start_len] = parse_char_class_char(content, i);
+        Noneauto _start_start_len = parse_char_class_char(content, i);
+        Noneauto & start = _start_start_len.first;
+        Noneauto & start_len = _start_start_len.second;
         i += start_len;
 
         if (i + 1 < content.length() && content[i] == '-') {
             // Range detected
-            auto [end, end_len] = parse_char_class_char(content, i + 1);
+            Noneauto _end_end_len = parse_char_class_char(content, i + 1);
+            Noneauto & end = _end_end_len.first;
+            Noneauto & end_len = _end_end_len.second;
             ranges.push_back(common_peg_chars_parser::char_range{start, end});
             i += 1 + end_len;
         } else {
@@ -1115,7 +1119,9 @@ common_peg_parser common_peg_parser_builder::choice(std::initializer_list<common
 }
 
 common_peg_parser common_peg_parser_builder::chars(const std::string & classes, int min, int max) {
-    auto [ranges, negated] = parse_char_classes(classes);
+    Noneauto _ranges_negated = parse_char_classes(classes);
+    Noneauto & ranges = _ranges_negated.first;
+    Noneauto & negated = _ranges_negated.second;
     return wrap(arena_.add_parser(common_peg_chars_parser{classes, ranges, negated, min, max}));
 }
 
@@ -1479,7 +1485,10 @@ static std::string gbnf_excluding_grammar(const common_grammar_builder & builder
             // every state is accepting and completing chars get no
             // alternative, so a forbidden string can never be matched
             std::string rhs = "|";
-            for (const auto & [d, chars] : buckets) {
+            for (const auto & _d_chars : buckets) {
+                const auto & d = _d_chars.first;
+                const auto & chars = _d_chars.second;
+                (void) d; (void) chars;
                 rhs += " " + gbnf_char_class(chars, false) + " " + state_name(d) + " |";
             }
             rhs += " " + gbnf_char_class(specific, true) + " " + state_name(0);
@@ -1502,7 +1511,10 @@ static std::string gbnf_including_grammar(const common_grammar_builder & builder
             if (!completing.empty()) {
                 alts.push_back(gbnf_char_class(completing, false)); // terminate on match
             }
-            for (const auto & [d, chars] : buckets) {
+            for (const auto & _d_chars : buckets) {
+                const auto & d = _d_chars.first;
+                const auto & chars = _d_chars.second;
+                (void) d; (void) chars;
                 alts.push_back(gbnf_char_class(chars, false) + " " + state_name(d));
             }
             // every other character keeps scanning from the start state
@@ -1756,7 +1768,10 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
 
     if (lazy) {
         // Collect rules reachable from trigger rules
-        for (const auto & [name, id] : rules_) {
+        for (const auto & _name_id : rules_) {
+            const auto & name = _name_id.first;
+            const auto & id = _name_id.second;
+            (void) name; (void) id;
             const auto & parser = parsers_.at(id);
             if (auto rule = std::get_if<common_peg_rule_parser>(&parser)) {
                 if (rule->trigger) {
@@ -1773,7 +1788,10 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
     }
 
     // Create GBNF rules for all reachable rules
-    for (const auto & [name, rule_id] : rules_) {
+    for (const auto & _name_rule_id : rules_) {
+        const auto & name = _name_rule_id.first;
+        const auto & rule_id = _name_rule_id.second;
+        (void) name; (void) rule_id;
         if (reachable_rules.find(name) == reachable_rules.end()) {
             continue;
         }
@@ -1787,7 +1805,10 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
     if (lazy) {
         // Generate root rule from trigger rules only
         std::vector<std::string> trigger_names;
-        for (const auto & [name, rule_id] : rules_) {
+        for (const auto & _name_rule_id : rules_) {
+            const auto & name = _name_rule_id.first;
+            const auto & rule_id = _name_rule_id.second;
+            (void) name; (void) rule_id;
             const auto & parser = parsers_.at(rule_id);
             if (auto rule = std::get_if<common_peg_rule_parser>(&parser)) {
                 if (rule->trigger) {
@@ -2089,7 +2110,10 @@ common_peg_arena common_peg_arena::from_json(const common_json & j) {
 
     arena.rules_ = j["rules"].get<std::unordered_map<std::string, common_peg_parser_id>>();
 
-    for (const auto & [name, id] : arena.rules_) {
+    for (const auto & _name_id : arena.rules_) {
+        const auto & name = _name_id.first;
+        const auto & id = _name_id.second;
+        (void) name; (void) id;
         if (id >= arena.parsers_.size()) {
             throw std::runtime_error("Rule '" + name + "' references invalid parser ID: " + std::to_string(id));
         }

@@ -435,7 +435,10 @@ void server_models::add_model(server_model_meta && meta) {
     }
 
     // check model name does not conflict with existing aliases
-    for (const auto & [key, inst] : mapping) {
+    for (const auto & _key_inst : mapping) {
+        const auto & key = _key_inst.first;
+        const auto & inst = _key_inst.second;
+        (void) key; (void) inst;
         if (inst.meta.aliases.count(meta.name)) {
             throw std::runtime_error(string_format("model name '%s' conflicts with alias of model '%s'",
                 meta.name.c_str(), key.c_str()));
@@ -470,7 +473,10 @@ void server_models::add_model(server_model_meta && meta) {
             throw std::runtime_error(string_format("alias '%s' for model '%s' conflicts with existing model name",
                 alias.c_str(), meta.name.c_str()));
         }
-        for (const auto & [key, inst] : mapping) {
+        for (const auto & _key_inst : mapping) {
+            const auto & key = _key_inst.first;
+            const auto & inst = _key_inst.second;
+            (void) key; (void) inst;
             if (inst.meta.aliases.count(alias)) {
                 throw std::runtime_error(string_format("alias '%s' for model '%s' conflicts with alias of model '%s'",
                     alias.c_str(), meta.name.c_str(), key.c_str()));
@@ -528,7 +534,10 @@ void server_models::load_models() {
     // note: if a model exists in both cached and local, local takes precedence
     common_presets final_presets;
     std::unordered_map<std::string, server_model_source> source_map;
-    for (const auto & [name, preset] : cached_models) {
+    for (const auto & _name_preset : cached_models) {
+        const auto & name = _name_preset.first;
+        const auto & preset = _name_preset.second;
+        (void) name; (void) preset;
         final_presets[name] = preset;
         source_map[name] = SERVER_MODEL_SOURCE_CACHE;
     }
@@ -536,7 +545,10 @@ void server_models::load_models() {
         final_presets[name] = preset;
         source_map[name] = SERVER_MODEL_SOURCE_MODELS_DIR;
     }
-    for (const auto & [name, custom] : custom_presets) {
+    for (const auto & _name_custom : custom_presets) {
+        const auto & name = _name_custom.first;
+        const auto & custom = _name_custom.second;
+        (void) name; (void) custom;
         if (final_presets.find(name) != final_presets.end()) {
             final_presets[name].merge(custom);
         } else {
@@ -547,7 +559,10 @@ void server_models::load_models() {
 
     // overlay router's own CLI args on top of every model preset so that
     // e.g. `llama-server --temp 0` is honoured by all child processes
-    for (auto & [name, preset] : final_presets) {
+    for (auto & _name_preset : final_presets) {
+        auto & name = _name_preset.first;
+        auto & preset = _name_preset.second;
+        (void) name; (void) preset;
         preset.merge(base_preset);
     }
 
@@ -559,7 +574,10 @@ void server_models::load_models() {
     std::set<std::string> hidden_models;
     {
         std::set<std::string> preset_paths;
-        for (const auto & [name, preset] : custom_presets) {
+        for (const auto & _name_preset : custom_presets) {
+            const auto & name = _name_preset.first;
+            const auto & preset = _name_preset.second;
+            (void) name; (void) preset;
             std::string val;
             if (!preset.get_option(COMMON_ARG_PRESET_DEDUP_CACHE_MODELS, val) || !common_arg_utils::is_truthy(val)) {
                 continue;
@@ -576,7 +594,10 @@ void server_models::load_models() {
             }
         }
         if (!preset_paths.empty()) {
-            for (const auto & [name, preset] : cached_models) {
+            for (const auto & _name_preset : cached_models) {
+                const auto & name = _name_preset.first;
+                const auto & preset = _name_preset.second;
+                (void) name; (void) preset;
                 if (get_source(name) != SERVER_MODEL_SOURCE_CACHE) {
                     continue; // merged with another source, not a pure cache entry
                 }
@@ -602,7 +623,10 @@ void server_models::load_models() {
     };
     auto log_available_models = [&]() {
         SRV_INF("Available models (%zu) (*: custom preset)\n", mapping.size());
-        for (const auto & [name, inst] : mapping) {
+        for (const auto & _name_inst : mapping) {
+            const auto & name = _name_inst.first;
+            const auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             bool has_custom = custom_names.find(name) != custom_names.end();
             std::string info;
             if (!inst.meta.aliases.empty()) info += " (aliases: " + join_set(inst.meta.aliases) + ")";
@@ -611,7 +635,10 @@ void server_models::load_models() {
         }
     };
     auto apply_stop_timeout = [&]() {
-        for (auto & [name, inst] : mapping) {
+        for (auto & _name_inst : mapping) {
+            auto & name = _name_inst.first;
+            auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             std::string val;
             if (inst.meta.preset.get_option(COMMON_ARG_PRESET_STOP_TIMEOUT, val)) {
                 try {
@@ -625,7 +652,10 @@ void server_models::load_models() {
         }
     };
     auto apply_hidden = [&]() {
-        for (auto & [name, inst] : mapping) {
+        for (auto & _name_inst : mapping) {
+            auto & name = _name_inst.first;
+            auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             inst.meta.hidden = hidden_models.count(name) > 0;
         }
     };
@@ -648,7 +678,10 @@ void server_models::load_models() {
 
     if (is_first_load) {
         // FIRST LOAD: add all models, then unlock for autoloading
-        for (const auto & [name, preset] : final_presets) {
+        for (const auto & _name_preset : final_presets) {
+            const auto & name = _name_preset.first;
+            const auto & preset = _name_preset.second;
+            (void) name; (void) preset;
             server_model_meta meta{
                 /* source        */ get_source(name),
                 /* preset        */ preset,
@@ -675,7 +708,10 @@ void server_models::load_models() {
         // skipped on reload, see startup_models
         if (startup_models.has_value()) {
             std::vector<std::string> models_to_load;
-            for (const auto & [name, inst] : mapping) {
+            for (const auto & _name_inst : mapping) {
+                const auto & name = _name_inst.first;
+                const auto & inst = _name_inst.second;
+                (void) name; (void) inst;
                 std::string val;
                 if (inst.meta.preset.get_option(COMMON_ARG_PRESET_LOAD_ON_STARTUP, val) && common_arg_utils::is_truthy(val)) {
                     models_to_load.push_back(name);
@@ -698,7 +734,10 @@ void server_models::load_models() {
 
         // find running models whose source was removed or whose preset changed
         std::vector<std::string> to_unload;
-        for (const auto & [name, inst] : mapping) {
+        for (const auto & _name_inst : mapping) {
+            const auto & name = _name_inst.first;
+            const auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             if (!inst.meta.is_running()) continue;
             auto it = final_presets.find(name);
             if (it == final_presets.end()) {
@@ -736,7 +775,10 @@ void server_models::load_models() {
                 threads_to_join.push_back(std::move(it->second.th));
             }
         }
-        for (auto & [name, inst] : mapping) {
+        for (auto & _name_inst : mapping) {
+            auto & name = _name_inst.first;
+            auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             if (inst.meta.status == SERVER_MODEL_STATUS_DOWNLOADING) {
                 continue; // downloading models are not from config sources, leave them alone
             }
@@ -775,7 +817,10 @@ void server_models::load_models() {
         }
 
         // update presets for non-running models still in source
-        for (auto & [name, inst] : mapping) {
+        for (auto & _name_inst : mapping) {
+            auto & name = _name_inst.first;
+            auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             if (inst.meta.is_running()) continue;
             auto it = final_presets.find(name);
             if (it == final_presets.end()) continue; // erased above
@@ -794,7 +839,10 @@ void server_models::load_models() {
             inst.meta.aliases.clear();
             for (const auto & alias : new_aliases) {
                 bool conflict = false;
-                for (const auto & [other_name, other_inst] : mapping) {
+                for (const auto & _other_name_other_inst : mapping) {
+                    const auto & other_name = _other_name_other_inst.first;
+                    const auto & other_inst = _other_name_other_inst.second;
+                    (void) other_name; (void) other_inst;
                     if (other_name == name) continue;
                     if (other_name == alias || other_inst.meta.aliases.count(alias)) {
                         SRV_WRN("(reload) alias '%s' for model '%s' conflicts with model '%s', skipping\n",
@@ -823,7 +871,10 @@ void server_models::load_models() {
 
         // add models that are new in this reload, load-on-startup is not honored here since a
         // reload never spawns an instance
-        for (const auto & [name, preset] : final_presets) {
+        for (const auto & _name_preset : final_presets) {
+            const auto & name = _name_preset.first;
+            const auto & preset = _name_preset.second;
+            (void) name; (void) preset;
             if (mapping.find(name) == mapping.end()) {
                 server_model_meta meta{
                     /* source        */ get_source(name),
@@ -891,7 +942,10 @@ bool server_models::has_model(const std::string & name) {
     if (mapping.find(name) != mapping.end()) {
         return true;
     }
-    for (const auto & [key, inst] : mapping) {
+    for (const auto & _key_inst : mapping) {
+        const auto & key = _key_inst.first;
+        const auto & inst = _key_inst.second;
+        (void) key; (void) inst;
         if (inst.meta.aliases.count(name)) {
             return true;
         }
@@ -911,7 +965,10 @@ std::optional<server_model_meta> server_models::get_meta(const std::string & nam
     if (it != mapping.end()) {
         return it->second.meta;
     }
-    for (const auto & [key, inst] : mapping) {
+    for (const auto & _key_inst : mapping) {
+        const auto & key = _key_inst.first;
+        const auto & inst = _key_inst.second;
+        (void) key; (void) inst;
         if (inst.meta.aliases.count(name)) {
             return inst.meta;
         }
@@ -929,7 +986,10 @@ std::vector<server_model_meta> server_models::get_all_meta() {
 
     std::vector<server_model_meta> result;
     result.reserve(mapping.size());
-    for (const auto & [name, inst] : mapping) {
+    for (const auto & _name_inst : mapping) {
+        const auto & name = _name_inst.first;
+        const auto & inst = _name_inst.second;
+        (void) name; (void) inst;
         result.push_back(inst.meta);
     }
     return result;
@@ -1200,7 +1260,10 @@ void server_models::unload_all() {
     std::vector<std::thread> to_join;
     {
         std::lock_guard<std::mutex> lk(mutex);
-        for (auto & [name, inst] : mapping) {
+        for (auto & _name_inst : mapping) {
+            auto & name = _name_inst.first;
+            auto & inst = _name_inst.second;
+            (void) name; (void) inst;
             if (inst.meta.status == SERVER_MODEL_STATUS_DOWNLOADING) {
                 SRV_INF("cancelling download for model name=%s\n", name.c_str());
                 inst.subproc->stopped.store(true, std::memory_order_relaxed);
@@ -2213,7 +2276,10 @@ void server_models_routes::init_routes() {
         }
 
         json aggregated = json::array();
-        for (auto & [port, ids] : per_child) {
+        for (auto & _port_ids : per_child) {
+            auto & port = _port_ids.first;
+            auto & ids = _port_ids.second;
+            (void) port; (void) ids;
             json child_body = {{"conversation_ids", ids}};
             httplib::Client cli(CHILD_ADDR, port);
             cli.set_connection_timeout(0, STREAM_LOOKUP_TIMEOUT_MS * 1000);
@@ -2355,7 +2421,10 @@ static std::string build_multipart_body(
         }
     }
 
-    for (const auto & [key, file] : files) {
+    for (const auto & _key_file : files) {
+        const auto & key = _key_file.first;
+        const auto & file = _key_file.second;
+        (void) key; (void) file;
         body << "--" << boundary << "\r\n";
         body << "Content-Disposition: form-data; name=\"" << sanitize_field(key) << "\"";
         if (!file.filename.empty()) {
@@ -2426,7 +2495,10 @@ server_http_proxy::server_http_proxy(
     auto make_header_msg = [](const httplib::Response & response) {
         msg_t msg;
         msg.status = response.status;
-        for (const auto & [key, value] : response.headers) {
+        for (const auto & _key_value : response.headers) {
+            const auto & key = _key_value.first;
+            const auto & value = _key_value.second;
+            (void) key; (void) value;
             const auto lowered = to_lower_copy(key);
             if (should_strip_proxy_header(lowered)) {
                 continue;
@@ -2477,7 +2549,10 @@ server_http_proxy::server_http_proxy(
     {
         req.method = method;
         req.path = path;
-        for (const auto & [key, value] : headers) {
+        for (const auto & _key_value : headers) {
+            const auto & key = _key_value.first;
+            const auto & value = _key_value.second;
+            (void) key; (void) value;
             const auto lowered = to_lower_copy(key);
             if (lowered == "accept-encoding") {
                 // disable Accept-Encoding to avoid compressed responses

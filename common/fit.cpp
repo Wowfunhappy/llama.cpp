@@ -74,7 +74,10 @@ static std::vector<llama_device_memory_data> common_get_device_memory_data_impl(
 
     llama_memory_breakdown memory_breakdown = llama_get_memory_breakdown(ctx);
 
-    for (const auto & [buft, mb] : memory_breakdown) {
+    for (const auto & _buft_mb : memory_breakdown) {
+        const auto & buft = _buft_mb.first;
+        const auto & mb = _buft_mb.second;
+        (void) buft; (void) mb;
         if (ggml_backend_buft_is_host(buft)) {
             ret.back().mb.model   += mb.model;
             ret.back().mb.context += mb.context;

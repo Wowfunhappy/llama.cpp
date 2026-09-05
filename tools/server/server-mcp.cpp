@@ -453,7 +453,10 @@ static std::vector<std::string> mcp_build_env(const std::map<std::string, std::s
             env.push_back(e);
         }
     }
-    for (auto & [k, v] : overrides) {
+    for (auto & _k_v : overrides) {
+        auto & k = _k_v.first;
+        auto & v = _k_v.second;
+        (void) k; (void) v;
         env.push_back(k + "=" + v);
     }
     return env;
@@ -663,7 +666,10 @@ server_mcp::~server_mcp() {
     std::vector<std::shared_ptr<server_mcp_transport>> to_close;
     {
         std::lock_guard<std::mutex> lock(mutex);
-        for (auto & [name, t] : transports) {
+        for (auto & _name_t : transports) {
+            auto & name = _name_t.first;
+            auto & t = _name_t.second;
+            (void) name; (void) t;
             to_close.push_back(std::move(t));
         }
         transports.clear();

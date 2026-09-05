@@ -803,7 +803,9 @@ static int process_mtmd_chunk(const server_slot & slot, mtmd::batch_ptr & mbatch
     int n_added = 1;
     size_t idx_cur = idx;
     while (res == 0) {
-        auto [next_chunk, next_idx] = input_tokens.find_next_media_chunk(idx_cur);
+        Noneauto _next_chunk_next_idx = input_tokens.find_next_media_chunk(idx_cur);
+        Noneauto & next_chunk = _next_chunk_next_idx.first;
+        Noneauto & next_idx = _next_chunk_next_idx.second;
         if (next_chunk == nullptr) {
             break;
         }
@@ -1067,12 +1069,18 @@ private:
             int64_t t_elapsed = ggml_time_us() - t_start;
             if (!mmproj_mem.empty()) {
                 size_t total = 0;
-                for (auto & [dev, size] : mmproj_mem) {
+                for (auto & _dev_size : mmproj_mem) {
+                    auto & dev = _dev_size.first;
+                    auto & size = _dev_size.second;
+                    (void) dev; (void) size;
                     total += size;
                 }
                 SRV_TRC("[mtmd] estimated worst-case memory usage of mmproj is %.2f MiB (took %.2f ms)\n", total / (1024.0 * 1024.0), t_elapsed / 1000.0);
                 GGML_ASSERT(!params_base.fit_params_target.empty());
-                for (auto & [dev, size] : mmproj_mem) {
+                for (auto & _dev_size : mmproj_mem) {
+                    auto & dev = _dev_size.first;
+                    auto & size = _dev_size.second;
+                    (void) dev; (void) size;
                     for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
                         if (ggml_backend_dev_get(i) == dev) {
                             if (i < params_base.fit_params_target.size()) {

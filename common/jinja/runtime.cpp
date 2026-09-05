@@ -974,7 +974,10 @@ std::string runtime::debug_dump_program(const program & prog, const std::string 
             string_replace_all(snippet, "\n", "\n" + indent(lvl));
             oss << indent(lvl) << snippet << "\n";
         } else {
-            for (auto & [label, children_vec] : children) {
+            for (auto & _label_children_vec : children) {
+                auto & label = _label_children_vec.first;
+                auto & children_vec = _label_children_vec.second;
+                (void) label; (void) children_vec;
                 oss << indent(lvl) << label << ":\n";
                 lvl++;
                 if (children_vec.empty()) {

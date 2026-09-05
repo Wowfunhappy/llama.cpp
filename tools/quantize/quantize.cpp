@@ -192,7 +192,10 @@ static int load_imatrix(const std::string & imatrix_file, std::vector<std::strin
         exit(1);
     }
 
-    for (const auto & [name, entry] : loaded.entries) {
+    for (const auto & _name_entry : loaded.entries) {
+        const auto & name = _name_entry.first;
+        const auto & entry = _name_entry.second;
+        (void) name; (void) entry;
         auto & e = imatrix_data[name];
         e.resize(entry.sums.size());
 

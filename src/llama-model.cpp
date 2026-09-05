@@ -1681,7 +1681,10 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
             output->type == GGML_TYPE_NVFP4 &&
             (output_s || output_in_s)));
     // populate tensors_by_name
-    for (auto & [_, ctx_ptr] : ml.ctx_map) {
+    for (auto & ___ctx_ptr : ml.ctx_map) {
+        auto & _ = ___ctx_ptr.first;
+        auto & ctx_ptr = ___ctx_ptr.second;
+        (void) _; (void) ctx_ptr;
         for (auto * cur = ggml_get_first_tensor(ctx_ptr.get()); cur != NULL; cur = ggml_get_next_tensor(ctx_ptr.get(), cur)) {
             tensors_by_name.emplace_back(ggml_get_name(cur), cur);
         }
@@ -1698,7 +1701,10 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
     const size_t n_max_backend_buffer = ml.ctx_map.size() * ml.files.size();
     pimpl->ctxs_bufs.reserve(n_max_backend_buffer);
 
-    for (auto & [ctx_key, ctx_ptr] : ml.ctx_map) {
+    for (auto & _ctx_key_ctx_ptr : ml.ctx_map) {
+        auto & ctx_key = _ctx_key_ctx_ptr.first;
+        auto & ctx_ptr = _ctx_key_ctx_ptr.second;
+        (void) ctx_key; (void) ctx_ptr;
         ggml_backend_buffer_type_t buft = ctx_key.buft;
         ggml_context * ctx = ctx_ptr.get();
 
@@ -1803,7 +1809,10 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
     }
 
     // print memory requirements per buffer type
-    for (auto & [_, bufs] : pimpl->ctxs_bufs) {
+    for (auto & ___bufs : pimpl->ctxs_bufs) {
+        auto & _ = ___bufs.first;
+        auto & bufs = ___bufs.second;
+        (void) _; (void) bufs;
         for (auto & buf: bufs) {
             LLAMA_LOG_INFO("%s: %12s model buffer size = %8.2f MiB\n",
                 __func__, ggml_backend_buffer_name(buf.get()), ggml_backend_buffer_get_size(buf.get()) / 1024.0 / 1024.0);
@@ -1823,7 +1832,10 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
     }
 
     // load tensor data
-    for (auto & [ctx, buf_map] : ctx_buf_maps) {
+    for (auto & _ctx_buf_map : ctx_buf_maps) {
+        auto & ctx = _ctx_buf_map.first;
+        auto & buf_map = _ctx_buf_map.second;
+        (void) ctx; (void) buf_map;
         if (!ml.load_all_data(ctx, buf_map, use_mlock ? &pimpl->mlock_mmaps : NULL, params.progress_callback, params.progress_callback_user_data)) {
             return false;
         }
@@ -1888,7 +1900,10 @@ llama_split_mode llama_model::split_mode() const {
 
 std::map<ggml_backend_buffer_type_t, size_t> llama_model::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, size_t> ret;
-    for (const auto & [ctx, bufs] : pimpl->ctxs_bufs) {
+    for (const auto & _ctx_bufs : pimpl->ctxs_bufs) {
+        const auto & ctx = _ctx_bufs.first;
+        const auto & bufs = _ctx_bufs.second;
+        (void) ctx; (void) bufs;
         if (hparams.no_alloc) {
             GGML_ASSERT(bufs.size() == 1);
             ggml_backend_buffer_t buf = bufs[0].get();

@@ -532,18 +532,39 @@ class tinyBLAS {
     }
 
   private:
+    // SFINAE terminates the recursion: without if constexpr the dead branch is still instantiated.
+    template <int RM, int RN, int BM>
+    inline typename std::enable_if<(RN > 1)>::type
+    mnpack_recurse(int64_t m, int64_t n, int64_t SIZE_N, int64_t BN) {
+        return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
+    }
+
+    template <int RM, int RN, int BM>
+    inline typename std::enable_if<(RN <= 1)>::type
+    mnpack_recurse(int64_t, int64_t, int64_t SIZE_N, int64_t) {
+        GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
+        GGML_ASSERT(false); // we have miss something.
+    }
+
     template <int RM, int RN, int BM>
     inline void mnpack(int64_t m, int64_t n, int64_t SIZE_N, int64_t BN) {
         if (SIZE_N == RN) {
             return gemm<RM, RN, BM>(m, n, BN);
         }
-        if (RN > 1) {
-            return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
-        } else {
-            GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
-            GGML_ASSERT(false); // we have miss something.
+        return mnpack_recurse<RM, RN, BM>(m, n, SIZE_N, BN);
+    }
+
+    template <int RM, int RN>
+    inline typename std::enable_if<(RN > 1)>::type
+    gemm_bloc_rest(int64_t ii, int64_t & jj, int64_t jj2) {
+        for (; jj < jj2; jj += RN - 1) {
+            gemm_bloc<RM, RN-1>(ii, jj);
         }
     }
+
+    template <int RM, int RN>
+    inline typename std::enable_if<(RN <= 1)>::type
+    gemm_bloc_rest(int64_t, int64_t &, int64_t) { }
 
     template <int RM, int RN>
     inline void gemm_bloc(int64_t ii, int64_t jj) {
@@ -616,11 +637,7 @@ class tinyBLAS {
                 for (; jj < jj1; jj += RN) {
                     gemm_bloc<RM, RN>(ii + bi, jj);
                 }
-                if (RN > 1) {
-                    for (; jj < jj2; jj += RN - 1) {
-                        gemm_bloc<RM, RN-1>(ii + bi, jj);
-                    }
-                }
+                gemm_bloc_rest<RM, RN>(ii + bi, jj, jj2);
                 GGML_ASSERT(jj == jj2);
             }
 
@@ -710,17 +727,26 @@ class tinyBLAS_RVV {
     }
 
   private:
+    // SFINAE terminates the recursion: without if constexpr the dead branch is still instantiated.
+    template <int RM, int RN, int BM>
+    inline typename std::enable_if<(RN > 1)>::type
+    mnpack_recurse(int64_t m, int64_t n, int64_t SIZE_N, int64_t BN) {
+        return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
+    }
+
+    template <int RM, int RN, int BM>
+    inline typename std::enable_if<(RN <= 1)>::type
+    mnpack_recurse(int64_t, int64_t, int64_t SIZE_N, int64_t) {
+        GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
+        GGML_ASSERT(false); // we have miss something.
+    }
+
     template<int RM, int RN, int BM>
     inline void mnpack(int64_t m, int64_t n, int64_t SIZE_N, int64_t BN) {
         if (SIZE_N == RN) {
             return gemm<RM, RN, BM>(m, n, BN);
         }
-        if (RN > 1) {
-            return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
-        } else {
-            GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
-            GGML_ASSERT(false); // we have miss something.
-        }
+        return mnpack_recurse<RM, RN, BM>(m, n, SIZE_N, BN);
     }
 
     inline void gemm_bloc_4x6(int64_t ii, int64_t jj) {
@@ -1131,6 +1157,18 @@ class tinyBLAS_RVV {
     }
 
     template <int RM, int RN>
+    inline typename std::enable_if<(RN > 1)>::type
+    gemm_bloc_rest(int64_t ii, int64_t & jj, int64_t jj2) {
+        for (; jj < jj2; jj += RN - 1) {
+            gemm_bloc<RM, RN-1>(ii, jj);
+        }
+    }
+
+    template <int RM, int RN>
+    inline typename std::enable_if<(RN <= 1)>::type
+    gemm_bloc_rest(int64_t, int64_t &, int64_t) { }
+
+    template <int RM, int RN>
     inline void gemm_bloc(int64_t ii, int64_t jj) {
         if (RM == 4) {
             if (RN == 6) { return gemm_bloc_4x6(ii, jj); }
@@ -1182,11 +1220,7 @@ class tinyBLAS_RVV {
                 for (; jj < jj1; jj += RN) {
                     gemm_bloc<RM, RN>(ii + bi, jj);
                 }
-                if (RN > 1) {
-                    for (; jj < jj2; jj += RN - 1) {
-                        gemm_bloc<RM, RN-1>(ii + bi, jj);
-                    }
-                }
+                gemm_bloc_rest<RM, RN>(ii + bi, jj, jj2);
                 GGML_ASSERT(jj == jj2);
             }
 

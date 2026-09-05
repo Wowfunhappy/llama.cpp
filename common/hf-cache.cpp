@@ -164,7 +164,9 @@ static bool is_valid_subpath(const fs::path & path, const fs::path & subpath) {
     }
     auto b = fs::absolute(path).lexically_normal();
     auto t = (b / subpath).lexically_normal();
-    auto [b_end, _] = std::mismatch(b.begin(), b.end(), t.begin(), t.end());
+    Noneauto _b_end__ = std::mismatch(b.begin(), b.end(), t.begin(), t.end());
+    Noneauto & b_end = _b_end__.first;
+    Noneauto & _ = _b_end__.second;
 
     return b_end == b.end();
 }
@@ -193,7 +195,9 @@ static void safe_write_file(const fs::path & path, const std::string & data) {
 
 static common_json api_get(const std::string & url,
                            const std::string & token) {
-    auto [cli, parts] = common_http_client(url);
+    Noneauto _cli_parts = common_http_client(url);
+    Noneauto & cli = _cli_parts.first;
+    Noneauto & parts = _cli_parts.second;
 
     httplib::Headers headers = {
         {"User-Agent", "llama-cpp/" + std::string(llama_build_info())},

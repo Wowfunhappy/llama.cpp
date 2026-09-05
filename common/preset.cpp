@@ -41,7 +41,10 @@ std::vector<std::string> common_preset::to_args(const std::string & bin_path) co
         args.push_back(bin_path);
     }
 
-    for (const auto & [opt, value] : options) {
+    for (const auto & _opt_value : options) {
+        const auto & opt = _opt_value.first;
+        const auto & value = _opt_value.second;
+        (void) opt; (void) value;
         if (opt.is_preset_only) {
             continue; // skip preset-only options (they are not CLI args)
         }
@@ -82,7 +85,10 @@ std::string common_preset::to_ini() const {
     std::ostringstream ss;
 
     ss << "[" << name << "]\n";
-    for (const auto & [opt, value] : options) {
+    for (const auto & _opt_value : options) {
+        const auto & opt = _opt_value.first;
+        const auto & value = _opt_value.second;
+        (void) opt; (void) value;
         auto espaced_value = value;
         string_replace_all(espaced_value, "\n", "\\\n");
         ss << rm_leading_dashes(opt.args.back()) << " = ";
@@ -95,7 +101,10 @@ std::string common_preset::to_ini() const {
 
 void common_preset::set_option(const common_preset_context & ctx, const std::string & env, const std::string & value) {
     // try if option exists, update it
-    for (auto & [opt, val] : options) {
+    for (auto & _opt_val : options) {
+        auto & opt = _opt_val.first;
+        auto & val = _opt_val.second;
+        (void) opt; (void) val;
         if (opt.env && env == opt.env) {
             val = value;
             return;
@@ -124,7 +133,10 @@ void common_preset::unset_option(const std::string & env) {
 }
 
 bool common_preset::get_option(const std::string & env, std::string & value) const {
-    for (const auto & [opt, val] : options) {
+    for (const auto & _opt_val : options) {
+        const auto & opt = _opt_val.first;
+        const auto & val = _opt_val.second;
+        (void) opt; (void) val;
         if (opt.env && env == opt.env) {
             value = val;
             return true;
@@ -134,13 +146,19 @@ bool common_preset::get_option(const std::string & env, std::string & value) con
 }
 
 void common_preset::merge(const common_preset & other) {
-    for (const auto & [opt, val] : other.options) {
+    for (const auto & _opt_val : other.options) {
+        const auto & opt = _opt_val.first;
+        const auto & val = _opt_val.second;
+        (void) opt; (void) val;
         options[opt] = val; // overwrite existing options
     }
 }
 
 void common_preset::apply_to_params(common_params & params, const std::set<std::string> & handled_keys) const {
-    for (const auto & [opt, val] : options) {
+    for (const auto & _opt_val : options) {
+        const auto & opt = _opt_val.first;
+        const auto & val = _opt_val.second;
+        (void) opt; (void) val;
         if (!handled_keys.empty()) {
             if (!opt.env || handled_keys.find(opt.env) == handled_keys.end()) {
                 continue;
@@ -301,7 +319,10 @@ common_presets common_preset_context::load_from_ini(const std::string & path, co
         }
         preset.name = section_name;
         LOG_DBG("loading preset: %s\n", preset.name.c_str());
-        for (const auto & [key, value] : section.second) {
+        for (const auto & _key_value : section.second) {
+            const auto & key = _key_value.first;
+            const auto & value = _key_value.second;
+            (void) key; (void) value;
             if (key == "version") {
                 // skip version key (reserved for future use)
                 continue;
@@ -476,7 +497,10 @@ common_preset common_preset_context::load_from_args(int argc, char ** argv) cons
 
 common_presets common_preset_context::cascade(const common_presets & base, const common_presets & added) const {
     common_presets out = base; // copy
-    for (const auto & [name, preset_added] : added) {
+    for (const auto & _name_preset_added : added) {
+        const auto & name = _name_preset_added.first;
+        const auto & preset_added = _name_preset_added.second;
+        (void) name; (void) preset_added;
         if (out.find(name) != out.end()) {
             // if exists, merge
             common_preset & target = out[name];
@@ -491,7 +515,10 @@ common_presets common_preset_context::cascade(const common_presets & base, const
 
 common_presets common_preset_context::cascade(const common_preset & base, const common_presets & presets) const {
     common_presets out;
-    for (const auto & [name, preset] : presets) {
+    for (const auto & _name_preset : presets) {
+        const auto & name = _name_preset.first;
+        const auto & preset = _name_preset.second;
+        (void) name; (void) preset;
         common_preset tmp = base; // copy
         tmp.name = name;
         tmp.merge(preset);

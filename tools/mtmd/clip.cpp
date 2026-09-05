@@ -6056,7 +6056,10 @@ const clip_hparams * clip_get_hparams(const struct clip_ctx * ctx) {
 
 std::map<ggml_backend_dev_t, size_t> clip_get_mem_usage(const struct clip_ctx * ctx) {
     std::map<ggml_backend_dev_t, size_t> result = ctx->mem_usage;
-    for (auto & [dev, size] : ctx->mem_compute) {
+    for (auto & _dev_size : ctx->mem_compute) {
+        auto & dev = _dev_size.first;
+        auto & size = _dev_size.second;
+        (void) dev; (void) size;
         result[dev] += size;
     }
     return result;

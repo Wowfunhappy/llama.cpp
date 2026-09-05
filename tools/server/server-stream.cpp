@@ -579,7 +579,10 @@ std::string server_stream_conv_id_from_headers(const std::map<std::string, std::
     // case-insensitive scan for x-conversation-id
     static constexpr char   target[]   = "x-conversation-id";
     static constexpr size_t target_len = sizeof(target) - 1;
-    for (const auto & [hk, hv] : headers) {
+    for (const auto & _hk_hv : headers) {
+        const auto & hk = _hk_hv.first;
+        const auto & hv = _hk_hv.second;
+        (void) hk; (void) hv;
         if (hk.size() != target_len) continue;
         bool match = true;
         for (size_t i = 0; i < target_len; ++i) {

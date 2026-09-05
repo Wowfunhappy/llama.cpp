@@ -692,7 +692,10 @@ static ggml_type llama_tensor_get_type(quantize_state_impl & qs, const llama_mod
         bool named = false;
         if (std::strcmp(tensor->name, "per_layer_token_embd.weight") == 0) {
             const std::string tensor_name(tensor->name);
-            for (const auto & [pattern, qtype] : qs.tensor_type_patterns) {
+            for (const auto & _pattern_qtype : qs.tensor_type_patterns) {
+                const auto & pattern = _pattern_qtype.first;
+                const auto & qtype = _pattern_qtype.second;
+                (void) pattern; (void) qtype;
                 if (std::regex_search(tensor_name, pattern)) {
                     named = true;
                     break;

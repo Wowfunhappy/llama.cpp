@@ -1454,7 +1454,10 @@ struct ggml_backend_cuda_context {
     // Check if any CUDA graph is enabled for this context (used by kernels that need to know
     // if graphs are in use without having access to the specific graph key)
     bool any_cuda_graph_enabled() const {
-        for (const auto & [key, graph] : cuda_graphs) {
+        for (const auto & _key_graph : cuda_graphs) {
+            const auto & key = _key_graph.first;
+            const auto & graph = _key_graph.second;
+            (void) key; (void) graph;
             if (graph && graph->is_enabled()) {
                 return true;
             }
@@ -1464,7 +1467,10 @@ struct ggml_backend_cuda_context {
 
     // Check if any CUDA graph has an instance for this context
     bool any_cuda_graph_has_instance() const {
-        for (const auto & [key, graph] : cuda_graphs) {
+        for (const auto & _key_graph : cuda_graphs) {
+            const auto & key = _key_graph.first;
+            const auto & graph = _key_graph.second;
+            (void) key; (void) graph;
             if (graph && graph->instance != nullptr) {
                 return true;
             }

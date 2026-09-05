@@ -477,7 +477,10 @@ void server_http_context::stop() const {
 }
 
 static void set_headers(httplib::Response & res, const std::map<std::string, std::string> & headers) {
-    for (const auto & [key, value] : headers) {
+    for (const auto & _key_value : headers) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         res.set_header(key, value);
     }
 }
@@ -511,10 +514,16 @@ static std::string decode_path_component(const std::string & in) {
 
 static std::map<std::string, std::string> get_params(const httplib::Request & req) {
     std::map<std::string, std::string> params;
-    for (const auto & [key, value] : req.params) {
+    for (const auto & _key_value : req.params) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         params[key] = value;
     }
-    for (const auto & [key, value] : req.path_params) {
+    for (const auto & _key_value : req.path_params) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         params[key] = decode_path_component(value);
     }
     return params;
@@ -522,7 +531,10 @@ static std::map<std::string, std::string> get_params(const httplib::Request & re
 
 static std::map<std::string, std::string> get_headers(const httplib::Request & req) {
     std::map<std::string, std::string> headers;
-    for (const auto & [key, value] : req.headers) {
+    for (const auto & _key_value : req.headers) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         headers[key] = value;
     }
     return headers;
@@ -530,7 +542,10 @@ static std::map<std::string, std::string> get_headers(const httplib::Request & r
 
 static std::string build_query_string(const httplib::Request & req) {
     std::string qs;
-    for (const auto & [key, value] : req.params) {
+    for (const auto & _key_value : req.params) {
+        const auto & key = _key_value.first;
+        const auto & value = _key_value.second;
+        (void) key; (void) value;
         if (!qs.empty()) {
             qs += '&';
         }
@@ -608,7 +623,10 @@ void server_http_context::post(const std::string & path, const server_http_conte
         if (req.is_multipart_form_data()) {
             // translate text fields to a JSON object and use it as the body
             json form_json = json::object();
-            for (const auto & [key, field] : req.form.fields) {
+            for (const auto & _key_field : req.form.fields) {
+                const auto & key = _key_field.first;
+                const auto & field = _key_field.second;
+                (void) key; (void) field;
                 if (form_json.contains(key)) {
                     // if the key already exists, convert it to an array
                     if (!form_json[key].is_array()) {
@@ -623,7 +641,10 @@ void server_http_context::post(const std::string & path, const server_http_conte
             body = form_json.dump();
 
             // populate files from multipart form
-            for (const auto & [key, file] : req.form.files) {
+            for (const auto & _key_file : req.form.files) {
+                const auto & key = _key_file.first;
+                const auto & file = _key_file.second;
+                (void) key; (void) file;
                 files[key] = uploaded_file{
                     raw_buffer(file.content.begin(), file.content.end()),
                     file.filename,
@@ -725,7 +746,10 @@ void server_http_context::register_gcp_compat() const {
     // camelCase alias -> canonical path (first registration wins on collision)
     // e.g. "chatCompletions" -> "/v1/chat/completions"
     std::unordered_map<std::string, std::string> alias_to_path;
-    for (const auto & [path, _] : handlers) {
+    for (const auto & _path__ : handlers) {
+        const auto & path = _path__.first;
+        const auto & _ = _path__.second;
+        (void) path; (void) _;
         alias_to_path.emplace(path_to_gcp_format(path), path);
     }
 

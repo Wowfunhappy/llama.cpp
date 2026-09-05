@@ -86,7 +86,10 @@ common_aho_corasick::common_aho_corasick(common_trie trie) : t(std::move(trie)) 
         size_t u = queue.front();
         queue.pop_front();
         order.push_back(u);
-        for (const auto & [ch, v] : nodes[u].children) {
+        for (const auto & _ch_v : nodes[u].children) {
+            const auto & ch = _ch_v.first;
+            const auto & v = _ch_v.second;
+            (void) ch; (void) v;
             if (u != 0) {
                 size_t f = fail[u];
                 while (f && nodes[f].children.find(ch) == nodes[f].children.end()) {
@@ -107,7 +110,10 @@ common_aho_corasick::common_aho_corasick(common_trie trie) : t(std::move(trie)) 
     }
 
     for (const auto & node : nodes) {
-        for (const auto & [ch, v] : node.children) {
+        for (const auto & _ch_v : node.children) {
+            const auto & ch = _ch_v.first;
+            const auto & v = _ch_v.second;
+            (void) ch; (void) v;
             alphabet.insert(ch);
         }
     }

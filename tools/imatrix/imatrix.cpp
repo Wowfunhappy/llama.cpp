@@ -648,7 +648,10 @@ bool IMatrixCollector::load_imatrix(const char * file_name) {
     const int32_t chunk_size = m_params.n_ctx / m_params.n_parallel;
     const bool is_legacy = loaded.is_legacy;
 
-    for (auto & [name, entry] : loaded.entries) {
+    for (auto & _name_entry : loaded.entries) {
+        auto & name = _name_entry.first;
+        auto & entry = _name_entry.second;
+        (void) name; (void) entry;
         auto & e = m_stats[name];
 
         if (is_legacy) {
@@ -1053,7 +1056,10 @@ static bool show_statistics(const common_params & params) {
     LOG_INF("\nComputing weighted average statistics per layer (%d layers)\n", layers);
     LOG_INF("\n%s\t%s\t%s\t%s\n", "  Layer", "     μΣ(Act²)", "      μZD", "μCosSim");
     LOG_INF("================================================\n");
-    for (const auto & [first, second] : ws) {
+    for (const auto & _first_second : ws) {
+        const auto & first = _first_second.first;
+        const auto & second = _first_second.second;
+        (void) first; (void) second;
         const auto & layer = first;
         const auto & stats = second;
 

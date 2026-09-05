@@ -2333,7 +2333,10 @@ uint32_t llama_context::graph_max_nodes(uint32_t n_tokens) const {
 
     uint32_t n_sampling_nodes = 0;
     uint32_t n_sampling_nodes_max = 0;
-    for (const auto & [seq_id, sampler] : sampling.samplers) {
+    for (const auto & _seq_id_sampler : sampling.samplers) {
+        const auto & seq_id = _seq_id_sampler.first;
+        const auto & sampler = _seq_id_sampler.second;
+        (void) seq_id; (void) sampler;
         const uint32_t n_nodes = llama_sampler_backend_n_nodes(sampler);
         n_sampling_nodes += n_nodes;
         if (cparams.n_outputs_max_per_seq > 1) {
@@ -2745,7 +2748,10 @@ public:
             mbufs_new[buft].total_size += winfo.size;
         }
 
-        for (auto & [buft, mbuf] : mbufs_new) {
+        for (auto & _buft_mbuf : mbufs_new) {
+            auto & buft = _buft_mbuf.first;
+            auto & mbuf = _buft_mbuf.second;
+            (void) buft; (void) mbuf;
             ggml_init_params params = {
                 /*.mem_size   =*/ 2*mbuf.n_tensors*ggml_tensor_overhead(),
                 /*.mem_buffer =*/ NULL,
@@ -2769,7 +2775,10 @@ public:
             mbuf.cpy.push_back(ggml_new_tensor_1d(mbuf.ctx.get(), winfo.tensor->type, n));
         }
 
-        for (auto & [buft, mbuf] : mbufs_new) {
+        for (auto & _buft_mbuf : mbufs_new) {
+            auto & buft = _buft_mbuf.first;
+            auto & mbuf = _buft_mbuf.second;
+            (void) buft; (void) mbuf;
             auto & mbuf_cur = mbufs[buft];
 
             bool need_alloc = false;
@@ -2877,7 +2886,10 @@ public:
             mbufs_new[buft].total_size += rinfo.size;
         }
 
-        for (auto & [buft, mbuf] : mbufs_new) {
+        for (auto & _buft_mbuf : mbufs_new) {
+            auto & buft = _buft_mbuf.first;
+            auto & mbuf = _buft_mbuf.second;
+            (void) buft; (void) mbuf;
             ggml_init_params params = {
                 /*.mem_size   =*/ mbuf.n_tensors*ggml_tensor_overhead(),
                 /*.mem_buffer =*/ NULL,
@@ -2901,7 +2913,10 @@ public:
             ggml_backend_view_init(mbuf.org.back());
         }
 
-        for (auto & [buft, mbuf] : mbufs_new) {
+        for (auto & _buft_mbuf : mbufs_new) {
+            auto & buft = _buft_mbuf.first;
+            auto & mbuf = _buft_mbuf.second;
+            (void) buft; (void) mbuf;
             const auto & mbuf_cur = mbufs.at(buft);
 
             if (!mbuf_cur.buf || mbuf_cur.total_size != mbuf.total_size) {

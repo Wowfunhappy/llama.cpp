@@ -168,7 +168,10 @@ static std::string normalize_quotes_to_json(const std::string & input) {
             }
             std::string_view token(input.data() + i, n);
             bool matched = false;
-            for (const auto & [py, js] : literals) {
+            for (const auto & _py_js : literals) {
+                const auto & py = _py_js.first;
+                const auto & js = _py_js.second;
+                (void) py; (void) js;
                 if (py.substr(0, n) == token) {
                     result += js.substr(0, n);
                     i += n - 1;

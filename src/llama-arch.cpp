@@ -1021,7 +1021,10 @@ std::string LLM_TN_IMPL::str() const {
 std::vector<llm_arch> llm_arch_all() {
     std::vector<llm_arch> ret;
     ret.reserve(LLM_ARCH_NAMES.size());
-    for (const auto & [arch, _] : LLM_ARCH_NAMES) {
+    for (const auto & _arch__ : LLM_ARCH_NAMES) {
+        const auto & arch = _arch__.first;
+        const auto & _ = _arch__.second;
+        (void) arch; (void) _;
         ret.push_back(arch);
     }
     return ret;

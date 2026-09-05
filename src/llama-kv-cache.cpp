@@ -274,7 +274,10 @@ llama_kv_cache::llama_kv_cache(
     }
 
     // allocate tensors and initialize the buffers to avoid NaNs in the padding
-    for (auto & [buft, ctx] : ctx_map) {
+    for (auto & _buft_ctx : ctx_map) {
+        auto & buft = _buft_ctx.first;
+        auto & ctx = _buft_ctx.second;
+        (void) buft; (void) ctx;
         ggml_backend_buffer_t buf;
         if (hparams.no_alloc) {
             buf = ggml_backend_buft_alloc_buffer(buft, /*size =*/ 0); // dummy buffer
@@ -373,7 +376,10 @@ void llama_kv_cache::clear(bool data) {
     }
 
     if (data) {
-        for (auto & [_, buf] : ctxs_bufs) {
+        for (auto & ___buf : ctxs_bufs) {
+            auto & _ = ___buf.first;
+            auto & buf = ___buf.second;
+            (void) _; (void) buf;
             ggml_backend_buffer_clear(buf.get(), 0);
         }
     }
@@ -684,7 +690,10 @@ llama_pos llama_kv_cache::seq_pos_max(llama_seq_id seq_id) const {
 
 std::map<ggml_backend_buffer_type_t, size_t> llama_kv_cache::memory_breakdown() const {
     std::map<ggml_backend_buffer_type_t, size_t> ret;
-    for (const auto & [ctx, buf] : ctxs_bufs) {
+    for (const auto & _ctx_buf : ctxs_bufs) {
+        const auto & ctx = _ctx_buf.first;
+        const auto & buf = _ctx_buf.second;
+        (void) ctx; (void) buf;
         ggml_backend_buffer_type_t buft = ggml_backend_buffer_get_type(buf.get());
 
         if (hparams.no_alloc) {
@@ -1892,7 +1901,10 @@ void llama_kv_cache::get_prev_tokens(const llama_ubatch & ubatch, uint32_t n, st
 size_t llama_kv_cache::total_size() const {
     size_t size = 0;
 
-    for (const auto & [_, buf] : ctxs_bufs) {
+    for (const auto & ___buf : ctxs_bufs) {
+        const auto & _ = ___buf.first;
+        const auto & buf = ___buf.second;
+        (void) _; (void) buf;
         size += ggml_backend_buffer_get_size(buf.get());
     }
 
