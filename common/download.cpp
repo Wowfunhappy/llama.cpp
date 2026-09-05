@@ -8,7 +8,7 @@
 #include "json.h"
 
 #include <algorithm>
-#include <filesystem>
+#include "compat-filesystem.h"
 #include <fstream>
 #include <future>
 #include <map>
@@ -84,7 +84,7 @@ static void write_etag(const std::string & path, const std::string & etag) {
 
 static std::string read_etag(const std::string & path) {
     const std::string etag_path = path + ".etag";
-    if (!std::filesystem::exists(etag_path)) {
+    if (!compat_fs::exists(etag_path)) {
         return {};
     }
     std::ifstream etag_in(etag_path);
@@ -112,17 +112,17 @@ std::pair<std::string, std::string> common_download_split_repo_tag(const std::st
 }
 
 class ProgressBar : public common_download_callback {
-    static inline std::mutex mutex;
-    static inline std::map<const ProgressBar *, int> lines;
-    static inline int max_line = 0;
+    static std::mutex & mutex_() { static std::mutex m; return m; }
+    static std::map<const ProgressBar *, int> & lines_() { static std::map<const ProgressBar *, int> l; return l; }
+    static int & max_line_() { static int m = 0; return m; }
 
     std::string filename;
     size_t len = 0;
 
     static void cleanup(const ProgressBar * line) {
-        lines.erase(line);
-        if (lines.empty()) {
-            max_line = 0;
+        lines_().erase(line);
+        if (lines_().empty()) {
+            max_line_() = 0;
         }
     }
 
@@ -144,7 +144,7 @@ public:
         if (pos != std::string::npos) {
             filename = filename.substr(pos + 1);
         }
-        auto pos = filename.find('?');
+        pos = filename.find('?');
         if (pos != std::string::npos) {
             filename = filename.substr(0, pos);
         }
@@ -160,7 +160,7 @@ public:
     }
 
     void on_done(const common_download_progress &, bool) override {
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex_());
         cleanup(this);
     }
 
@@ -169,13 +169,13 @@ public:
             return;
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex_());
 
-        if (lines.find(this) == lines.end()) {
-            lines[this] = max_line++;
+        if (lines_().find(this) == lines_().end()) {
+            lines_()[this] = max_line_()++;
             std::cout << "\n";
         }
-        int lines_up = max_line - lines[this];
+        int lines_up = max_line_() - lines_()[this];
 
         size_t bar = (55 - len) * 2;
         size_t pct = (100 * p.downloaded) / p.total;
@@ -288,7 +288,7 @@ static int common_download_file_single_online(const std::string & url,
     static const int max_attempts        = 3;
     static const int retry_delay_seconds = 2;
 
-    const bool file_exists = std::filesystem::exists(path);
+    const bool file_exists = compat_fs::exists(path);
 
     if (file_exists && skip_etag) {
         LOG_DBG("%s: using cached file: %s\n", __func__, path.c_str());
@@ -366,7 +366,7 @@ static int common_download_file_single_online(const std::string & url,
 
     { // silent
         std::error_code ec;
-        std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
+        compat_fs::create_directories(compat_fs::parent_path(path), ec);
     }
 
     bool success = false;
@@ -389,9 +389,9 @@ static int common_download_file_single_online(const std::string & url,
 
         size_t existing_size = 0;
 
-        if (std::filesystem::exists(path_temporary)) {
+        if (compat_fs::exists(path_temporary)) {
             if (supports_ranges) {
-                existing_size = std::filesystem::file_size(path_temporary);
+                existing_size = compat_fs::file_size(path_temporary);
             } else if (remove(path_temporary.c_str()) != 0) {
                 LOG_ERR("%s: unable to delete file: %s\n", __func__, path_temporary.c_str());
                 break;
@@ -421,7 +421,7 @@ static int common_download_file_single_online(const std::string & url,
         opts.callback->on_done(p, success);
     }
     if (opts.callback && opts.callback->is_cancelled() &&
-        std::filesystem::exists(path_temporary)) {
+        compat_fs::exists(path_temporary)) {
         if (remove(path_temporary.c_str()) != 0) {
             LOG_ERR("%s: unable to delete temporary file: %s\n", __func__, path_temporary.c_str());
         }
@@ -483,7 +483,7 @@ int common_download_file_single(const std::string & url,
         return common_download_file_single_online(url, path, online_opts, skip_etag);
     }
 
-    if (!std::filesystem::exists(path)) {
+    if (!compat_fs::exists(path)) {
         LOG_ERR("%s: required file is not available in cache (offline mode): %s\n", __func__, path.c_str());
         return -1;
     }
@@ -1019,7 +1019,6 @@ std::string common_download_resolve_path(const std::string & hf_repo_with_tag, c
 }
 
 bool common_download_remove(const std::string & hf_repo_with_tag) {
-    namespace fs = std::filesystem;
 
     auto _repo_id_tag = common_download_split_repo_tag(hf_repo_with_tag);
     auto & repo_id = _repo_id_tag.first;
@@ -1040,7 +1039,7 @@ bool common_download_remove(const std::string & hf_repo_with_tag) {
     }
 
     // collect snapshot entries whose tag matches
-    std::vector<fs::path> to_remove;
+    std::vector<std::string> to_remove;
     for (const auto & f : files) {
         auto split = get_gguf_split_info(f.path);
         if (split.tag == tag_upper) {
@@ -1053,13 +1052,13 @@ bool common_download_remove(const std::string & hf_repo_with_tag) {
     }
 
     // resolve blob paths from symlinks before deleting snapshot entries
-    std::vector<fs::path> blobs_to_check;
+    std::vector<std::string> blobs_to_check;
     for (const auto & p : to_remove) {
         std::error_code ec;
-        if (fs::is_symlink(p, ec)) {
-            auto target = fs::read_symlink(p, ec);
+        if (compat_fs::is_symlink(p, ec)) {
+            auto target = compat_fs::read_symlink(p, ec);
             if (!ec) {
-                blobs_to_check.push_back((p.parent_path() / target).lexically_normal());
+                blobs_to_check.push_back(target[0] == '/' ? target : compat_fs::parent_path(p) + "/" + target);
             }
         }
     }
@@ -1067,9 +1066,9 @@ bool common_download_remove(const std::string & hf_repo_with_tag) {
     // remove snapshot entries
     for (const auto & p : to_remove) {
         std::error_code ec;
-        fs::remove(p, ec);
+        compat_fs::remove(p, ec);
         if (ec) {
-            LOG_WRN("%s: failed to remove %s: %s\n", __func__, p.string().c_str(), ec.message().c_str());
+            LOG_WRN("%s: failed to remove %s: %s\n", __func__, p.c_str(), ec.message().c_str());
         }
     }
 
@@ -1080,23 +1079,23 @@ bool common_download_remove(const std::string & hf_repo_with_tag) {
     // collect blobs still referenced by remaining snapshot entries
     std::unordered_set<std::string> still_referenced;
     for (const auto & f : hf_cache::get_cached_files(repo_id)) {
-        fs::path p(f.local_path);
+        std::string p(f.local_path);
         std::error_code ec;
-        if (fs::is_symlink(p, ec)) {
-            auto target = fs::read_symlink(p, ec);
+        if (compat_fs::is_symlink(p, ec)) {
+            auto target = compat_fs::read_symlink(p, ec);
             if (!ec) {
-                still_referenced.insert((p.parent_path() / target).lexically_normal().string());
+                still_referenced.insert(target[0] == '/' ? target : compat_fs::parent_path(p) + "/" + target);
             }
         }
     }
 
     // remove orphaned blobs
     for (const auto & blob : blobs_to_check) {
-        if (still_referenced.find(blob.string()) == still_referenced.end()) {
+        if (still_referenced.find(blob) == still_referenced.end()) {
             std::error_code ec;
-            fs::remove(blob, ec);
+            compat_fs::remove(blob, ec);
             if (ec) {
-                LOG_WRN("%s: failed to remove blob %s: %s\n", __func__, blob.string().c_str(), ec.message().c_str());
+                LOG_WRN("%s: failed to remove blob %s: %s\n", __func__, blob.c_str(), ec.message().c_str());
             }
         }
     }

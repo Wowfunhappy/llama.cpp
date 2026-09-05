@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-inline constexpr const char * LLM_KV_IMATRIX_DATASETS    = "imatrix.datasets";
-inline constexpr const char * LLM_KV_IMATRIX_CHUNK_COUNT = "imatrix.chunk_count";
-inline constexpr const char * LLM_KV_IMATRIX_CHUNK_SIZE  = "imatrix.chunk_size";
+static constexpr const char * LLM_KV_IMATRIX_DATASETS = "imatrix.datasets";
+static constexpr const char * LLM_KV_IMATRIX_CHUNK_COUNT = "imatrix.chunk_count";
+static constexpr const char * LLM_KV_IMATRIX_CHUNK_SIZE = "imatrix.chunk_size";
 
 struct common_imatrix_entry {
     std::vector<float>   sums;
