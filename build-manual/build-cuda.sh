@@ -235,7 +235,7 @@ $CXX -o ${BUILDDIR}/llama-cli \
     $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
     $CUDA_LINK \
-    /usr/local/lib/libMacportsLegacySupport.a \
+    /usr/local/lib/libMavericksLegacySupport.a \
     -lpthread
 
 # llama-simple
@@ -244,7 +244,7 @@ $CXX -o ${BUILDDIR}/llama-simple \
     $SIMPLE_OBJS $CUDA_OBJS \
     -framework Accelerate \
     $CUDA_LINK \
-    /usr/local/lib/libMacportsLegacySupport.a \
+    /usr/local/lib/libMavericksLegacySupport.a \
     -lpthread
 
 # llama-server
@@ -253,7 +253,7 @@ $CXX -o ${BUILDDIR}/llama-server \
     $SERVER_OBJS $CUDA_OBJS \
     -framework Accelerate \
     $CUDA_LINK \
-    /usr/local/lib/libMacportsLegacySupport.a \
+    /usr/local/lib/libMavericksLegacySupport.a \
     -lpthread
 
 # llama-completion
@@ -262,7 +262,7 @@ $CXX -o ${BUILDDIR}/llama-completion \
     $COMPLETION_OBJS $CUDA_OBJS \
     -framework Accelerate \
     $CUDA_LINK \
-    /usr/local/lib/libMacportsLegacySupport.a \
+    /usr/local/lib/libMavericksLegacySupport.a \
     -lpthread
 
 echo ""
