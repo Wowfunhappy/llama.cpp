@@ -1423,7 +1423,9 @@ static void ggml_compute_forward_cumsum_f32(
     GGML_ASSERT(ne2 == ne02);
     GGML_ASSERT(ne3 == ne03);
 
-    const auto [ir0, ir1] = get_thread_range(params, src0);
+    const auto _ir0_ir1 = get_thread_range(params, src0);
+    const auto & ir0 = _ir0_ir1.first;
+    const auto & ir1 = _ir0_ir1.second;
 
     for (int64_t ir = ir0; ir < ir1; ++ir) {
         const int64_t i03 = ir/(ne02*ne01);
@@ -2233,7 +2235,9 @@ static void ggml_compute_forward_fill_f32(const ggml_compute_params * params, gg
     GGML_TENSOR_LOCALS(int64_t, ne, dst, ne);
     GGML_TENSOR_LOCALS(size_t,  nb, dst, nb);
 
-    const auto [ir0, ir1] = get_thread_range(params, dst);
+    const auto _ir0_ir1 = get_thread_range(params, dst);
+    const auto & ir0 = _ir0_ir1.first;
+    const auto & ir1 = _ir0_ir1.second;
 
     for (int64_t ir = ir0; ir < ir1; ++ir) {
         const int64_t i03 = ir/(ne2*ne1);
@@ -2252,7 +2256,9 @@ static void ggml_compute_forward_fill_f16(const ggml_compute_params * params, gg
     GGML_TENSOR_LOCALS(int64_t, ne, dst, ne);
     GGML_TENSOR_LOCALS(size_t,  nb, dst, nb);
 
-    const auto [ir0, ir1] = get_thread_range(params, dst);
+    const auto _ir0_ir1 = get_thread_range(params, dst);
+    const auto & ir0 = _ir0_ir1.first;
+    const auto & ir1 = _ir0_ir1.second;
 
     for (int64_t ir = ir0; ir < ir1; ++ir) {
         const int64_t i03 = ir/(ne2*ne1);
@@ -2295,7 +2301,9 @@ static void ggml_compute_forward_tri_f32(const ggml_compute_params * params, ggm
 
     GGML_TENSOR_UNARY_OP_LOCALS
 
-    const auto [ir0, ir1] = get_thread_range(params, src0);
+    const auto _ir0_ir1 = get_thread_range(params, src0);
+    const auto & ir0 = _ir0_ir1.first;
+    const auto & ir1 = _ir0_ir1.second;
 
     bool (*bipred)(int, int);
 
@@ -3369,7 +3377,7 @@ static void ggml_compute_forward_swiglu_oai_f32(
 
         for (int k = 0; k < nc; k++) {
             const float x = std::min(src0_p[k], limit);
-            const float y = std::clamp(src1_p[k], -limit, limit);
+            const float y = std::min(std::max(src1_p[k], -limit), limit);
             const float out_glu = x / (1.f + expf(alpha * (-x)));
             dst_p[k] = out_glu * (y + 1.f);
         }
@@ -3449,7 +3457,7 @@ static void ggml_compute_forward_swiglu_clamp_f32(const ggml_compute_params * pa
 
         for (int k = 0; k < nc; k++) {
             const float gate = std::min(src0_p[k], limit);
-            const float up   = std::clamp(src1_p[k], -limit, limit);
+            const float up   = std::min(std::max(src1_p[k], -limit), limit);
             dst_p[k]         = gate / (1.f + expf(-gate)) * up;
         }
 
@@ -3508,7 +3516,7 @@ static void ggml_compute_forward_swiglu_clamp_f16(const ggml_compute_params * pa
 
         for (int k = 0; k < nc; k++) {
             const float gate = std::min(GGML_FP16_TO_FP32(src0_p[k]), limit);
-            const float up   = std::clamp(GGML_FP16_TO_FP32(src1_p[k]), -limit, limit);
+            const float up   = std::min(std::max(GGML_FP16_TO_FP32(src1_p[k]), -limit), limit);
             dst_p[k]         = GGML_FP32_TO_FP16(gate / (1.f + expf(-gate)) * up);
         }
 
@@ -6487,6 +6495,16 @@ void ggml_compute_forward_conv_transpose_1d(
 // src0: kernel [OC, IC, KH, KW]
 // src1: image [N, IC, IH, IW]
 // dst:  result [N, OH, OW, IC*KH*KW]
+
+// Overloads rather than if constexpr: without it the discarded branch is still compiled.
+static inline void ggml_vec_dot_kernel(int n, float * s, const ggml_fp16_t * x, const ggml_fp16_t * y) {
+    ggml_vec_dot_f16(n, s, 0, (ggml_fp16_t *) x, 0, (ggml_fp16_t *) y, 0, 1);
+}
+
+static inline void ggml_vec_dot_kernel(int n, float * s, const float * x, const float * y) {
+    ggml_vec_dot_f32(n, s, 0, (float *) x, 0, (float *) y, 0, 1);
+}
+
 static void ggml_compute_forward_im2col_f32(
         const ggml_compute_params * params,
               ggml_tensor * dst) {
@@ -7451,15 +7469,9 @@ static void ggml_compute_forward_conv_transpose_2d_impl(
                     for (int i01 = 0; i01 < ne01; i01++) {
                         for (int i00 = 0; i00 < ne00; i00++) {
                             float v = 0;
-                            if (std::is_same<kernel_t, ggml_fp16_t >::value) {
-                                ggml_vec_dot_f16(ne03, &v, 0,
-                                        wdata_src_b + i1n, 0,
-                                        wdata_kernel + i01*ne00*ne03 + i00*ne03, 0, 1);
-                            } else {
-                                ggml_vec_dot_f32(ne03, &v, 0,
-                                        wdata_src_b + i1n, 0,
-                                        wdata_kernel + i01*ne00*ne03 + i00*ne03, 0, 1);
-                            }
+                            ggml_vec_dot_kernel(ne03, &v,
+                                    wdata_src_b + i1n,
+                                    wdata_kernel + i01*ne00*ne03 + i00*ne03);
                             dst_data[(i11*stride + i01)*ne0 + i10*stride + i00] += v;
                         }
                     }

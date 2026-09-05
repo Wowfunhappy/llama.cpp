@@ -1257,7 +1257,9 @@ std::shared_ptr<ov::Node> GgmlOvDecoder::create_weight_node(ggml_tensor * tensor
         if (cacheable_nonov) {
             std::lock_guard<std::mutex> lock(g_nonov_weight_cache_mutex);
             // Another thread may have inserted concurrently; keep the first.
-            auto [it, inserted] = g_nonov_weight_cache.emplace(tensor->data, ov_weight.weight_node);
+            Noneauto _it_inserted = g_nonov_weight_cache.emplace(tensor->data, ov_weight.weight_node);
+            Noneauto & it = _it_inserted.first;
+            Noneauto & inserted = _it_inserted.second;
             return it->second;
         }
         return ov_weight.weight_node;

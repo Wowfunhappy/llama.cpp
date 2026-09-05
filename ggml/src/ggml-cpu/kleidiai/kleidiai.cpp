@@ -103,7 +103,9 @@ static bool parse_cpu_dir_name(const char* name, size_t* cpu) {
     const char* last = name + strlen(name);
 
     size_t value = 0;
-    const auto [end, ec] = std::from_chars(first, last, value, 10);
+    const auto _end_ec = std::from_chars(first, last, value, 10);
+    const auto & end = _end_ec.first;
+    const auto & ec = _end_ec.second;
 
     if (ec != std::errc{} || end != last) {
         return false;
