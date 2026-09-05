@@ -1655,6 +1655,13 @@ static void ggml_cuda_mul_mat_cublas(ggml_backend_cuda_context & ctx, const ggml
         }
     }
 
+#if CUDART_VERSION < 9000
+    // cublas gained BF16 GEMM in CUDA 11; compute in F32 instead
+    if (compute_type == GGML_TYPE_BF16) {
+        compute_type = GGML_TYPE_F32;
+    }
+#endif // CUDART_VERSION < 9000
+
     switch (compute_type) {
         case GGML_TYPE_F32:
             ggml_cuda_mul_mat_cublas_impl<GGML_TYPE_F32>(ctx, src0, src1, dst);

@@ -40,7 +40,7 @@
 #include <set>
 #include <sstream>
 #include <string>
-#include <string_view>
+#include <string>
 #include <thread>
 #include <vector>
 #include <unordered_map>
@@ -1316,7 +1316,7 @@ struct test_case {
         if (op_names_filter) {
             const auto op_name = op_desc(op);
             const auto op_full_name = op_name + "(" + vars() + ")";
-            std::string_view filter(op_names_filter);
+            std::string filter(op_names_filter);
             while (!filter.empty()) {
                 auto comma_pos = filter.find_first_of(',');
                 const auto lparen_pos = filter.find_first_of('(');
@@ -1333,7 +1333,7 @@ struct test_case {
                         return true;
                     }
                 }
-                filter = comma_pos != std::string_view::npos ? filter.substr(comma_pos + 1) : "";
+                filter = comma_pos != std::string::npos ? filter.substr(comma_pos + 1) : "";
             }
             return false;
         } else {
@@ -10656,7 +10656,9 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     for (int kv : { 256 }) {
         for (int bs : { 1, 512 }) {
             for (int nh : { 32, 64 }) {
-                for (auto [ns, nm] : { std::pair{1, 1}, std::pair{4, 4}, std::pair{4, 1} }) {
+                for (auto ns_nm : { std::make_pair(1, 1), std::make_pair(4, 4), std::make_pair(4, 1) }) {
+                    const int ns = ns_nm.first;
+                    const int nm = ns_nm.second;
                     for (ggml_type type_K : {GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_BF16, GGML_TYPE_Q8_0, GGML_TYPE_Q5_1, GGML_TYPE_Q5_0, GGML_TYPE_Q4_1, GGML_TYPE_Q4_0, GGML_TYPE_IQ4_NL}) {
                         test_cases.emplace_back(new test_lightning_indexer(128, nh, kv, bs, ns, nm, type_K));
                     }
@@ -11177,11 +11179,11 @@ static bool op_names_filter_selects(const char * op_names_filter, const char * o
     if (!op_names_filter) {
         return true;
     }
-    std::string_view filter(op_names_filter);
+    std::string filter(op_names_filter);
     while (!filter.empty()) {
         auto comma_pos = filter.find_first_of(',');
         const auto lparen_pos = filter.find_first_of('(');
-        std::string_view entry;
+        std::string entry;
         if (lparen_pos < comma_pos) {
             const auto rparen_pos = filter.find_first_of(')');
             comma_pos = filter.find_first_of(',', rparen_pos);
@@ -11192,7 +11194,7 @@ static bool op_names_filter_selects(const char * op_names_filter, const char * o
         if (entry == op_name) {
             return true;
         }
-        filter = comma_pos != std::string_view::npos ? filter.substr(comma_pos + 1) : "";
+        filter = comma_pos != std::string::npos ? filter.substr(comma_pos + 1) : "";
     }
     return false;
 }
@@ -11306,8 +11308,8 @@ static bool test_backend(ggml_backend_t backend, ggml_backend_dev_t dev, test_mo
             set_use_ref(backend_cpu.get(), true);
         }
 
-        std::atomic<size_t> n_ok = 0;
-        std::atomic<size_t> tests_run = 0;
+        std::atomic<size_t> n_ok{0};
+        std::atomic<size_t> tests_run{0};
         std::vector<std::string> failed_tests;
         std::mutex failed_tests_mutex;
 
@@ -11315,7 +11317,7 @@ static bool test_backend(ggml_backend_t backend, ggml_backend_dev_t dev, test_mo
         // run out of work so that a few slow tests at the tail get spread across
         // workers instead of landing on one unlucky thread.
         constexpr size_t MAX_TESTS_PER_ITER = 100;
-        std::atomic<size_t> test_idx = 0;
+        std::atomic<size_t> test_idx{0};
 
         const auto & next_chunk = [&](size_t & my_begin, size_t & my_end) {
             const size_t cur = test_idx.load(std::memory_order_relaxed);
@@ -11352,7 +11354,7 @@ static bool test_backend(ggml_backend_t backend, ggml_backend_dev_t dev, test_mo
             // extra CPU backend init.
             run_tests(backend, backend_cpu.get());
         } else {
-            std::atomic<size_t> workers_started = 0;
+            std::atomic<size_t> workers_started{0};
 
             const auto & eval_worker = [&]() {
                 ggml_backend_ptr b(ggml_backend_dev_init(dev, NULL));
