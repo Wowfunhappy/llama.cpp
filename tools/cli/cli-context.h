@@ -7,7 +7,7 @@
 
 #include <atomic>
 #include <memory>
-#include <optional>
+#include "compat-optional.h"
 #include <string>
 #include <fstream>
 
@@ -22,7 +22,7 @@ struct cli_context {
     common_params params;
 
     cli_client client;                // always initialized
-    std::optional<cli_server> server; // only set when no --server-base is given
+    common_optional<cli_server> server; // only set when no --server-base is given
 
     // properties of the connected server
     // will be populated by fetch_server_props()
@@ -33,7 +33,7 @@ struct cli_context {
     bool has_audio  = false;
     bool has_video  = false;
 
-    std::optional<std::ofstream> output_file;
+    common_optional<std::ofstream> output_file;
 
     cli_context(const common_params & params);
     ~cli_context();

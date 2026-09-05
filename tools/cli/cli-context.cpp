@@ -1,3 +1,4 @@
+#include "compat-optional.h"
 #include "cli-context.h"
 #include "cli-ui.h"
 
@@ -94,7 +95,7 @@ static std::string media_type_from_ext(const std::string & fname) {
 bool cli_context::init() {
     ui::init(params);
 
-    std::optional<ui::spinner> spinner;
+    common_optional<ui::spinner> spinner;
 
     bool use_external_server = !params.server_base.empty();
     if (use_external_server) {

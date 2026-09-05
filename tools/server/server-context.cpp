@@ -803,9 +803,9 @@ static int process_mtmd_chunk(const server_slot & slot, mtmd::batch_ptr & mbatch
     int n_added = 1;
     size_t idx_cur = idx;
     while (res == 0) {
-        Noneauto _next_chunk_next_idx = input_tokens.find_next_media_chunk(idx_cur);
-        Noneauto & next_chunk = _next_chunk_next_idx.first;
-        Noneauto & next_idx = _next_chunk_next_idx.second;
+        auto _next_chunk_next_idx = input_tokens.find_next_media_chunk(idx_cur);
+        auto & next_chunk = _next_chunk_next_idx.first;
+        auto & next_idx = _next_chunk_next_idx.second;
         if (next_chunk == nullptr) {
             break;
         }

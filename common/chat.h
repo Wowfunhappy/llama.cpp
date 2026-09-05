@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "compat-optional.h"
 #include "common.h"
 #include "peg-parser.h"
 #include "jinja/parser.h"
@@ -208,7 +209,7 @@ struct common_chat_msg_delimiters {
     void tokenize(const llama_vocab * vocab);
 
     // split tokens into message spans. skips maps a start index to a length of a region to jump over without matching
-    common_chat_msg_spans split(const llama_tokens & tokens, const std::map<size_t, size_t> & skips = {}) const;
+    common_chat_msg_spans split(const llama_tokens & tokens, const std::map<size_t, size_t> & skips = std::map<size_t, size_t>()) const;
 
     common_json to_json() const;
 };
@@ -371,7 +372,7 @@ std::string common_chat_template_generation_prompt(
     const common_chat_template &          tmpl,
     const autoparser::generation_params & inputs);
 
-std::optional<common_chat_params> common_chat_try_specialized_template(
+common_optional<common_chat_params> common_chat_try_specialized_template(
         const common_chat_template &          tmpl,
         const std::string &                   src,
         autoparser::generation_params & params);

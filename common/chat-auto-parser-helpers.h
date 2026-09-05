@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compat-optional.h"
 #include "chat-auto-parser.h"
 
 #include <functional>
@@ -64,8 +65,8 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
 
 // Factorized differential comparison function
 // Takes base params and a single modifier lambda to create variant B
-// Returns compare_variants_result containing diff and both outputs, or std::nullopt on failure
-// Returns a result with diff.prefix empty on failure (replaces std::optional)
+// Returns compare_variants_result containing diff and both outputs, or common_nullopt on failure
+// Returns a result with diff.prefix empty on failure (replaces common_optional)
 compare_variants_result compare_variants(
     const common_chat_template &                   tmpl,
     const template_params &                        params_A,

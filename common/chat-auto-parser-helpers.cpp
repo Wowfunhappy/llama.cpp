@@ -1,3 +1,4 @@
+#include "compat-optional.h"
 #include "chat-auto-parser-helpers.h"
 
 #include "chat-auto-parser.h"
@@ -329,7 +330,7 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     }
 }
 
-std::optional<compare_variants_result> compare_variants(
+common_optional<compare_variants_result> compare_variants(
     const common_chat_template &                   tmpl,
     const template_params &                        params_A,
     const std::function<void(template_params &)> & params_modifier) {
@@ -347,7 +348,7 @@ std::optional<compare_variants_result> compare_variants(
 
     // Check for template application failures
     if (output_A == ERR_TMPL || output_B == ERR_TMPL) {
-        return std::nullopt;
+        return common_nullopt;
     }
 
     // Calculate diff and return result with both outputs

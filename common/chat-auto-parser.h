@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compat-optional.h"
 #include "chat.h"
 #include "common.h"
 #include "jinja/caps.h"
@@ -370,7 +371,7 @@ struct analyze_tools : analyze_base {
     common_peg_parser build_func_parser(common_chat_peg_builder & p, const std::string & name,
                                         const common_peg_parser & call_id_section, bool have_call_id,
                                         const common_peg_parser & args,
-                                        std::optional<common_peg_parser> atomic_peek) const;
+                                        common_optional<common_peg_parser> atomic_peek) const;
 };
 
 // ============================================================================

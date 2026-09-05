@@ -144,8 +144,8 @@ std::vector<server_mcp_server_config> server_mcp_server_config::parse_cursor_for
     }
 
     for (const auto & _name_cfg : j.at("mcpServers").items()) {
-        const auto & name = _name_cfg.first;
-        const auto & cfg = _name_cfg.second;
+        const auto & name = _name_cfg.key();
+        const auto & cfg = _name_cfg.value();
         (void) name; (void) cfg;
         server_mcp_server_config sc;
         sc.name = name;
@@ -160,8 +160,8 @@ std::vector<server_mcp_server_config> server_mcp_server_config::parse_cursor_for
         }
         if (cfg.contains("env") && cfg.at("env").is_object()) {
             for (const auto & _k_v : cfg.at("env").items()) {
-                const auto & k = _k_v.first;
-                const auto & v = _k_v.second;
+                const auto & k = _k_v.key();
+                const auto & v = _k_v.value();
                 (void) k; (void) v;
                 sc.env[k] = v.get<std::string>();
             }

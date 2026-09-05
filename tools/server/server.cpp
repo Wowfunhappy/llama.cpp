@@ -1,3 +1,4 @@
+#include "compat-optional.h"
 #include "server-context.h"
 #include "server-http.h"
 #include "server-models.h"
@@ -196,7 +197,7 @@ int llama_server(common_params & params, int argc, char ** argv) {
     server_routes routes(params, ctx_server);
     server_tools tools;
 
-    std::optional<server_models_routes> models_routes{};
+    common_optional<server_models_routes> models_routes{};
     if (is_router_server) {
         // setup server instances manager
         try {

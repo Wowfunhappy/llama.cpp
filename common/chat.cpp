@@ -23,7 +23,7 @@
 #include <iomanip>
 #include <map>
 
-#include <optional>
+#include "compat-optional.h"
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -274,11 +274,13 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
 
     // TODO: these can become expensive for long messages - how to optimize?
     if (msg_prv.reasoning_content != msg_new.reasoning_content) {
-        auto & diff                  = diffs.emplace_back();
+        diffs.emplace_back();
+        auto & diff                  = diffs.back();
         diff.reasoning_content_delta = string_diff(msg_prv.reasoning_content, msg_new.reasoning_content);
     }
     if (msg_prv.content != msg_new.content) {
-        auto & diff        = diffs.emplace_back();
+        diffs.emplace_back();
+        auto & diff        = diffs.back();
         diff.content_delta = string_diff(msg_prv.content, msg_new.content);
     }
 
@@ -313,7 +315,8 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
         }
         const auto args_diff = string_diff(pref.arguments, newf.arguments);
         if (!args_diff.empty() || pref.id != newf.id || pref.name != newf.name) {
-            auto & diff          = diffs.emplace_back();
+            diffs.emplace_back();
+            auto & diff          = diffs.back();
             diff.tool_call_index = idx;
             if (pref.id != newf.id || pref.name != newf.name) {
                 diff.tool_call_delta.id   = newf.id;
@@ -323,7 +326,8 @@ std::vector<common_chat_msg_diff> common_chat_msg_diff::compute_diffs(const comm
         }
     }
     for (size_t idx = msg_prv.tool_calls.size(); idx < msg_new.tool_calls.size(); ++idx) {
-        auto & diff          = diffs.emplace_back();
+        diffs.emplace_back();
+        auto & diff          = diffs.back();
         diff.tool_call_index = idx;
         diff.tool_call_delta = msg_new.tool_calls[idx];
     }
@@ -923,8 +927,8 @@ static void foreach_parameter(const json &                                      
         required = params.at("required").get<std::set<std::string>>();
     }
     for (const auto & _name_prop : props.items()) {
-        const auto & name = _name_prop.first;
-        const auto & prop = _name_prop.second;
+        const auto & name = _name_prop.key();
+        const auto & prop = _name_prop.value();
         (void) name; (void) prop;
         bool is_required = (required.find(name) != required.end());
         fn(name, prop, is_required);
@@ -934,9 +938,9 @@ static void foreach_parameter(const json &                                      
 static std::string common_chat_template_direct_apply_impl(
     const common_chat_template & tmpl,
     const autoparser::generation_params & inputs,
-    const std::optional<json> & messages_override = std::nullopt,
-    const std::optional<json> & tools_override = std::nullopt,
-    const std::optional<json> & additional_context = std::nullopt) {
+    const common_optional<json> & messages_override = common_nullopt,
+    const common_optional<json> & tools_override = common_nullopt,
+    const common_optional<json> & additional_context = common_nullopt) {
     jinja::context ctx(tmpl.source());
 
     // messages_override is already built for this template, do not touch its content parts
@@ -954,8 +958,8 @@ static std::string common_chat_template_direct_apply_impl(
     if (inputs.extra_context.is_object()) {
         // TODO: do we need to merge, or replacing is fine?
         for (const auto & _k_v : inputs.extra_context.items()) {
-            const auto & k = _k_v.first;
-            const auto & v = _k_v.second;
+            const auto & k = _k_v.key();
+            const auto & v = _k_v.value();
             (void) k; (void) v;
             inp[k] = v;
         }
@@ -963,8 +967,8 @@ static std::string common_chat_template_direct_apply_impl(
     if (additional_context.has_value()) {
         // TODO: merge properly instead of overwriting (matching old behavior)
         for (const auto & _k_v : additional_context->items()) {
-            const auto & k = _k_v.first;
-            const auto & v = _k_v.second;
+            const auto & k = _k_v.key();
+            const auto & v = _k_v.value();
             (void) k; (void) v;
             inp[k] = v;
         }
@@ -1003,15 +1007,15 @@ static std::string common_chat_template_direct_apply_impl(
 std::string common_chat_template_direct_apply(
     const common_chat_template & tmpl,
     const autoparser::generation_params & inputs) {
-    return common_chat_template_direct_apply_impl(tmpl, inputs, std::nullopt, std::nullopt, std::nullopt);
+    return common_chat_template_direct_apply_impl(tmpl, inputs, common_nullopt, common_nullopt, common_nullopt);
 }
 
 static std::string common_chat_template_generation_prompt_impl(
     const common_chat_template & tmpl,
     const autoparser::generation_params & inputs,
-    const std::optional<json> & messages_override = std::nullopt,
-    const std::optional<json> & tools_override = std::nullopt,
-    const std::optional<json> & additional_context = std::nullopt) {
+    const common_optional<json> & messages_override = common_nullopt,
+    const common_optional<json> & tools_override = common_nullopt,
+    const common_optional<json> & additional_context = common_nullopt) {
 
     autoparser::generation_params params = inputs;
     params.add_generation_prompt = false;
@@ -1031,7 +1035,7 @@ static std::string common_chat_template_generation_prompt_impl(
 std::string common_chat_template_generation_prompt(
     const common_chat_template & tmpl,
     const autoparser::generation_params & inputs) {
-    return common_chat_template_generation_prompt_impl(tmpl, inputs, std::nullopt, std::nullopt, std::nullopt);
+    return common_chat_template_generation_prompt_impl(tmpl, inputs, common_nullopt, common_nullopt, common_nullopt);
 }
 
 static common_chat_params common_chat_params_init_ministral_3(const common_chat_template &    tmpl,
@@ -1370,8 +1374,8 @@ static common_chat_params common_chat_params_init_gpt_oss(const common_chat_temp
     // inference and without generation prompt. For more details see:
     // https://github.com/ggml-org/llama.cpp/issues/15417
     if (inputs.is_inference && !inputs.add_generation_prompt) {
-        static constexpr const std::string & return_token = "<|return|>";
-        static constexpr const std::string & end_token    = "<|end|>";
+        static const std::string return_token = "<|return|>";
+        static const std::string end_token = "<|end|>";
         size_t pos = prompt.rfind(return_token);
         if (pos != std::string::npos) {
             prompt.replace(pos, return_token.length(), end_token);
@@ -2177,7 +2181,7 @@ static common_chat_params common_chat_params_init_deepseek_v3_2(const common_cha
     // <think></think> pair.
     const bool is_v4 = tmpl.source().find("function_calls") == std::string::npos;
 
-    std::optional<json> adjusted_messages;
+    common_optional<json> adjusted_messages;
     if (is_v4) {
         adjusted_messages = deepseek_v4_sort_tool_results(inputs.messages);
     }
@@ -2187,7 +2191,7 @@ static common_chat_params common_chat_params_init_deepseek_v3_2(const common_cha
     auto extract_reasoning   = inputs.reasoning_format != COMMON_REASONING_FORMAT_NONE;
     auto include_grammar     = has_response_format || (has_tools && inputs.tool_choice != COMMON_CHAT_TOOL_CHOICE_NONE);
 
-    std::optional<json> additional_context;
+    common_optional<json> additional_context;
     if (is_v4 && has_response_format) {
         additional_context = json{ { "response_format", inputs.json_schema } };
     }
@@ -2206,9 +2210,9 @@ static common_chat_params common_chat_params_init_deepseek_v3_2(const common_cha
     const std::string TC_SEPARATOR = "\n\n";
 
     data.prompt = common_chat_template_direct_apply_impl(
-        tmpl, inputs, adjusted_messages, std::nullopt, additional_context);
+        tmpl, inputs, adjusted_messages, common_nullopt, additional_context);
     data.generation_prompt = common_chat_template_generation_prompt_impl(
-        tmpl, inputs, adjusted_messages, std::nullopt, additional_context);
+        tmpl, inputs, adjusted_messages, common_nullopt, additional_context);
     data.format             = COMMON_CHAT_FORMAT_PEG_NATIVE;
     data.supports_thinking  = true;
     data.thinking_start_tag = THINK_START;
@@ -2264,8 +2268,8 @@ static common_chat_params common_chat_params_init_deepseek_v3_2(const common_cha
                 std::vector<common_peg_parser> required_parsers;
                 std::vector<common_peg_parser> optional_parsers;
                 for (const auto & _param_name_param_schema : props.items()) {
-                    const auto & param_name = _param_name_param_schema.first;
-                    const auto & param_schema = _param_name_param_schema.second;
+                    const auto & param_name = _param_name_param_schema.key();
+                    const auto & param_schema = _param_name_param_schema.value();
                     (void) param_name; (void) param_schema;
                     bool is_required = required.find(param_name) != required.end();
                     bool is_string   = schema_info.resolves_to_string(param_schema);
@@ -2796,13 +2800,13 @@ static common_chat_params common_chat_params_init_minimax_m3(const common_chat_t
             return generation_prompt + reasoning + p.content(p.rest()) + end;
         }
 
-        auto alternatives_of = [](const json & schema) -> std::optional<json> {
+        auto alternatives_of = [](const json & schema) -> common_optional<json> {
             for (const auto * keyword : { "oneOf", "anyOf" }) {
                 if (schema.contains(keyword) && schema.at(keyword).is_array() && !schema.at(keyword).empty()) {
                     return schema.at(keyword);
                 }
             }
-            return std::nullopt;
+            return common_nullopt;
         };
 
         auto tool_choice = p.choice();
@@ -2886,8 +2890,8 @@ static common_chat_params common_chat_params_init_minimax_m3(const common_chat_t
                 std::vector<common_peg_parser> required_elements;
                 std::vector<common_peg_parser> optional_elements;
                 for (const auto & _key_key_schema : props.items()) {
-                    const auto & key = _key_key_schema.first;
-                    const auto & key_schema = _key_key_schema.second;
+                    const auto & key = _key_key_schema.key();
+                    const auto & key_schema = _key_key_schema.value();
                     (void) key; (void) key_schema;
                     auto element = element_of(key, key_schema, rule_prefix + "-" + key);
                     if (required.find(key) != required.end()) {
@@ -3275,8 +3279,8 @@ static common_chat_params common_chat_params_init_minicpm5(const common_chat_tem
 
                     auto arg_choice = p.choice();
                     for (const auto & _prop_name_prop_schema : params.at("properties").items()) {
-                        const auto & prop_name = _prop_name_prop_schema.first;
-                        const auto & prop_schema = _prop_name_prop_schema.second;
+                        const auto & prop_name = _prop_name_prop_schema.key();
+                        const auto & prop_schema = _prop_name_prop_schema.value();
                         (void) prop_name; (void) prop_schema;
                         auto value_parser = p.eps();
                         if (schema_info.resolves_to_string(prop_schema)) {
@@ -3424,8 +3428,8 @@ static common_chat_params common_chat_params_init_muse_glimmer(const common_chat
 
                     auto arg_choice = p.choice();
                     for (const auto & _prop_name_prop_schema : params.at("properties").items()) {
-                        const auto & prop_name = _prop_name_prop_schema.first;
-                        const auto & prop_schema = _prop_name_prop_schema.second;
+                        const auto & prop_name = _prop_name_prop_schema.key();
+                        const auto & prop_schema = _prop_name_prop_schema.value();
                         (void) prop_name; (void) prop_schema;
                         auto value_parser = p.eps();
                         if (schema_info.resolves_to_string(prop_schema)) {
@@ -3501,7 +3505,7 @@ static json common_chat_extra_context() {
     return ctx;
 }
 
-std::optional<common_chat_params> common_chat_try_specialized_template(
+common_optional<common_chat_params> common_chat_try_specialized_template(
         const common_chat_template &          tmpl,
         const std::string &                   src,
         autoparser::generation_params & params) {
@@ -3623,7 +3627,7 @@ std::optional<common_chat_params> common_chat_try_specialized_template(
         return common_chat_params_init_qwen3_coder(tmpl, params);
     }
 
-    return std::nullopt;
+    return common_nullopt;
 }
 
 static common_chat_params common_chat_templates_apply_jinja(const struct common_chat_templates *        tmpls,

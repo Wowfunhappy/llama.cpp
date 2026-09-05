@@ -11,10 +11,10 @@
 #include "subproc.h"
 
 #include <cpp-httplib/httplib.h> // TODO: remove this once we use HTTP client from download.h
-#include <optional>
+#include "compat-optional.h"
 
 #include <functional>
-#include <optional>
+#include "compat-optional.h"
 #include <algorithm>
 #include <thread>
 #include <mutex>
@@ -953,7 +953,7 @@ bool server_models::has_model(const std::string & name) {
     return false;
 }
 
-std::optional<server_model_meta> server_models::get_meta(const std::string & name) {
+common_optional<server_model_meta> server_models::get_meta(const std::string & name) {
     std::unique_lock<std::mutex> lk(mutex);
     if (need_reload) {
         lk.unlock();
@@ -973,7 +973,7 @@ std::optional<server_model_meta> server_models::get_meta(const std::string & nam
             return inst.meta;
         }
     }
-    return std::nullopt;
+    return common_nullopt;
 }
 
 std::vector<server_model_meta> server_models::get_all_meta() {
@@ -1912,20 +1912,20 @@ static std::string encode_qs(const std::string & in) {
 // populated when the POST was routed. single map lookup then a meta lookup, no polling, no
 // parsing of the conv id. returns nullopt when nothing maps, the caller answers not found and
 // the client recovers
-static std::optional<server_model_meta> resolve_child_for_conv(
+static common_optional<server_model_meta> resolve_child_for_conv(
         server_models & models, const std::string & conversation_id) {
     if (conversation_id.empty()) {
-        return std::nullopt;
+        return common_nullopt;
     }
     auto tracked = models.conv_models.lookup(conversation_id);
     if (!tracked.has_value()) {
-        return std::nullopt;
+        return common_nullopt;
     }
     auto meta = models.get_meta(*tracked);
     if (meta.has_value() && meta->is_ready()) {
         return meta;
     }
-    return std::nullopt;
+    return common_nullopt;
 }
 
 void server_models_routes::init_routes() {
@@ -2206,12 +2206,12 @@ void server_models_routes::init_routes() {
             res_err(res, format_error_response("Missing conversation id in path", ERROR_TYPE_INVALID_REQUEST));
             return res;
         }
-        std::optional<server_model_meta> owner = resolve_child_for_conv(models, conv_id);
+        common_optional<server_model_meta> owner = resolve_child_for_conv(models, conv_id);
         if (!owner.has_value()) {
             // a registered conv whose model is still loading earns a retry: the session appears
             // once the load ends and the pending request reaches the child
             auto tracked = models.conv_models.lookup(conv_id);
-            auto meta = tracked.has_value() ? models.get_meta(*tracked) : std::nullopt;
+            auto meta = tracked.has_value() ? models.get_meta(*tracked) : common_nullopt;
             bool transient = meta.has_value() && (meta->status == SERVER_MODEL_STATUS_LOADING ||
                                                   meta->status == SERVER_MODEL_STATUS_DOWNLOADING ||
                                                   meta->status == SERVER_MODEL_STATUS_DOWNLOADED);
@@ -2402,8 +2402,8 @@ static std::string build_multipart_body(
     std::ostringstream body;
 
     for (const auto & _key_value : form_fields.items()) {
-        const auto & key = _key_value.first;
-        const auto & value = _key_value.second;
+        const auto & key = _key_value.key();
+        const auto & value = _key_value.value();
         (void) key; (void) value;
         if (value.is_array()) {
             for (const auto & item : value) {

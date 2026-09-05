@@ -1,3 +1,4 @@
+#include "compat-optional.h"
 #include "chat-auto-parser-helpers.h"
 #include "chat-auto-parser.h"
 #include "chat-peg-parser.h"
@@ -258,7 +259,7 @@ common_peg_parser analyze_tools::build_tool_parser_json_native(parser_build_cont
 common_peg_parser analyze_tools::build_func_parser(common_chat_peg_builder & p, const std::string & name,
                                                     const common_peg_parser & call_id_section, bool have_call_id,
                                                     const common_peg_parser & args,
-                                                    std::optional<common_peg_parser> atomic_peek) const {
+                                                    common_optional<common_peg_parser> atomic_peek) const {
     auto              open           = p.tool_open(function.name_prefix + p.tool_name(p.literal(name)) + function.name_suffix);
     bool              matched_atomic = false;
     common_peg_parser func_parser    = p.eps();
@@ -334,7 +335,7 @@ common_peg_parser analyze_tools::build_tool_parser_tag_json(parser_build_context
             args_parser = args_parser + p.literal(arguments.end);
         }
 
-        auto atomic_peek = !arguments.start.empty() ? std::optional(p.peek(p.literal(arguments.start))) : std::nullopt;
+        auto atomic_peek = !arguments.start.empty() ? common_optional(p.peek(p.literal(arguments.start))) : common_nullopt;
         auto func_parser = build_func_parser(p, name, call_id_section, have_call_id, args_parser, atomic_peek);
         tool_choice |= p.rule("tool-" + name, func_parser);
     });
@@ -400,8 +401,8 @@ common_peg_parser analyze_tools::build_tool_parser_tag_tagged(parser_build_conte
         std::vector<common_peg_parser> required_parsers;
         std::vector<common_peg_parser> optional_parsers;
         for (const auto & _param_name_param_schema : properties.items()) {
-            const auto & param_name = _param_name_param_schema.first;
-            const auto & param_schema = _param_name_param_schema.second;
+            const auto & param_name = _param_name_param_schema.key();
+            const auto & param_schema = _param_name_param_schema.value();
             (void) param_name; (void) param_schema;
             bool is_required = required.find(param_name) != required.end();
 
@@ -465,7 +466,7 @@ common_peg_parser analyze_tools::build_tool_parser_tag_tagged(parser_build_conte
         // Only peek for an arg tag when there are required args that must follow.
         // When all args are optional, the model may emit no arg tags at all (#20650).
         auto atomic_peek = (!arguments.name_prefix.empty() && !required_parsers.empty()) ?
-            std::optional(p.peek(p.literal(arguments.name_prefix))) : std::nullopt;
+            common_optional(p.peek(p.literal(arguments.name_prefix))) : common_nullopt;
         auto func_parser = build_func_parser(p, name, call_id_section, have_call_id, args_seq, atomic_peek);
         tool_choice |= p.rule("tool-" + name, func_parser);
     });

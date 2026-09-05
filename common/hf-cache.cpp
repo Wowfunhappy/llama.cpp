@@ -64,7 +64,7 @@ static fs::path get_cache_directory() {
 }
 
 static std::string folder_name_to_repo(const std::string & folder) {
-    constexpr const std::string & prefix = "models--";
+    const std::string prefix = "models--";
     if (folder.rfind(prefix, 0)) {
         return {};
     }
@@ -74,7 +74,7 @@ static std::string folder_name_to_repo(const std::string & folder) {
 }
 
 static std::string repo_to_folder_name(const std::string & repo_id) {
-    constexpr const std::string & prefix = "models--";
+    const std::string prefix = "models--";
     std::string result = std::string(prefix) + repo_id;
     string_replace_all(result, "/", "--");
     return result;

@@ -64,9 +64,9 @@ struct cli_server {
             return false;
         }
         while (!should_stop()) {
-            Noneauto _cli_parts = common_http_client(address());
-            Noneauto & cli = _cli_parts.first;
-            Noneauto & parts = _cli_parts.second;
+            auto _cli_parts = common_http_client(address());
+            auto & cli = _cli_parts.first;
+            auto & parts = _cli_parts.second;
             cli.set_connection_timeout(1, 0);
             auto res = cli.Get("/health");
             if (res) {

@@ -11,7 +11,7 @@
 #include <condition_variable>
 #include <functional>
 #include <memory>
-#include <optional>
+#include "compat-optional.h"
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -138,7 +138,7 @@ private:
 
     // models marked with load-on-startup, unset once load_startup_models() drains it
     // no value means the startup phase is over, so a reload must not queue anything
-    std::optional<std::vector<std::string>> startup_models{std::in_place};
+    common_optional<std::vector<std::string>> startup_models{common_in_place};
 
     // conv_id -> model name that currently serves its stream session, lets the resumable stream
     // routes go straight to the owning child instead of polling every one. populated when
@@ -165,14 +165,14 @@ private:
             return it != map.end() && it->second.ticket == ticket;
         }
 
-        std::optional<std::string> lookup(const std::string & conv_id) {
+        common_optional<std::string> lookup(const std::string & conv_id) {
             if (conv_id.empty()) {
-                return std::nullopt;
+                return common_nullopt;
             }
             std::lock_guard<std::mutex> lock(mu);
             auto it = map.find(conv_id);
             if (it == map.end()) {
-                return std::nullopt;
+                return common_nullopt;
             }
             return it->second.model;
         }
@@ -251,7 +251,7 @@ public:
     struct load_options {
         server_child_mode mode = SERVER_CHILD_MODE_NORMAL;
         // used for spawning a downloading child process
-        std::optional<server_model_meta> custom_meta = std::nullopt;
+        common_optional<server_model_meta> custom_meta = common_nullopt;
     };
 
     // load and unload model instances

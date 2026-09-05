@@ -185,7 +185,9 @@ static void compute_statistics(std::vector<tensor_statistics> & tstats, const st
         }
     }
 
-    auto & ts = tstats.emplace_back();
+    tstats.emplace_back();
+
+    auto & ts = tstats.back();
     ts.tensor     = name;
     ts.stats      = e;
     ts.total_sqract = act_total;
