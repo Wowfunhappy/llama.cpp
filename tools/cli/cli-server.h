@@ -11,8 +11,8 @@ void llama_server_terminate();
 struct cli_server {
     std::thread th;
     int port = -1;
-    std::atomic<bool> is_alive = false;
-    std::atomic<bool> is_stopping = false;
+    std::atomic<bool> is_alive{false};
+    std::atomic<bool> is_stopping{false};
 
     ~cli_server() {
         stop();

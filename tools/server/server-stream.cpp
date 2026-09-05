@@ -6,7 +6,7 @@
 #include <chrono>
 #include <memory>
 #include <utility>
-#include <shared_mutex>
+#include "compat-shared-mutex.h"
 
 enum class stream_read_status {
     OK,
@@ -53,7 +53,7 @@ public:
 private:
     void gc_loop();
 
-    mutable std::shared_mutex                           map_mu;
+    mutable compat_shared_mutex                           map_mu;
     std::unordered_map<std::string, stream_session_ptr> sessions; // key: conversation_id
     std::thread                                         gc_thread;
     bool                                                running;
@@ -238,7 +238,7 @@ stream_session_ptr stream_session_manager::create_or_replace(const std::string &
     stream_session_ptr previous;
     auto fresh = std::make_shared<stream_session>(conversation_id, STREAM_SESSION_MAX_BYTES);
     {
-        std::unique_lock<std::shared_mutex> lock(map_mu);
+        std::unique_lock<compat_shared_mutex> lock(map_mu);
         auto it = sessions.find(conversation_id);
         if (it != sessions.end()) {
             previous = it->second;
@@ -255,7 +255,7 @@ stream_session_ptr stream_session_manager::create_or_replace(const std::string &
 }
 
 stream_session_ptr stream_session_manager::get(const std::string & conversation_id) {
-    std::shared_lock<std::shared_mutex> lock(map_mu);
+    compat_shared_lock lock(map_mu);
     auto it = sessions.find(conversation_id);
     if (it == sessions.end()) {
         return nullptr;
@@ -265,7 +265,7 @@ stream_session_ptr stream_session_manager::get(const std::string & conversation_
 
 std::vector<stream_session_ptr> stream_session_manager::list_all() const {
     std::vector<stream_session_ptr> out;
-    std::shared_lock<std::shared_mutex> lock(map_mu);
+    compat_shared_lock lock(map_mu);
     out.reserve(sessions.size());
     for (auto & kv : sessions) {
         out.push_back(kv.second);
@@ -276,7 +276,7 @@ std::vector<stream_session_ptr> stream_session_manager::list_all() const {
 void stream_session_manager::evict(const std::string & conversation_id) {
     stream_session_ptr s;
     {
-        std::unique_lock<std::shared_mutex> lock(map_mu);
+        std::unique_lock<compat_shared_mutex> lock(map_mu);
         auto it = sessions.find(conversation_id);
         if (it == sessions.end()) {
             return;
@@ -291,7 +291,7 @@ void stream_session_manager::evict(const std::string & conversation_id) {
 void stream_session_manager::evict_and_cancel(const std::string & conversation_id) {
     stream_session_ptr s;
     {
-        std::unique_lock<std::shared_mutex> lock(map_mu);
+        std::unique_lock<compat_shared_mutex> lock(map_mu);
         auto it = sessions.find(conversation_id);
         if (it == sessions.end()) {
             std::string live;
@@ -341,7 +341,7 @@ void stream_session_manager::stop_gc() {
     // finalize all live sessions so no reader ever hangs
     std::vector<stream_session_ptr> snapshot;
     {
-        std::unique_lock<std::shared_mutex> lock(map_mu);
+        std::unique_lock<compat_shared_mutex> lock(map_mu);
         snapshot.reserve(sessions.size());
         for (auto & kv : sessions) {
             snapshot.push_back(kv.second);
@@ -367,7 +367,7 @@ void stream_session_manager::gc_loop() {
         int64_t cutoff = now_seconds() - STREAM_SESSION_TTL_SECONDS;
         std::vector<stream_session_ptr> to_drop;
         {
-            std::unique_lock<std::shared_mutex> lock(map_mu);
+            std::unique_lock<compat_shared_mutex> lock(map_mu);
             for (auto it = sessions.begin(); it != sessions.end(); ) {
                 int64_t completed = it->second->completed_at();
                 if (completed != 0 && completed <= cutoff) {

@@ -11,7 +11,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <filesystem>
+#include "compat-filesystem.h"
 #include <fstream>
 #include <map>
 #include <set>
@@ -30,7 +30,7 @@ cli_context::~cli_context() {
 }
 
 std::atomic<bool> & cli_context::interrupted() {
-    static std::atomic<bool> flag = false;
+    static std::atomic<bool> flag{false};
     return flag;
 }
 
@@ -81,7 +81,7 @@ static std::string format_error_message(const std::string & err) {
 }
 
 static std::string media_type_from_ext(const std::string & fname) {
-    std::string ext = std::filesystem::path(fname).extension().string();
+    std::string ext = compat_fs::extension(fname);
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
     if (ext == ".wav" || ext == ".mp3") {
         return "audio";
@@ -190,7 +190,7 @@ void cli_context::fetch_server_props() {
         if (model_name.empty()) {
             const std::string path = props.value("model_path", "");
             if (!path.empty()) {
-                model_name = std::filesystem::path(path).filename().string();
+                model_name = compat_fs::filename(path);
             }
         }
         model_ftype = props.value("model_ftype", "");
@@ -313,7 +313,7 @@ bool cli_context::stage_media_file(const std::string & fname, const std::string 
     std::string encoded = base64::encode(data);
 
     if (type == "audio") {
-        std::string ext = std::filesystem::path(fname).extension().string();
+        std::string ext = compat_fs::extension(fname);
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
         impl->pending_media.push_back({
             {"type", "input_audio"},
@@ -556,9 +556,8 @@ int cli_context::run() {
         } else if (string_starts_with(buffer, "/glob ")) {
             std::error_code ec;
             size_t count = 0;
-            auto curdir = std::filesystem::current_path();
+            std::string curdir = compat_fs::current_path();
             std::string pattern = string_strip(buffer.substr(6));
-            std::filesystem::path rel_path;
 
             auto startglob = pattern.find_first_of("![*?");
             if (startglob != std::string::npos && startglob != 0) {
@@ -573,22 +572,15 @@ int cli_context::run() {
                         }
                     }
 #endif
-                    rel_path = rel_pattern;
                     pattern.erase(0, endpath + 1);
-                    curdir /= rel_path;
+                    curdir = compat_fs::join(curdir, rel_pattern);
                 }
             }
 
-            for (const auto & entry : std::filesystem::recursive_directory_iterator(curdir,
-                    std::filesystem::directory_options::skip_permission_denied, ec)) {
-                if (!entry.is_regular_file()) {
-                    continue;
-                }
-
-                std::string rel = std::filesystem::relative(entry.path(), curdir, ec).string();
-                if (ec) {
-                    ec.clear();
-                    continue;
+            for (const std::string & entry : compat_fs::list_files_recursive(curdir, ec)) {
+                std::string rel = entry.substr(curdir.size());
+                while (!rel.empty() && rel[0] == '/') {
+                    rel.erase(0, 1);
                 }
                 std::replace(rel.begin(), rel.end(), '\\', '/');
 
@@ -596,7 +588,7 @@ int cli_context::run() {
                     continue;
                 }
 
-                const std::string full_path = (curdir / rel).string();
+                const std::string full_path = compat_fs::join(curdir, rel);
                 if (!add_text_file(full_path)) {
                     continue;
                 }

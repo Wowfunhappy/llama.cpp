@@ -243,7 +243,7 @@ public:
 
     // return a copy of model metadata (thread-safe)
     // returns pair<true, meta> if found, pair<false, default> if not found
-    std::pair<bool, server_model_meta> get_meta(const std::string & name);
+    common_optional<server_model_meta> get_meta(const std::string & name);
 
     // return a copy of all model metadata (thread-safe)
     std::vector<server_model_meta> get_all_meta();
@@ -305,7 +305,7 @@ public:
 struct server_child {
     // serializes the notify_to_router writes
     std::mutex mtx_stdout;
-    std::atomic<bool> is_finished_downloading = false; // set by run_download
+    std::atomic<bool> is_finished_downloading{false}; // set by run_download
 
     // return true if the current process is a child server instance
     bool is_child();
@@ -324,7 +324,7 @@ struct server_child {
 struct server_models_routes {
     common_params params;
     json ui_settings = json::object();     // Primary: new name
-    std::atomic<bool> stopping = false;    // for graceful disconnecting SSE clients during shutdown
+    std::atomic<bool> stopping{false};    // for graceful disconnecting SSE clients during shutdown
     server_models models;
     server_models_routes(const common_params & params, int argc, char ** argv)
             : params(params), models(params, argc, argv) {
@@ -395,5 +395,9 @@ private:
         int status = 0;
         std::string data;
         std::string content_type;
+
+        msg_t() {}
+        msg_t(std::map<std::string, std::string> headers, int status, std::string data, std::string content_type)
+            : headers(std::move(headers)), status(status), data(std::move(data)), content_type(std::move(content_type)) {}
     };
 };

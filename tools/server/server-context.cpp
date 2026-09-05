@@ -22,7 +22,8 @@
 #include <cinttypes>
 #include <exception>
 #include <memory>
-#include <filesystem>
+#include "compat-filesystem.h"
+#include <iomanip>
 #include <random>
 #include <utility>
 #include <fstream>
@@ -1384,8 +1385,7 @@ private:
             model_name = params_base.model.get_name();
         } else {
             // fallback: derive model name from file name
-            auto model_path = std::filesystem::path(params_base.model.path);
-            model_name = model_path.filename().string();
+            model_name = compat_fs::filename(params_base.model.path);
         }
 
         model_aliases = params_base.model_alias;
@@ -2343,7 +2343,8 @@ private:
             slot.prompt.checkpoints.erase(slot.prompt.checkpoints.begin());
         }
 
-        auto & cur = slot.prompt.checkpoints.emplace_back();
+        slot.prompt.checkpoints.emplace_back();
+        auto & cur = slot.prompt.checkpoints.back();
 
         cur.id_task = id_task;
 
@@ -4271,12 +4272,12 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
         //SRV_DBG("Prompt: %s\n", prompt.is_string() ? prompt.get<std::string>().c_str() : prompt.dump(2).c_str());
 
         if (!params.path_prompts_log_dir.empty()) {
-            const auto file_path = std::filesystem::path(params.path_prompts_log_dir) / string_format("%012" PRId64 ".txt", ggml_time_ms());
+            const auto file_path = compat_fs::join(params.path_prompts_log_dir, string_format("%012" PRId64 ".txt", ggml_time_ms()));
             std::ofstream f(file_path);
             if (f) {
                 f << (prompt.is_string() ? prompt.get<std::string>().c_str() : prompt.dump(2).c_str());
             } else {
-                SRV_ERR("failed to create %s\n", file_path.string().c_str());
+                SRV_ERR("failed to create %s\n", file_path.c_str());
             }
         }
 

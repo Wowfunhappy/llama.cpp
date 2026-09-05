@@ -6,11 +6,11 @@
 #include <array>
 #include <algorithm>
 #include <cctype>
-#include <filesystem>
-// const std::string & is C++17
+#include "compat-filesystem.h"
+#include <string>
 
 // TODO?: Make this reusable, enums, docs
-static const std::array<const std::string &, 8> cmds = {
+static const std::array<std::string, 8> cmds = {
     "/audio ",
     "/clear",
     "/exit",
@@ -49,8 +49,8 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(cons
     if (!cmd.empty() && cmd != "/glob " && line.length() >= cmd.length() && cursor_byte_pos >= cmd.length()) {
         const std::string path_prefix  = std::string(line.substr(cmd.length(), cursor_byte_pos - cmd.length()));
         const std::string path_postfix = std::string(line.substr(cursor_byte_pos));
-        auto cur_dir = std::filesystem::current_path();
-        std::string cur_dir_str = cur_dir.string();
+        std::string cur_dir = compat_fs::current_path();
+        std::string cur_dir_str = cur_dir;
         std::string expanded_prefix = path_prefix;
 
 #if !defined(_WIN32)
@@ -64,27 +64,26 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(cons
 #else
         if (std::isalpha(static_cast<unsigned char>(expanded_prefix[0])) && expanded_prefix.find(':') == 1) {
 #endif
-            cur_dir = std::filesystem::path(expanded_prefix).parent_path();
+            cur_dir = compat_fs::parent_path(expanded_prefix);
             cur_dir_str.clear();
         } else if (!path_prefix.empty()) {
-            cur_dir /= std::filesystem::path(path_prefix).parent_path();
+            cur_dir = compat_fs::join(cur_dir, compat_fs::parent_path(path_prefix));
         }
 
         std::error_code ec;
-        for (const auto & entry : std::filesystem::directory_iterator(cur_dir, ec)) {
+        for (const std::string & path_full : compat_fs::list_directory(cur_dir, ec)) {
             if (ec) {
                 break;
             }
-            if (!entry.exists(ec)) {
+            if (!compat_fs::exists(path_full, ec)) {
                 ec.clear();
                 continue;
             }
 
-            const std::string path_full = entry.path().string();
             std::string path_entry = !cur_dir_str.empty() && string_starts_with(path_full, cur_dir_str) ? path_full.substr(cur_dir_str.length() + 1) : path_full;
 
-            if (entry.is_directory(ec)) {
-                path_entry.push_back(std::filesystem::path::preferred_separator);
+            if (compat_fs::is_directory(path_full)) {
+                path_entry.push_back('/');
             }
 
             if (expanded_prefix.empty() || string_starts_with(path_entry, expanded_prefix)) {
@@ -104,13 +103,13 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(cons
 
         // Add the longest common prefix
         if (!expanded_prefix.empty() && matches.size() > 1) {
-            const const std::string & match0(matches[0].first);
-            const const std::string & match1(matches[1].first);
+            const std::string & match0 = matches[0].first;
+            const std::string & match1 = matches[1].first;
             auto it = std::mismatch(match0.begin(), match0.end(), match1.begin(), match1.end());
             size_t len = it.first - match0.begin();
 
             for (size_t i = 2; i < matches.size(); ++i) {
-                const const std::string & matchi(matches[i].first);
+                const std::string & matchi = matches[i].first;
                 auto cmp = std::mismatch(match0.begin(), match0.end(), matchi.begin(), matchi.end());
                 len = std::min(len, static_cast<size_t>(cmp.first - match0.begin()));
             }

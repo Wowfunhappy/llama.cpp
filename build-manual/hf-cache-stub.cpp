@@ -20,4 +20,8 @@ void migrate_old_cache_to_hf_cache(const std::string & /*token*/, bool /*offline
     // no-op
 }
 
+bool remove_cached_repo(const std::string & /*repo_id*/) {
+    return false;
+}
+
 } // namespace hf_cache

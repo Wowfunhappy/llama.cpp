@@ -65,6 +65,12 @@ struct field_num : public field {
     virtual void eval(field_eval_context & ctx, const json & data) override;
 };
 
+// deduces T from the bound parameter, so call sites need not spell the type out
+template <typename T>
+inline field_num<T> * make_field_num(const char * n, T & val) {
+    return new field_num<T>(n, val);
+}
+
 struct field_str : public field {
     field_str(const char * n) : field(n) {}
     virtual void eval(field_eval_context & ctx, const json & data) override;

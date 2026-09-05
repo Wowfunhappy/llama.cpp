@@ -607,7 +607,7 @@ void server_http_context::get(const std::string & path, const server_http_contex
             req.path,
             build_query_string(req),
             req.body,
-            {},
+            std::map<std::string, uploaded_file>(),
             req.is_connection_closed
         });
         server_http_res_ptr response = handler(*request);
@@ -677,7 +677,7 @@ void server_http_context::del(const std::string & path, const server_http_contex
             req.path,
             build_query_string(req),
             req.body,
-            {},
+            std::map<std::string, uploaded_file>(),
             req.is_connection_closed
         });
         server_http_res_ptr response = handler(*request);
@@ -835,7 +835,7 @@ void server_http_context::register_gcp_compat() const {
                         path_prefix + dispatch_path,
                         req.query_string,
                         payload.dump(),
-                        {},
+                        std::map<std::string, uploaded_file>(),
                         req.should_stop,
                     };
 

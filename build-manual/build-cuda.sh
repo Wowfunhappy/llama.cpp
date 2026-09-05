@@ -22,7 +22,9 @@ COMMON_FLAGS="$COMMON_FLAGS $COMPAT"
 CFLAGS="-std=c11 $COMMON_FLAGS"
 CXXFLAGS="-std=c++1y $COMMON_FLAGS"
 INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./src"
-INCLUDES="$INCLUDES -I./ggml/src/ggml-cpu -I./ggml/src/ggml-cuda -I./common -I./vendor -I./tools/mtmd"
+# -I./common precedes -I./ggml/src/ggml-cpu: both hold a common.h, and only the
+# ggml-cpu sources (which sit next to theirs) may resolve to the ggml-cpu one
+INCLUDES="$INCLUDES -I./common -I./ggml/src/ggml-cpu -I./ggml/src/ggml-cuda -I./vendor -I./tools/mtmd"
 
 compile_cu() {
     local cu_file="$1"
@@ -106,6 +108,7 @@ compile_cpp ggml/src/ggml-threading.cpp
 compile_cpp ggml/src/gguf.cpp
 compile_cpp ggml/src/ggml-backend-reg.cpp
 compile_cpp ggml/src/ggml-backend-dl.cpp
+compile_cpp ggml/src/ggml-backend-meta.cpp
 
 echo ""
 echo "=== Step 4: Compiling CPU backend ==="
@@ -207,13 +210,18 @@ compile_cpp tools/server/server.cpp "$SERVER_INCLUDES"
 # main() for llama-server
 compile_cpp tools/server/main.cpp "$SERVER_INCLUDES"
 compile_cpp build-manual/server-tools-stub.cpp "$SERVER_INCLUDES"
+compile_cpp build-manual/ui.cpp "$SERVER_INCLUDES"
 compile_cpp vendor/cpp-httplib/httplib.cpp "-I./vendor"
+compile_cpp vendor/hash/hash.cpp "-I./vendor"
+compile_c vendor/hash/sha256/sha256.c "-I./vendor/hash"
 
 echo ""
 echo "=== Step 9: Compiling llama-cli ==="
 
-compile_cpp tools/cli/cli.cpp "-I./tools/server -I./common -I./vendor"
-compile_cpp tools/cli/main.cpp "-I./tools/server -I./common -I./vendor"
+compile_cpp tools/cli/cli.cpp "-I./tools/server -I./tools/cli -I./common -I./vendor"
+compile_cpp tools/cli/cli-context.cpp "-I./tools/server -I./tools/cli -I./common -I./vendor"
+compile_cpp tools/cli/cli-client.cpp "-I./tools/server -I./tools/cli -I./common -I./vendor"
+compile_cpp tools/cli/main.cpp "-I./tools/server -I./tools/cli -I./common -I./vendor"
 compile_cpp tools/completion/completion.cpp
 compile_cpp tools/completion/main.cpp
 compile_cpp examples/simple/simple.cpp
@@ -238,7 +246,7 @@ CUDA_LINK="-L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib"
 CUDA_LINK="$CUDA_LINK -Wl,-weak-lcudart -Wl,-weak-lcublas"
 
 # llama-cli
-CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_completion_completion\|tools_completion_main\|tools_server_server_cpp\|tools_server_main')
+CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_completion_completion\|tools_completion_main\|tools_server_main')
 $CXX -o ${BUILDDIR}/llama-cli \
     $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
@@ -265,7 +273,7 @@ $CXX -o ${BUILDDIR}/llama-server \
     -lpthread
 
 # llama-completion
-COMPLETION_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_cli_main\|tools_server_server_cpp\|tools_server_main')
+COMPLETION_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_cli_main\|tools_server_main')
 $CXX -o ${BUILDDIR}/llama-completion \
     $COMPLETION_OBJS $CUDA_OBJS \
     -framework Accelerate \

@@ -24,7 +24,7 @@
 #include <atomic>
 #include <chrono>
 #include <queue>
-#include <filesystem>
+#include "compat-filesystem.h"
 #include <random>
 #include <sstream>
 #include <cstring>
@@ -256,14 +256,14 @@ struct server_lru_sched {
 // delete). distinct from params.timeout_read/write which only applies to the generation proxy
 static constexpr int STREAM_LOOKUP_TIMEOUT_MS = 250;
 
-static std::filesystem::path get_server_exec_path() {
+static std::string get_server_exec_path() {
 #if defined(_WIN32)
     wchar_t buf[32768] = { 0 };  // Large buffer to handle long paths
     DWORD len = GetModuleFileNameW(nullptr, buf, _countof(buf));
     if (len == 0 || len >= _countof(buf)) {
         throw std::runtime_error("GetModuleFileNameW failed or path too long");
     }
-    return std::filesystem::path(buf);
+    return std::string(buf);
 #elif defined(__APPLE__) && defined(__MACH__)
     char small_path[PATH_MAX];
     uint32_t size = sizeof(small_path);
@@ -271,18 +271,18 @@ static std::filesystem::path get_server_exec_path() {
     if (_NSGetExecutablePath(small_path, &size) == 0) {
         // resolve any symlinks to get absolute path
         try {
-            return std::filesystem::canonical(std::filesystem::path(small_path));
+            return compat_fs::canonical(small_path);
         } catch (...) {
-            return std::filesystem::path(small_path);
+            return std::string(small_path);
         }
     } else {
         // buffer was too small, allocate required size and call again
         std::vector<char> buf(size);
         if (_NSGetExecutablePath(buf.data(), &size) == 0) {
             try {
-                return std::filesystem::canonical(std::filesystem::path(buf.data()));
+                return compat_fs::canonical(buf.data());
             } catch (...) {
-                return std::filesystem::path(buf.data());
+                return std::string(buf.data());
             }
         }
         throw std::runtime_error("_NSGetExecutablePath failed after buffer resize");
@@ -293,7 +293,7 @@ static std::filesystem::path get_server_exec_path() {
     if (count <= 0) {
         throw std::runtime_error("failed to resolve /proc/self/exe");
     }
-    return std::filesystem::path(std::string(path, count));
+    return std::string(path, count);
 #endif
 }
 
@@ -417,7 +417,7 @@ server_models::server_models(
     unset_reserved_args(base_preset, true);
     // set binary path
     try {
-        bin_path = get_server_exec_path().string();
+        bin_path = get_server_exec_path();
     } catch (const std::exception & e) {
         bin_path = argv[0];
         LOG_WRN("failed to get server executable path: %s\n", e.what());
@@ -520,7 +520,7 @@ void server_models::load_models() {
     }
     // 3. custom-path models from presets
     common_preset global = {};
-    common_presets custom_presets = {};
+    common_presets custom_presets;
     if (!base_params.models_preset.empty()) {
         custom_presets = ctx_preset.load_from_ini(base_params.models_preset, global);
         SRV_INF("Loaded %zu custom model presets from %s\n", custom_presets.size(), base_params.models_preset.c_str());
@@ -541,7 +541,9 @@ void server_models::load_models() {
         final_presets[name] = preset;
         source_map[name] = SERVER_MODEL_SOURCE_CACHE;
     }
-    for (const auto & [name, preset] : local_models)  {
+    for (const auto & _name_local : local_models)  {
+        const auto & name   = _name_local.first;
+        const auto & preset = _name_local.second;
         final_presets[name] = preset;
         source_map[name] = SERVER_MODEL_SOURCE_MODELS_DIR;
     }
@@ -612,7 +614,7 @@ void server_models::load_models() {
 
     // Helpers that read `mapping` - must be called while holding the lock.
     std::unordered_set<std::string> custom_names;
-    for (const auto & [name, preset] : custom_presets) custom_names.insert(name);
+    for (const auto & _name_custom2 : custom_presets) custom_names.insert(_name_custom2.first);
     auto join_set = [](const std::set<std::string> & s) {
         std::string result;
         for (const auto & v : s) {
@@ -686,8 +688,8 @@ void server_models::load_models() {
                 /* source        */ get_source(name),
                 /* preset        */ preset,
                 /* name          */ name,
-                /* aliases       */ {},
-                /* tags          */ {},
+                /* aliases       */ std::set<std::string>(),
+                /* tags          */ std::set<std::string>(),
                 /* port          */ 0,
                 /* status        */ SERVER_MODEL_STATUS_UNLOADED,
                 /* last_used     */ 0,
@@ -880,8 +882,8 @@ void server_models::load_models() {
                     /* source        */ get_source(name),
                     /* preset        */ preset,
                     /* name          */ name,
-                    /* aliases       */ {},
-                    /* tags          */ {},
+                    /* aliases       */ std::set<std::string>(),
+                    /* tags          */ std::set<std::string>(),
                     /* port          */ 0,
                     /* status        */ SERVER_MODEL_STATUS_UNLOADED,
                     /* last_used     */ 0,
@@ -1606,7 +1608,7 @@ server_http_res_ptr server_models::proxy_request(const server_http_req & req, co
         }
     };
 
-    return proxy;
+    return server_http_res_ptr(proxy.release());
 }
 
 void server_models::handle_child_state(const std::string & name, const std::string & raw_input) {
@@ -1816,7 +1818,7 @@ void server_child::notify_to_router(const std::string & state, const json & payl
 //
 
 // RAII wrapper similar to server_response_reader, but doesn't use server_queue
-static std::atomic<int> sse_client_id_counter = 0;
+static std::atomic<int> sse_client_id_counter{0};
 struct server_models_sse_client {
     server_response & queue_results;
     int client_id;
@@ -2328,13 +2330,14 @@ void server_models_routes::init_routes() {
         } else {
             auto tracked = models.conv_models.lookup(conv_id);
             if (tracked.has_value()) {
-            // the entry exists but its model is still loading: the forget below erases it,
-            // which cancels the request parked in proxy_post before the generation starts
-            SRV_INF("router stop for conv_id=%s while model name=%s is loading, cancelling the pending request\n",
-                    conv_id.c_str(), tracked->c_str());
-        } else {
-            SRV_WRN("router stop for unknown conv_id=%s, no owning child in the conv map\n",
-                    conv_id.c_str());
+                // the entry exists but its model is still loading: the forget below erases it,
+                // which cancels the request parked in proxy_post before the generation starts
+                SRV_INF("router stop for conv_id=%s while model name=%s is loading, cancelling the pending request\n",
+                        conv_id.c_str(), tracked->c_str());
+            } else {
+                SRV_WRN("router stop for unknown conv_id=%s, no owning child in the conv map\n",
+                        conv_id.c_str());
+            }
         }
         // drop the tracking entry, the session is being torn down
         models.conv_models.forget(conv_id);
@@ -2529,7 +2532,7 @@ server_http_proxy::server_http_proxy(
     httplib::ContentReceiverWithProgress content_receiver = [pipe](const char * data, size_t data_length, size_t, size_t) {
         // send data chunks
         // returns false if pipe is closed / broken (signal to stop receiving)
-        return pipe->write({{}, 0, std::string(data, data_length), ""});
+        return pipe->write(msg_t(std::map<std::string, std::string>(), 0, std::string(data, data_length), ""));
     };
 
     // when files are present, the body was converted from multipart form data to JSON
@@ -2606,8 +2609,8 @@ server_http_proxy::server_http_proxy(
         if (result.error() != httplib::Error::Success) {
             auto err_str = httplib::to_string(result.error());
             SRV_ERR("http client error: %s\n", err_str.c_str());
-            pipe->write({{}, 500, "", ""}); // header
-            pipe->write({{}, 0, "proxy error: " + err_str, ""}); // body
+            pipe->write(msg_t(std::map<std::string, std::string>(), 500, "", "")); // header
+            pipe->write(msg_t(std::map<std::string, std::string>(), 0, "proxy error: " + err_str, "")); // body
         } else if (!headers_sent->load()) {
             // httplib skips response_handler for bodyless statuses like 204, send headers here instead
             pipe->write(make_header_msg(*result));

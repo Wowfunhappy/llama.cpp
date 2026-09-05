@@ -42,7 +42,7 @@ int Result::status() const {
 }
 
 const Headers &Result::headers() const {
-  static const Headers empty_headers;
+  static const Headers empty_headers = Headers();
   return handle_.response ? handle_.response->headers : empty_headers;
 }
 

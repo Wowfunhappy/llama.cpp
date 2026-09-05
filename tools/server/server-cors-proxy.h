@@ -43,7 +43,9 @@ static server_http_res_ptr proxy_request(const server_http_req & req, std::strin
 
     std::map<std::string, std::string> headers;
     const std::string proxy_header_prefix = "x-llama-server-proxy-header-";
-    for (auto [key, value] : req.headers) {
+    for (const auto & _kv : req.headers) {
+        const auto & key   = _kv.first;
+        const auto & value = _kv.second;
         const std::string lowered_key = proxy_header_to_lower(key);
         if (!string_starts_with(lowered_key, proxy_header_prefix)) {
             continue;
@@ -71,7 +73,7 @@ static server_http_res_ptr proxy_request(const server_http_req & req, std::strin
             600  // timeout_write (default to 10 minutes)
             );
 
-    return proxy;
+    return server_http_res_ptr(proxy.release());
 }
 
 static server_http_context::handler_t proxy_handler_post = [](const server_http_req & req) -> server_http_res_ptr {
