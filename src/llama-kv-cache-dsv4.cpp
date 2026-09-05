@@ -930,7 +930,7 @@ llama_dsv4_comp_state::llama_dsv4_comp_state(
                 return nullptr;
             }
 
-            ctx_map.emplace(buft, ctx);
+            ctx_map.insert(std::make_pair(buft, ggml_context_ptr(ctx)));
 
             return ctx;
         }

@@ -124,7 +124,7 @@ llama_kv_cache::llama_kv_cache(
                 return nullptr;
             }
 
-            ctx_map.emplace(buft, ctx);
+            ctx_map.insert(std::make_pair(buft, ggml_context_ptr(ctx)));
 
             return ctx;
         }
@@ -294,7 +294,7 @@ llama_kv_cache::llama_kv_cache(
         LLAMA_LOG_INFO("%s: %10s KV buffer size = %8.2f MiB\n", __func__, ggml_backend_buffer_name(buf), ggml_backend_buffer_get_size(buf)/1024.0/1024.0);
 
         ggml_backend_buffer_clear(buf, 0);
-        ctxs_bufs.emplace_back(std::move(ctx), buf);
+        ctxs_bufs.push_back(std::make_pair(std::move(ctx), ggml_backend_buffer_ptr(buf)));
     }
 
     {
@@ -1698,7 +1698,7 @@ static void set_input_kq_mask_impl(const args_set_input_kq_mask & args, T * data
                 }
 
                 if (alibi) {
-                    data[idst + j] = llama_cast<T>(static_cast<float>(-std::abs(p0 - p1)));
+                    data[idst + j] = llama_cast<T>(-std::abs(static_cast<float>(p0 - p1)));
                 } else {
                     data[idst + j] = mask_keep;
                 }
