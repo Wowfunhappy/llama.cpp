@@ -667,7 +667,7 @@ struct ggml_webgpu_flash_attn_decisions {
     uint32_t wg_size       = 0;
 };
 
-inline constexpr uint32_t GGML_WEBGPU_FLASH_ATTN_TILE_KV_VEC_WIDTH = 4u;
+static constexpr uint32_t GGML_WEBGPU_FLASH_ATTN_TILE_KV_VEC_WIDTH = 4u;
 inline constexpr uint32_t GGML_WEBGPU_FLASH_ATTN_TILE_Q_TILE       = 4u;
 
 inline size_t ggml_webgpu_flash_attn_tensor_offset(const ggml_tensor * tensor) {

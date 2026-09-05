@@ -341,7 +341,7 @@ public:
             g_col[COMMON_LOG_COL_CYAN]    = LOG_COL_CYAN;
             g_col[COMMON_LOG_COL_WHITE]   = LOG_COL_WHITE;
         } else {
-            for (size_t i = 0; i < std::size(g_col); i++) {
+            for (size_t i = 0; i < (sizeof(g_col) / sizeof((g_col)[0])); i++) {
                 g_col[i] = "";
             }
         }

@@ -59,9 +59,9 @@ static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(cons
 }
 
 OutputVector translate_glu_swiglu(const NodeContext & context) {
-    Noneauto _src0_src1 = get_glu_inputs(context);
-    Noneauto & src0 = _src0_src1.first;
-    Noneauto & src1 = _src0_src1.second;
+    auto _src0_src1 = get_glu_inputs(context);
+    auto & src0 = _src0_src1.first;
+    auto & src1 = _src0_src1.second;
 
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(src0);
     auto silu = std::make_shared<ov::op::v1::Multiply>(src0, sigmoid);
@@ -71,9 +71,9 @@ OutputVector translate_glu_swiglu(const NodeContext & context) {
 }
 
 OutputVector translate_glu_swiglu_oai(const NodeContext & context) {
-    Noneauto _src0_src1 = get_glu_inputs(context);
-    Noneauto & src0 = _src0_src1.first;
-    Noneauto & src1 = _src0_src1.second;
+    auto _src0_src1 = get_glu_inputs(context);
+    auto & src0 = _src0_src1.first;
+    auto & src1 = _src0_src1.second;
 
     const int32_t * params = context.get_output_op_params();
     const float alpha = reinterpret_cast<const float *>(params)[2];
@@ -94,9 +94,9 @@ OutputVector translate_glu_swiglu_oai(const NodeContext & context) {
 }
 
 OutputVector translate_glu_swiglu_clamp(const NodeContext & context) {
-    Noneauto _src0_src1 = get_glu_inputs(context);
-    Noneauto & src0 = _src0_src1.first;
-    Noneauto & src1 = _src0_src1.second;
+    auto _src0_src1 = get_glu_inputs(context);
+    auto & src0 = _src0_src1.first;
+    auto & src1 = _src0_src1.second;
 
     const int32_t * params = context.get_output_op_params();
     const float limit = reinterpret_cast<const float *>(params)[3];
