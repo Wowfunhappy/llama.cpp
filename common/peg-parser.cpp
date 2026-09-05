@@ -720,9 +720,9 @@ struct parser_executor {
         auto result = arena.parse(p.child, ctx, start_pos);
 
         if (!result.fail()) {
-            std::string_view text;
+            const std::string & text;
             if (result.start < ctx.input.size()) {
-                text = std::string_view(ctx.input).substr(result.start, result.end - result.start);
+                text = const std::string &(ctx.input).substr(result.start, result.end - result.start);
             }
 
             auto node_id = ctx.ast.add_node(
@@ -749,9 +749,9 @@ struct parser_executor {
         auto result = arena.parse(p.child, ctx, start_pos);
 
         if (!result.fail()) {
-            std::string_view text;
+            const std::string & text;
             if (result.start < ctx.input.size()) {
-                text = std::string_view(ctx.input).substr(result.start, result.end - result.start);
+                text = const std::string &(ctx.input).substr(result.start, result.end - result.start);
             }
 
             auto node_id = ctx.ast.add_node(

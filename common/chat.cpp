@@ -1370,8 +1370,8 @@ static common_chat_params common_chat_params_init_gpt_oss(const common_chat_temp
     // inference and without generation prompt. For more details see:
     // https://github.com/ggml-org/llama.cpp/issues/15417
     if (inputs.is_inference && !inputs.add_generation_prompt) {
-        static constexpr std::string_view return_token = "<|return|>";
-        static constexpr std::string_view end_token    = "<|end|>";
+        static constexpr const std::string & return_token = "<|return|>";
+        static constexpr const std::string & end_token    = "<|end|>";
         size_t pos = prompt.rfind(return_token);
         if (pos != std::string::npos) {
             prompt.replace(pos, return_token.length(), end_token);

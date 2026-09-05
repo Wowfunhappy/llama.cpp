@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <string_view>
+// const std::string & is C++17
 
 // TODO?: Make this reusable, enums, docs
-static const std::array<std::string_view, 8> cmds = {
+static const std::array<const std::string &, 8> cmds = {
     "/audio ",
     "/clear",
     "/exit",
@@ -21,23 +21,23 @@ static const std::array<std::string_view, 8> cmds = {
     "/video ",
 };
 
-static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std::string_view line, size_t cursor_byte_pos) {
+static std::vector<std::pair<std::string, size_t>> auto_completion_callback(const std::string & line, size_t cursor_byte_pos) {
     std::vector<std::pair<std::string, size_t>> matches;
     std::string cmd;
 
-    if (line.length() > 1 && line.front() == '/' && !std::any_of(cmds.begin(), cmds.end(), [line](std::string_view prefix) {
+    if (line.length() > 1 && line.front() == '/' && !std::any_of(cmds.begin(), cmds.end(), [line](const std::string & prefix) {
         return string_starts_with(line, prefix);
     })) {
         auto it = cmds.begin();
 
-        while ((it = std::find_if(it, cmds.end(), [line](std::string_view cmd_line) {
+        while ((it = std::find_if(it, cmds.end(), [line](const std::string & cmd_line) {
             return string_starts_with(cmd_line, line);
         })) != cmds.end()) {
             matches.emplace_back(*it, it->length());
             ++it;
         }
     } else {
-        auto it = std::find_if(cmds.begin(), cmds.end(), [line](std::string_view prefix) {
+        auto it = std::find_if(cmds.begin(), cmds.end(), [line](const std::string & prefix) {
             return prefix.back() == ' ' && string_starts_with(line, prefix);
         });
 
@@ -104,13 +104,13 @@ static std::vector<std::pair<std::string, size_t>> auto_completion_callback(std:
 
         // Add the longest common prefix
         if (!expanded_prefix.empty() && matches.size() > 1) {
-            const std::string_view match0(matches[0].first);
-            const std::string_view match1(matches[1].first);
+            const const std::string & match0(matches[0].first);
+            const const std::string & match1(matches[1].first);
             auto it = std::mismatch(match0.begin(), match0.end(), match1.begin(), match1.end());
             size_t len = it.first - match0.begin();
 
             for (size_t i = 2; i < matches.size(); ++i) {
-                const std::string_view matchi(matches[i].first);
+                const const std::string & matchi(matches[i].first);
                 auto cmp = std::mismatch(match0.begin(), match0.end(), matchi.begin(), matchi.end());
                 len = std::min(len, static_cast<size_t>(cmp.first - match0.begin()));
             }

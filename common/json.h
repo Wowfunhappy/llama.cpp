@@ -9,7 +9,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
-#include <string_view>
+// const std::string & is C++17
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -66,7 +66,7 @@ struct common_json_value {
     common_json_value(bool val) : type(VAL_BOOL), val_bool(val) {}
     common_json_value(std::string val) : type(VAL_STRING), val_string(std::move(val)) {}
     // without this a string_view lands on the common_json ctor below and recurses
-    common_json_value(std::string_view val) : type(VAL_STRING), val_string(val) {}
+    common_json_value(const std::string & val) : type(VAL_STRING), val_string(val) {}
     common_json_value(const char * val);
     common_json_value(const common_json & val);
     common_json_value(common_json && val);
@@ -114,7 +114,7 @@ template <typename T> struct common_json_is_value : std::integral_constant<bool,
     std::is_arithmetic<T>::value ||
     std::is_same<T, std::nullptr_t>::value ||
     std::is_same<T, std::string>::value ||
-    std::is_same<T, std::string_view>::value ||
+    std::is_same<T, const std::string &>::value ||
     std::is_same<T, char *>::value ||
     std::is_same<T, const char *>::value ||
     std::is_same<T, common_json>::value> {};

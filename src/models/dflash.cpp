@@ -583,7 +583,7 @@ llama_model_dflash::graph<false>::graph(const llama_model & model, const llm_gra
     if (use_iswa) {
         inp_attn_iswa = build_attn_inp_kv_iswa();
     } else {
-        inp_attn = (inp_attn_type *)(void *)build_attn_inp_kv();
+        inp_attn = build_attn_inp_kv();
     }
 
     const float kq_scale = 1.0f/sqrtf(float(n_embd_head));

@@ -12,7 +12,7 @@
 #include <set>
 #include <sstream>
 #include <string>
-#include <string_view>
+// const std::string & is C++17
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -789,7 +789,7 @@ std::string string_format(const char * fmt, ...);
 
 std::string string_strip(const std::string & str);
 std::string string_get_sortable_timestamp();
-std::string string_lcs(std::string_view a, std::string_view b);
+std::string string_lcs(const std::string & a, const std::string & b);
 
 std::string string_join(const std::vector<std::string> & values, const std::string & separator);
 std::vector<std::string> string_split(const std::string & str, const std::string & delimiter);
@@ -831,23 +831,23 @@ inline std::vector<std::string> string_split<std::string>(const std::string & st
 }
 
 // remove when moving to c++20
-inline bool string_starts_with(std::string_view str, std::string_view prefix) {
+inline bool string_starts_with(const std::string & str, const std::string & prefix) {
     return str.size() >= prefix.size() &&
            str.compare(0, prefix.size(), prefix) == 0;
 }
 
 // remove when moving to c++20
-inline bool string_starts_with(std::string_view str, char prefix) {
+inline bool string_starts_with(const std::string & str, char prefix) {
     return !str.empty() && str.front() == prefix;
 }
 
 // remove when moving to c++20
-inline bool string_ends_with(std::string_view str, std::string_view suffix) {
+inline bool string_ends_with(const std::string & str, const std::string & suffix) {
     return str.size() >= suffix.size() &&
            str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-inline bool string_remove_suffix(std::string & str, std::string_view suffix) {
+inline bool string_remove_suffix(std::string & str, const std::string & suffix) {
     if (string_ends_with(str, suffix)) {
         str.resize(str.size() - suffix.size());
         return true;
@@ -855,7 +855,7 @@ inline bool string_remove_suffix(std::string & str, std::string_view suffix) {
     return false;
 }
 
-inline size_t string_find_partial_stop(std::string_view str, std::string_view stop) {
+inline size_t string_find_partial_stop(const std::string & str, const std::string & stop) {
     if (!str.empty() && !stop.empty()) {
         const size_t max_len = std::min(str.size(), stop.size());
         const char last_char = str.back();
@@ -1032,7 +1032,7 @@ bool common_prompt_batch_decode(
                                int   n_new,
                                int & n_past,
                                int   n_batch,
-                  std::string_view   state_path,
+                  const std::string &   state_path,
                               bool   save_state);
 
 // replays the last token after loading state to regenerate logits

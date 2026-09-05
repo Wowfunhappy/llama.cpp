@@ -4,7 +4,7 @@
 #include <map>
 #include <set>
 #include <string>
-#include <string_view>
+// const std::string & is C++17
 #include <vector>
 
 // Trie for matching multiple literals.
@@ -30,7 +30,7 @@ struct common_trie {
     enum match_result { NO_MATCH, PARTIAL_MATCH, COMPLETE_MATCH };
 
     // Check if a delimiter starts at the given position
-    match_result check_at(std::string_view sv, size_t start_pos) const;
+    match_result check_at(const std::string & sv, size_t start_pos) const;
 
     // Insert a word as a sequence of Unicode codepoints, returns its pattern index
     int32_t insert(const std::string & word);

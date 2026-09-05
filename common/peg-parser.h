@@ -6,7 +6,7 @@
 #include <set>
 #include <unordered_map>
 #include <string>
-#include <string_view>
+// const std::string & is C++17
 #include <functional>
 #include <vector>
 #include <variant>
@@ -77,7 +77,7 @@ struct common_peg_ast_node {
     std::string tag;
     size_t start;
     size_t end;
-    std::string_view text;
+    const std::string & text;
     std::vector<common_peg_ast_id> children;
 
     bool is_partial = false;
@@ -95,7 +95,7 @@ class common_peg_ast_arena {
         const std::string & tag,
         size_t start,
         size_t end,
-        std::string_view text,
+        const std::string & text,
         std::vector<common_peg_ast_id> children,
         bool is_partial = false
     ) {

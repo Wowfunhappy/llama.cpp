@@ -159,14 +159,14 @@ static std::string normalize_quotes_to_json(const std::string & input) {
         } else if (!in_single_quoted && !in_double_quoted && (c == 'T' || c == 'F' || c == 'N') &&
                    (i == 0 || !is_word_char(input[i - 1]))) {
             // Python literals -> JSON; prefix match keeps streamed partials monotonic.
-            static constexpr std::pair<std::string_view, std::string_view> literals[] = {
+            static constexpr std::pair<const std::string &, const std::string &> literals[] = {
                 { "True", "true" }, { "False", "false" }, { "None", "null" },
             };
             size_t n = 0;
             while (i + n < input.size() && is_word_char(input[i + n])) {
                 ++n;
             }
-            std::string_view token(input.data() + i, n);
+            const std::string & token(input.data() + i, n);
             bool matched = false;
             for (const auto & _py_js : literals) {
                 const auto & py = _py_js.first;

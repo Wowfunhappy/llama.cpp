@@ -700,7 +700,7 @@ namespace console {
         std::vector<std::string> entries;
         size_t viewing_idx = SIZE_MAX;
         std::string backup_line; // current line before viewing history
-        void add(std::string_view line) {
+        void add(const std::string & line) {
             if (line.empty()) {
                 return;
             }
@@ -1031,7 +1031,7 @@ namespace console {
 
         if (!end_of_stream && !line.empty()) {
             // remove the trailing newline for history storage
-            std::string_view hline = line;
+            const std::string & hline = line;
             if (!line.empty() && line.back() == '\n') {
                 hline.remove_suffix(1);
             }

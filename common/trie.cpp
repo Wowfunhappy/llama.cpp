@@ -4,7 +4,7 @@
 
 #include <deque>
 
-common_trie::match_result common_trie::check_at(std::string_view sv, size_t start_pos) const {
+common_trie::match_result common_trie::check_at(const std::string & sv, size_t start_pos) const {
     size_t current = 0; // Start at root
     size_t pos = start_pos;
 
