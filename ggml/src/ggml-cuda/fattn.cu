@@ -470,6 +470,29 @@ enum best_fattn_kernel {
     BEST_FATTN_KERNEL_MMA_F16 = 400,
 };
 
+#if CUDART_VERSION < 9000
+// The vec kernel is instantiated for these K/V type pairs only; it is the sole FA kernel on Kepler,
+// so a pair outside this set has to leave the FA path entirely.
+static bool ggml_cuda_fattn_vec_kv_types_supported(ggml_type type_K, ggml_type type_V) {
+    if (type_K != type_V) {
+        return false;
+    }
+    switch (type_K) {
+#ifdef GGML_CUDA_FA_ALL_QUANTS
+        case GGML_TYPE_Q4_1:
+        case GGML_TYPE_Q5_0:
+        case GGML_TYPE_Q5_1:
+#endif // GGML_CUDA_FA_ALL_QUANTS
+        case GGML_TYPE_F16:
+        case GGML_TYPE_Q4_0:
+        case GGML_TYPE_Q8_0:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif // CUDART_VERSION < 9000
+
 static bool ggml_cuda_fattn_kv_type_supported(ggml_type type) {
     switch (type) {
         case GGML_TYPE_F32:
@@ -654,7 +677,7 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     // If there are no tensor cores available, use the generic tile kernel:
 #if CUDART_VERSION < 9000
     // On Kepler (CUDA 7.5): use vec kernel for FA (tile kernel has runtime issues)
-    if (can_use_vector_kernel) {
+    if (can_use_vector_kernel && ggml_cuda_fattn_vec_kv_types_supported(K->type, V->type)) {
         return BEST_FATTN_KERNEL_VEC;
     }
     return BEST_FATTN_KERNEL_NONE; // Fall back to non-FA path for unsupported configs
