@@ -9,59 +9,57 @@
 typedef float (*vec_dot_q_cuda_t)(const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs);
 
 static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_Q1_0:    return vec_dot_q1_0_q8_1;
-        case GGML_TYPE_Q2_0:    return vec_dot_q2_0_q8_1;
-        case GGML_TYPE_Q4_0:    return vec_dot_q4_0_q8_1;
-        case GGML_TYPE_Q4_1:    return vec_dot_q4_1_q8_1;
-        case GGML_TYPE_Q5_0:    return vec_dot_q5_0_q8_1;
-        case GGML_TYPE_Q5_1:    return vec_dot_q5_1_q8_1;
-        case GGML_TYPE_Q8_0:    return vec_dot_q8_0_q8_1;
-        case GGML_TYPE_MXFP4:   return vec_dot_mxfp4_q8_1;
-        case GGML_TYPE_NVFP4:   return vec_dot_nvfp4_q8_1;
-        case GGML_TYPE_Q2_K:    return vec_dot_q2_K_q8_1;
-        case GGML_TYPE_Q3_K:    return vec_dot_q3_K_q8_1;
-        case GGML_TYPE_Q4_K:    return vec_dot_q4_K_q8_1;
-        case GGML_TYPE_Q5_K:    return vec_dot_q5_K_q8_1;
-        case GGML_TYPE_Q6_K:    return vec_dot_q6_K_q8_1;
-        case GGML_TYPE_IQ2_XXS: return vec_dot_iq2_xxs_q8_1;
-        case GGML_TYPE_IQ2_XS:  return vec_dot_iq2_xs_q8_1;
-        case GGML_TYPE_IQ2_S:   return vec_dot_iq2_s_q8_1;
-        case GGML_TYPE_IQ3_XXS: return vec_dot_iq3_xxs_q8_1;
-        case GGML_TYPE_IQ1_S:   return vec_dot_iq1_s_q8_1;
-        case GGML_TYPE_IQ1_M:   return vec_dot_iq1_m_q8_1;
-        case GGML_TYPE_IQ4_NL:  return vec_dot_iq4_nl_q8_1;
-        case GGML_TYPE_IQ4_XS:  return vec_dot_iq4_xs_q8_1;
-        case GGML_TYPE_IQ3_S:   return vec_dot_iq3_s_q8_1;
-        default:                return nullptr;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_Q1_0 ? vec_dot_q1_0_q8_1 :
+       type == GGML_TYPE_Q2_0 ? vec_dot_q2_0_q8_1 :
+       type == GGML_TYPE_Q4_0 ? vec_dot_q4_0_q8_1 :
+       type == GGML_TYPE_Q4_1 ? vec_dot_q4_1_q8_1 :
+       type == GGML_TYPE_Q5_0 ? vec_dot_q5_0_q8_1 :
+       type == GGML_TYPE_Q5_1 ? vec_dot_q5_1_q8_1 :
+       type == GGML_TYPE_Q8_0 ? vec_dot_q8_0_q8_1 :
+       type == GGML_TYPE_MXFP4 ? vec_dot_mxfp4_q8_1 :
+       type == GGML_TYPE_NVFP4 ? vec_dot_nvfp4_q8_1 :
+       type == GGML_TYPE_Q2_K ? vec_dot_q2_K_q8_1 :
+       type == GGML_TYPE_Q3_K ? vec_dot_q3_K_q8_1 :
+       type == GGML_TYPE_Q4_K ? vec_dot_q4_K_q8_1 :
+       type == GGML_TYPE_Q5_K ? vec_dot_q5_K_q8_1 :
+       type == GGML_TYPE_Q6_K ? vec_dot_q6_K_q8_1 :
+       type == GGML_TYPE_IQ2_XXS ? vec_dot_iq2_xxs_q8_1 :
+       type == GGML_TYPE_IQ2_XS ? vec_dot_iq2_xs_q8_1 :
+       type == GGML_TYPE_IQ2_S ? vec_dot_iq2_s_q8_1 :
+       type == GGML_TYPE_IQ3_XXS ? vec_dot_iq3_xxs_q8_1 :
+       type == GGML_TYPE_IQ1_S ? vec_dot_iq1_s_q8_1 :
+       type == GGML_TYPE_IQ1_M ? vec_dot_iq1_m_q8_1 :
+       type == GGML_TYPE_IQ4_NL ? vec_dot_iq4_nl_q8_1 :
+       type == GGML_TYPE_IQ4_XS ? vec_dot_iq4_xs_q8_1 :
+       type == GGML_TYPE_IQ3_S ? vec_dot_iq3_s_q8_1 :
+       nullptr;
 }
 
 static constexpr __host__ __device__ int get_vdr_mmvq(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_Q1_0:    return VDR_Q1_0_Q8_1_MMVQ;
-        case GGML_TYPE_Q2_0:    return VDR_Q2_0_Q8_1_MMVQ;
-        case GGML_TYPE_Q4_0:    return VDR_Q4_0_Q8_1_MMVQ;
-        case GGML_TYPE_Q4_1:    return VDR_Q4_1_Q8_1_MMVQ;
-        case GGML_TYPE_Q5_0:    return VDR_Q5_0_Q8_1_MMVQ;
-        case GGML_TYPE_Q5_1:    return VDR_Q5_1_Q8_1_MMVQ;
-        case GGML_TYPE_Q8_0:    return VDR_Q8_0_Q8_1_MMVQ;
-        case GGML_TYPE_MXFP4:   return VDR_MXFP4_Q8_1_MMVQ;
-        case GGML_TYPE_NVFP4:   return VDR_NVFP4_Q8_1_MMVQ;
-        case GGML_TYPE_Q2_K:    return VDR_Q2_K_Q8_1_MMVQ;
-        case GGML_TYPE_Q3_K:    return VDR_Q3_K_Q8_1_MMVQ;
-        case GGML_TYPE_Q4_K:    return VDR_Q4_K_Q8_1_MMVQ;
-        case GGML_TYPE_Q5_K:    return VDR_Q5_K_Q8_1_MMVQ;
-        case GGML_TYPE_Q6_K:    return VDR_Q6_K_Q8_1_MMVQ;
-        case GGML_TYPE_IQ2_XXS: return VDR_IQ2_XXS_Q8_1_MMVQ;
-        case GGML_TYPE_IQ2_XS:  return VDR_IQ2_XS_Q8_1_MMVQ;
-        case GGML_TYPE_IQ2_S:   return VDR_IQ2_S_Q8_1_MMVQ;
-        case GGML_TYPE_IQ3_XXS: return VDR_IQ3_XXS_Q8_1_MMVQ;
-        case GGML_TYPE_IQ3_S:   return VDR_IQ3_S_Q8_1_MMVQ;
-        case GGML_TYPE_IQ4_NL:  return VDR_IQ4_NL_Q8_1_MMVQ;
-        case GGML_TYPE_IQ4_XS:  return VDR_IQ4_XS_Q8_1_MMVQ;
-        default:                return 1;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_Q1_0 ? VDR_Q1_0_Q8_1_MMVQ :
+       type == GGML_TYPE_Q2_0 ? VDR_Q2_0_Q8_1_MMVQ :
+       type == GGML_TYPE_Q4_0 ? VDR_Q4_0_Q8_1_MMVQ :
+       type == GGML_TYPE_Q4_1 ? VDR_Q4_1_Q8_1_MMVQ :
+       type == GGML_TYPE_Q5_0 ? VDR_Q5_0_Q8_1_MMVQ :
+       type == GGML_TYPE_Q5_1 ? VDR_Q5_1_Q8_1_MMVQ :
+       type == GGML_TYPE_Q8_0 ? VDR_Q8_0_Q8_1_MMVQ :
+       type == GGML_TYPE_MXFP4 ? VDR_MXFP4_Q8_1_MMVQ :
+       type == GGML_TYPE_NVFP4 ? VDR_NVFP4_Q8_1_MMVQ :
+       type == GGML_TYPE_Q2_K ? VDR_Q2_K_Q8_1_MMVQ :
+       type == GGML_TYPE_Q3_K ? VDR_Q3_K_Q8_1_MMVQ :
+       type == GGML_TYPE_Q4_K ? VDR_Q4_K_Q8_1_MMVQ :
+       type == GGML_TYPE_Q5_K ? VDR_Q5_K_Q8_1_MMVQ :
+       type == GGML_TYPE_Q6_K ? VDR_Q6_K_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ2_XXS ? VDR_IQ2_XXS_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ2_XS ? VDR_IQ2_XS_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ2_S ? VDR_IQ2_S_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ3_XXS ? VDR_IQ3_XXS_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ3_S ? VDR_IQ3_S_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ4_NL ? VDR_IQ4_NL_Q8_1_MMVQ :
+       type == GGML_TYPE_IQ4_XS ? VDR_IQ4_XS_Q8_1_MMVQ :
+       1;
 }
 
 enum mmvq_parameter_table_id {
@@ -74,23 +72,33 @@ enum mmvq_parameter_table_id {
     MMVQ_PARAMETERS_GB10
 };
 
-static constexpr __device__ mmvq_parameter_table_id get_device_table_id() {
+// A macro, so __launch_bounds__ gets a constant without a function call: nvcc 7.5 rejects
+// constexpr calls during attribute argument substitution.
 #if defined(RDNA4)
-    return MMVQ_PARAMETERS_RDNA4;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_RDNA4
 #elif defined(RDNA3_0)
-    return MMVQ_PARAMETERS_RDNA3_0;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_RDNA3_0
 #elif defined(RDNA2) || defined(RDNA3_5)
-    return MMVQ_PARAMETERS_RDNA2;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_RDNA2
 #elif defined(GCN) || defined(CDNA)
-    return MMVQ_PARAMETERS_GCN;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_GCN
 #elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= GGML_CUDA_CC_TURING && __CUDA_ARCH__ < GGML_CUDA_CC_AMPERE
-    return MMVQ_PARAMETERS_TURING;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_TURING
 #elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ == GGML_CUDA_CC_DGX_SPARK
-    return MMVQ_PARAMETERS_GB10;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_GB10
 #else
-    return MMVQ_PARAMETERS_GENERIC;
+#define MMVQ_DEVICE_TABLE_ID MMVQ_PARAMETERS_GENERIC
 #endif
+
+static constexpr __device__ mmvq_parameter_table_id get_device_table_id() {
+    return MMVQ_DEVICE_TABLE_ID;
 }
+
+// nvcc 7.5 rejects a constexpr call during attribute argument substitution, so the launch
+// bound repeats calc_nwarps as an expression. This build targets sm_35, which uses the
+// generic table; that table ignores small_k and halve_iters.
+#define MMVQ_NWARPS_ATTR(ncols_dst_) \
+    ((ncols_dst_) >= 1 && (ncols_dst_) <= 4 ? 4 : ((ncols_dst_) >= 5 && (ncols_dst_) <= 8 ? 2 : 1))
 
 static __host__ mmvq_parameter_table_id get_device_table_id(int cc) {
     if (GGML_CUDA_CC_IS_RDNA4(cc)) {
@@ -119,137 +127,130 @@ static __host__ mmvq_parameter_table_id get_device_table_id(int cc) {
 // Check https://github.com/ggml-org/llama.cpp/pull/20905#issuecomment-4145835627 for details
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_pascal_older(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ1_S:   return 6;
-        case GGML_TYPE_IQ1_M:   return 6;
-        case GGML_TYPE_IQ2_S:   return 4;
-        case GGML_TYPE_IQ2_XS:  return 5;
-        case GGML_TYPE_IQ2_XXS: return 5;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 4;
-        case GGML_TYPE_IQ4_NL:  return 6;
-        case GGML_TYPE_IQ4_XS:  return 5;
-        case GGML_TYPE_MXFP4:   return 4;
-        case GGML_TYPE_NVFP4:   return 4;
-        case GGML_TYPE_Q2_K:    return 4;
-        case GGML_TYPE_Q3_K:    return 4;
-        case GGML_TYPE_Q4_0:    return 6;
-        case GGML_TYPE_Q4_1:    return 6;
-        case GGML_TYPE_Q4_K:    return 5;
-        case GGML_TYPE_Q5_0:    return 6;
-        case GGML_TYPE_Q5_1:    return 6;
-        case GGML_TYPE_Q5_K:    return 5;
-        case GGML_TYPE_Q6_K:    return 4;
-        case GGML_TYPE_Q8_0:    return 4;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ1_S ? 6 :
+       type == GGML_TYPE_IQ1_M ? 6 :
+       type == GGML_TYPE_IQ2_S ? 4 :
+       type == GGML_TYPE_IQ2_XS ? 5 :
+       type == GGML_TYPE_IQ2_XXS ? 5 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 4 :
+       type == GGML_TYPE_IQ4_NL ? 6 :
+       type == GGML_TYPE_IQ4_XS ? 5 :
+       type == GGML_TYPE_MXFP4 ? 4 :
+       type == GGML_TYPE_NVFP4 ? 4 :
+       type == GGML_TYPE_Q2_K ? 4 :
+       type == GGML_TYPE_Q3_K ? 4 :
+       type == GGML_TYPE_Q4_0 ? 6 :
+       type == GGML_TYPE_Q4_1 ? 6 :
+       type == GGML_TYPE_Q4_K ? 5 :
+       type == GGML_TYPE_Q5_0 ? 6 :
+       type == GGML_TYPE_Q5_1 ? 6 :
+       type == GGML_TYPE_Q5_K ? 5 :
+       type == GGML_TYPE_Q6_K ? 4 :
+       type == GGML_TYPE_Q8_0 ? 4 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_turing_plus(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ2_S:   return 7;
-        case GGML_TYPE_IQ3_S:   return 6;
-        case GGML_TYPE_IQ3_XXS: return 7;
-        case GGML_TYPE_MXFP4:   return 7;
-        case GGML_TYPE_NVFP4:   return 8;
-        case GGML_TYPE_Q2_K:    return 7;
-        case GGML_TYPE_Q3_K:    return 5;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ2_S ? 7 :
+       type == GGML_TYPE_IQ3_S ? 6 :
+       type == GGML_TYPE_IQ3_XXS ? 7 :
+       type == GGML_TYPE_MXFP4 ? 7 :
+       type == GGML_TYPE_NVFP4 ? 8 :
+       type == GGML_TYPE_Q2_K ? 7 :
+       type == GGML_TYPE_Q3_K ? 5 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_gcn(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ1_S:   return 5;
-        case GGML_TYPE_IQ1_M:   return 5;
-        case GGML_TYPE_IQ2_S:   return 4;
-        case GGML_TYPE_IQ2_XS:  return 4;
-        case GGML_TYPE_IQ2_XXS: return 4;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 4;
-        case GGML_TYPE_IQ4_NL:  return 6;
-        case GGML_TYPE_IQ4_XS:  return 4;
-        case GGML_TYPE_Q2_K:    return 4;
-        case GGML_TYPE_Q3_K:    return 4;
-        case GGML_TYPE_Q4_0:    return 5;
-        case GGML_TYPE_Q4_1:    return 5;
-        case GGML_TYPE_Q4_K:    return 4;
-        case GGML_TYPE_Q5_K:    return 4;
-        case GGML_TYPE_Q6_K:    return 4;
-        case GGML_TYPE_Q8_0:    return 4;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ1_S ? 5 :
+       type == GGML_TYPE_IQ1_M ? 5 :
+       type == GGML_TYPE_IQ2_S ? 4 :
+       type == GGML_TYPE_IQ2_XS ? 4 :
+       type == GGML_TYPE_IQ2_XXS ? 4 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 4 :
+       type == GGML_TYPE_IQ4_NL ? 6 :
+       type == GGML_TYPE_IQ4_XS ? 4 :
+       type == GGML_TYPE_Q2_K ? 4 :
+       type == GGML_TYPE_Q3_K ? 4 :
+       type == GGML_TYPE_Q4_0 ? 5 :
+       type == GGML_TYPE_Q4_1 ? 5 :
+       type == GGML_TYPE_Q4_K ? 4 :
+       type == GGML_TYPE_Q5_K ? 4 :
+       type == GGML_TYPE_Q6_K ? 4 :
+       type == GGML_TYPE_Q8_0 ? 4 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_cdna(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ2_S:   return 5;
-        case GGML_TYPE_IQ2_XS:  return 5;
-        case GGML_TYPE_IQ2_XXS: return 5;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 5;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ2_S ? 5 :
+       type == GGML_TYPE_IQ2_XS ? 5 :
+       type == GGML_TYPE_IQ2_XXS ? 5 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 5 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_rdna1_rdna2(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ2_S:   return 4;
-        case GGML_TYPE_IQ2_XS:  return 4;
-        case GGML_TYPE_IQ2_XXS: return 4;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 4;
-        case GGML_TYPE_Q2_K:    return 7;
-        case GGML_TYPE_Q3_K:    return 4;
-        case GGML_TYPE_Q4_K:    return 5;
-        case GGML_TYPE_Q5_K:    return 6;
-        case GGML_TYPE_Q6_K:    return 5;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ2_S ? 4 :
+       type == GGML_TYPE_IQ2_XS ? 4 :
+       type == GGML_TYPE_IQ2_XXS ? 4 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 4 :
+       type == GGML_TYPE_Q2_K ? 7 :
+       type == GGML_TYPE_Q3_K ? 4 :
+       type == GGML_TYPE_Q4_K ? 5 :
+       type == GGML_TYPE_Q5_K ? 6 :
+       type == GGML_TYPE_Q6_K ? 5 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_rdna3(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ1_S:   return 6;
-        case GGML_TYPE_IQ1_M:   return 6;
-        case GGML_TYPE_IQ2_S:   return 4;
-        case GGML_TYPE_IQ2_XS:  return 4;
-        case GGML_TYPE_IQ2_XXS: return 4;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 4;
-        case GGML_TYPE_IQ4_NL:  return 6;
-        case GGML_TYPE_IQ4_XS:  return 6;
-        case GGML_TYPE_Q4_K:    return 4;
-        case GGML_TYPE_Q5_K:    return 4;
-        case GGML_TYPE_Q6_K:    return 4;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ1_S ? 6 :
+       type == GGML_TYPE_IQ1_M ? 6 :
+       type == GGML_TYPE_IQ2_S ? 4 :
+       type == GGML_TYPE_IQ2_XS ? 4 :
+       type == GGML_TYPE_IQ2_XXS ? 4 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 4 :
+       type == GGML_TYPE_IQ4_NL ? 6 :
+       type == GGML_TYPE_IQ4_XS ? 6 :
+       type == GGML_TYPE_Q4_K ? 4 :
+       type == GGML_TYPE_Q5_K ? 4 :
+       type == GGML_TYPE_Q6_K ? 4 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 static constexpr __host__ __device__ int get_mmvq_mmid_max_batch_rdna4(ggml_type type) {
-    switch (type) {
-        case GGML_TYPE_IQ1_S:   return 7;
-        case GGML_TYPE_IQ1_M:   return 7;
-        case GGML_TYPE_IQ2_S:   return 4;
-        case GGML_TYPE_IQ2_XS:  return 4;
-        case GGML_TYPE_IQ2_XXS: return 4;
-        case GGML_TYPE_IQ3_S:   return 4;
-        case GGML_TYPE_IQ3_XXS: return 4;
-        case GGML_TYPE_IQ4_NL:  return 7;
-        case GGML_TYPE_IQ4_XS:  return 5;
-        case GGML_TYPE_MXFP4:   return 5;
-        case GGML_TYPE_NVFP4:   return 5;
-        case GGML_TYPE_Q3_K:    return 4;
-        case GGML_TYPE_Q4_0:    return 7;
-        case GGML_TYPE_Q4_1:    return 7;
-        case GGML_TYPE_Q4_K:    return 4;
-        case GGML_TYPE_Q5_0:    return 7;
-        case GGML_TYPE_Q5_1:    return 7;
-        case GGML_TYPE_Q5_K:    return 5;
-        case GGML_TYPE_Q6_K:    return 5;
-        case GGML_TYPE_Q8_0:    return 7;
-        default:                return MMVQ_MAX_BATCH_SIZE;
-    }
+    // C++11 constexpr functions allow only a single return statement.
+    return type == GGML_TYPE_IQ1_S ? 7 :
+       type == GGML_TYPE_IQ1_M ? 7 :
+       type == GGML_TYPE_IQ2_S ? 4 :
+       type == GGML_TYPE_IQ2_XS ? 4 :
+       type == GGML_TYPE_IQ2_XXS ? 4 :
+       type == GGML_TYPE_IQ3_S ? 4 :
+       type == GGML_TYPE_IQ3_XXS ? 4 :
+       type == GGML_TYPE_IQ4_NL ? 7 :
+       type == GGML_TYPE_IQ4_XS ? 5 :
+       type == GGML_TYPE_MXFP4 ? 5 :
+       type == GGML_TYPE_NVFP4 ? 5 :
+       type == GGML_TYPE_Q3_K ? 4 :
+       type == GGML_TYPE_Q4_0 ? 7 :
+       type == GGML_TYPE_Q4_1 ? 7 :
+       type == GGML_TYPE_Q4_K ? 4 :
+       type == GGML_TYPE_Q5_0 ? 7 :
+       type == GGML_TYPE_Q5_1 ? 7 :
+       type == GGML_TYPE_Q5_K ? 5 :
+       type == GGML_TYPE_Q6_K ? 5 :
+       type == GGML_TYPE_Q8_0 ? 7 :
+       MMVQ_MAX_BATCH_SIZE;
 }
 
 // Host function: returns the max batch size for the current arch+type at runtime.
@@ -406,155 +407,72 @@ static constexpr __device__ int get_mmvq_mmid_max_batch_for_device() {
 #endif
 }
 
+// Split per parameter table: a C++11 constexpr function holds a single return statement.
+static constexpr __host__ __device__ int calc_nwarps_generic(int ncols_dst) {
+    return ncols_dst >= 1 && ncols_dst <= 4 ? 4 :
+           ncols_dst >= 5 && ncols_dst <= 8 ? 2 :
+           1;
+}
+
+static constexpr __host__ __device__ int calc_nwarps_gcn(int ncols_dst) {
+    return ncols_dst >= 1 && ncols_dst <= 4 ? 2 : 1;
+}
+
+static constexpr __host__ __device__ int calc_nwarps_rdna4(ggml_type type, int ncols_dst) {
+    return ncols_dst != 1 ? 1 :
+           (type == GGML_TYPE_Q4_0 || type == GGML_TYPE_Q4_1 || type == GGML_TYPE_Q5_0 ||
+            type == GGML_TYPE_Q5_1 || type == GGML_TYPE_Q8_0 || type == GGML_TYPE_Q2_K ||
+            type == GGML_TYPE_Q4_K || type == GGML_TYPE_Q5_K || type == GGML_TYPE_Q6_K ||
+            type == GGML_TYPE_IQ4_NL || type == GGML_TYPE_IQ4_XS) ? 8 : 1;
+}
+
+static constexpr __host__ __device__ int calc_nwarps_rdna3_0(ggml_type type, int ncols_dst) {
+    return ncols_dst != 1 ? 1 :
+           (type == GGML_TYPE_Q4_0 || type == GGML_TYPE_Q4_1 || type == GGML_TYPE_Q5_0 ||
+            type == GGML_TYPE_Q5_1 || type == GGML_TYPE_Q8_0 || type == GGML_TYPE_IQ4_NL) ? 8 :
+           type == GGML_TYPE_Q6_K ? 2 :
+           1;
+}
+
+static constexpr __host__ __device__ int calc_nwarps_turing(ggml_type type, int ncols_dst) {
+    return ncols_dst == 1 ?
+               ((type == GGML_TYPE_Q2_K || type == GGML_TYPE_Q3_K || type == GGML_TYPE_Q4_K ||
+                 type == GGML_TYPE_Q5_K || type == GGML_TYPE_Q6_K) ? 2 : 4) :
+           ncols_dst >= 2 && ncols_dst <= 4 ? 4 :
+           ncols_dst >= 5 && ncols_dst <= 8 ? 2 :
+           1;
+}
+
+// Only worth the wider block when it actually retires the K loop in half the trips (Observation)
+static constexpr __host__ __device__ int calc_nwarps_gb10(ggml_type type, int ncols_dst, bool small_k, bool halve_iters) {
+    return (ncols_dst == 1 && !small_k && halve_iters &&
+            (type == GGML_TYPE_Q4_0 || type == GGML_TYPE_Q4_1 || type == GGML_TYPE_Q5_0 ||
+             type == GGML_TYPE_Q5_1 || type == GGML_TYPE_Q8_0 || type == GGML_TYPE_Q4_K ||
+             type == GGML_TYPE_Q5_K || type == GGML_TYPE_Q6_K || type == GGML_TYPE_IQ4_NL))
+               ? 2 * calc_nwarps_generic(ncols_dst)
+               : calc_nwarps_generic(ncols_dst);
+}
+
 static constexpr __host__ __device__ int calc_nwarps(ggml_type type, int ncols_dst, mmvq_parameter_table_id table_id, bool small_k = false, bool halve_iters = false) {
-    if (table_id == MMVQ_PARAMETERS_GENERIC) {
-        switch (ncols_dst) {
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-                return 4;
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-                return 2;
-            default:
-                return 1;
-        }
-    } else if (table_id == MMVQ_PARAMETERS_GCN) {
-        switch (ncols_dst) {
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-                return 2;
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-            default:
-                return 1;
-        }
-    }
-    if (table_id == MMVQ_PARAMETERS_RDNA4) {
-        // nwarps=8 benefits types with simple vec_dot on RDNA4 (ncols_dst=1).
-        // Types with complex vec_dot (Q3_K, IQ2_*, IQ3_*) regress due to register
-        // pressure and lookup table contention at higher thread counts.
-        if (ncols_dst == 1) {
-            switch (type) {
-                case GGML_TYPE_Q4_0:
-                case GGML_TYPE_Q4_1:
-                case GGML_TYPE_Q5_0:
-                case GGML_TYPE_Q5_1:
-                case GGML_TYPE_Q8_0:
-                case GGML_TYPE_Q2_K:
-                case GGML_TYPE_Q4_K:
-                case GGML_TYPE_Q5_K:
-                case GGML_TYPE_Q6_K:
-                case GGML_TYPE_IQ4_NL:
-                case GGML_TYPE_IQ4_XS:
-                    return 8;
-                default:
-                    return 1;
-            }
-        }
-        return 1;
-    }
-    if (table_id == MMVQ_PARAMETERS_RDNA3_0) {
-        // RDNA3 (W7900): stricter whitelist than RDNA4.
-        // Q2_K / Q5_K / IQ4_XS regress in full quant sweeps.
-        if (ncols_dst == 1) {
-            switch (type) {
-                case GGML_TYPE_Q4_0:
-                case GGML_TYPE_Q4_1:
-                case GGML_TYPE_Q5_0:
-                case GGML_TYPE_Q5_1:
-                case GGML_TYPE_Q8_0:
-                    return 8;
-                case GGML_TYPE_Q6_K:
-                    return 2;
-                case GGML_TYPE_IQ4_NL:
-                    return 8;
-                default:
-                    return 1;
-            }
-        }
-        return 1;
-    }
-    if (table_id == MMVQ_PARAMETERS_TURING) {
-        if (ncols_dst == 1) {
-            switch (type) {
-                case GGML_TYPE_Q2_K:
-                case GGML_TYPE_Q3_K:
-                case GGML_TYPE_Q4_K:
-                case GGML_TYPE_Q5_K:
-                case GGML_TYPE_Q6_K:
-                    return 2;
-                default:
-                    return 4;
-            }
-        }
-        switch (ncols_dst) {
-            case 2:
-            case 3:
-            case 4:
-                return 4;
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-                return 2;
-            default:
-                return 1;
-        }
-    }
-    if (table_id == MMVQ_PARAMETERS_GB10) {
-        const int generic = calc_nwarps(type, ncols_dst, MMVQ_PARAMETERS_GENERIC);
-        // Only worth the wider block when it actually retires the K loop in half the trips (Observation)
-        if (ncols_dst == 1 && !small_k && halve_iters) {
-            switch (type) {
-                case GGML_TYPE_Q4_0:
-                case GGML_TYPE_Q4_1:
-                case GGML_TYPE_Q5_0:
-                case GGML_TYPE_Q5_1:
-                case GGML_TYPE_Q8_0:
-                case GGML_TYPE_Q4_K:
-                case GGML_TYPE_Q5_K:
-                case GGML_TYPE_Q6_K:
-                case GGML_TYPE_IQ4_NL:
-                    return 2 * generic;
-                default:
-                    break;
-            }
-        }
-        return generic;
-    }
-    return 1;
+    return table_id == MMVQ_PARAMETERS_GENERIC ? calc_nwarps_generic(ncols_dst) :
+           table_id == MMVQ_PARAMETERS_GCN     ? calc_nwarps_gcn(ncols_dst) :
+           table_id == MMVQ_PARAMETERS_RDNA4   ? calc_nwarps_rdna4(type, ncols_dst) :
+           table_id == MMVQ_PARAMETERS_RDNA3_0 ? calc_nwarps_rdna3_0(type, ncols_dst) :
+           table_id == MMVQ_PARAMETERS_TURING  ? calc_nwarps_turing(type, ncols_dst) :
+           table_id == MMVQ_PARAMETERS_GB10    ? calc_nwarps_gb10(type, ncols_dst, small_k, halve_iters) :
+           1;
 }
 
 static constexpr __host__ __device__ int calc_rows_per_block(int ncols_dst, int table_id, bool small_k = false, int nwarps = 1) {
-    if (table_id == MMVQ_PARAMETERS_GENERIC || table_id == MMVQ_PARAMETERS_GCN || table_id == MMVQ_PARAMETERS_TURING || table_id == MMVQ_PARAMETERS_GB10) {
-        switch (ncols_dst) {
-            case 1:
-                return small_k ? nwarps : 1;
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-                return 2;
-            default:
-                return 1;
-        }
-    }
-    return 1;
+    return (table_id == MMVQ_PARAMETERS_GENERIC || table_id == MMVQ_PARAMETERS_GCN ||
+            table_id == MMVQ_PARAMETERS_TURING  || table_id == MMVQ_PARAMETERS_GB10)
+               ? (ncols_dst == 1 ? (small_k ? nwarps : 1) :
+                  ncols_dst >= 2 && ncols_dst <= 8 ? 2 : 1)
+               : 1;
 }
 
 template <ggml_type type, int ncols_dst, bool has_fusion, bool small_k = false, bool halve_iters = false>
-__launch_bounds__(calc_nwarps(type, ncols_dst, get_device_table_id(), small_k, halve_iters)*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
+__launch_bounds__(MMVQ_NWARPS_ATTR(ncols_dst)*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
 static __global__ void mul_mat_vec_q(
         const void * vx_ptr, const void * vy_ptr, const int32_t * ids_ptr, const ggml_cuda_mm_fusion_args_device fusion, float * dst_ptr,
         const uint32_t ncols_x, const uint3 nchannels_y, const uint32_t stride_row_x, const uint32_t stride_col_y,
@@ -781,12 +699,39 @@ static __global__ void mul_mat_vec_q(
     }
 }
 
+// nvcc 7.5 rejects a constexpr call during attribute argument substitution, so the launch
+// bound repeats the table as an expression. This build targets sm_35, which uses the
+// pascal-and-older table.
+#define MMVQ_MMID_MAX_BATCH_ATTR(type) \
+    (type == GGML_TYPE_IQ1_S ? 6 : \
+           type == GGML_TYPE_IQ1_M ? 6 : \
+           type == GGML_TYPE_IQ2_S ? 4 : \
+           type == GGML_TYPE_IQ2_XS ? 5 : \
+           type == GGML_TYPE_IQ2_XXS ? 5 : \
+           type == GGML_TYPE_IQ3_S ? 4 : \
+           type == GGML_TYPE_IQ3_XXS ? 4 : \
+           type == GGML_TYPE_IQ4_NL ? 6 : \
+           type == GGML_TYPE_IQ4_XS ? 5 : \
+           type == GGML_TYPE_MXFP4 ? 4 : \
+           type == GGML_TYPE_NVFP4 ? 4 : \
+           type == GGML_TYPE_Q2_K ? 4 : \
+           type == GGML_TYPE_Q3_K ? 4 : \
+           type == GGML_TYPE_Q4_0 ? 6 : \
+           type == GGML_TYPE_Q4_1 ? 6 : \
+           type == GGML_TYPE_Q4_K ? 5 : \
+           type == GGML_TYPE_Q5_0 ? 6 : \
+           type == GGML_TYPE_Q5_1 ? 6 : \
+           type == GGML_TYPE_Q5_K ? 5 : \
+           type == GGML_TYPE_Q6_K ? 4 : \
+           type == GGML_TYPE_Q8_0 ? 4 : \
+           MMVQ_MAX_BATCH_SIZE)
+
 // Dedicated MoE multi-token kernel.
 // Grid: (ceil(nrows_x / c_rows_per_block), nchannels_dst)
 // Block: (warp_size, ncols_dst) - each warp handles one token independently.
 // No shared memory reduction needed since each warp works alone.
 template <ggml_type type, int c_rows_per_block, bool has_fusion = false>
-__launch_bounds__(get_mmvq_mmid_max_batch_for_device<type>()*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
+__launch_bounds__(MMVQ_MMID_MAX_BATCH_ATTR(type)*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
 static __global__ void mul_mat_vec_q_moe(
         const void * vx_ptr, const void * vy_ptr, const int32_t * ids_ptr, const ggml_cuda_mm_fusion_args_device fusion,
         float * dst_ptr,
@@ -1115,31 +1060,32 @@ static void mul_mat_vec_q_switch_ncols_dst(
             static constexpr int c_ncols_dst = 1;
 
             // Tag types keep the flags compile-time, so __launch_bounds__ matches what is launched.
-            const auto launch = [&](auto small_k_tag, auto halve_iters_tag) {
-                constexpr bool c_small_k = decltype(small_k_tag)::value;
-                // Types the table does not promote would compile a second, identical kernel.
-                constexpr bool c_promoted =
-                    calc_nwarps(type, c_ncols_dst, MMVQ_PARAMETERS_GB10, false, true) !=
-                    calc_nwarps(type, c_ncols_dst, MMVQ_PARAMETERS_GB10, false, false);
-
-                constexpr bool c_halve_iters = decltype(halve_iters_tag)::value && c_promoted;
-
-                const std::pair<dim3, dim3> dims = calc_launch_params<type>(c_ncols_dst, nrows_x, nchannels_dst,
-                                                                              nsamples_dst, warp_size, table_id, c_small_k, c_halve_iters);
-                mul_mat_vec_q_switch_fusion<type, c_ncols_dst, c_small_k, c_halve_iters>(
-                    vx, vy, ids, fusion, dst, ncols_x, nchannels_y_fd, stride_row_x, stride_col_y, stride_col_dst,
-                    channel_ratio_fd, stride_channel_x, stride_channel_y, stride_channel_dst, sample_ratio_fd,
-                    stride_sample_x, stride_sample_y, stride_sample_dst, dims.first, dims.second, 0, ids_stride,
-                    stream);
-            };
+            // A macro, since nvcc 7.5 has no generic lambdas.
+#define MMVQ_LAUNCH_TAGGED(SMALL_K, HALVE_REQ)                                                             \
+            do {                                                                                           \
+                constexpr bool c_small_k = (SMALL_K);                                                      \
+                /* Types the table does not promote would compile a second, identical kernel. */           \
+                constexpr bool c_promoted =                                                                \
+                    calc_nwarps(type, c_ncols_dst, MMVQ_PARAMETERS_GB10, false, true) !=                   \
+                    calc_nwarps(type, c_ncols_dst, MMVQ_PARAMETERS_GB10, false, false);                    \
+                constexpr bool c_halve_iters = (HALVE_REQ) && c_promoted;                                  \
+                const std::pair<dim3, dim3> dims = calc_launch_params<type>(c_ncols_dst, nrows_x,          \
+                    nchannels_dst, nsamples_dst, warp_size, table_id, c_small_k, c_halve_iters);           \
+                mul_mat_vec_q_switch_fusion<type, c_ncols_dst, c_small_k, c_halve_iters>(                  \
+                    vx, vy, ids, fusion, dst, ncols_x, nchannels_y_fd, stride_row_x, stride_col_y,         \
+                    stride_col_dst, channel_ratio_fd, stride_channel_x, stride_channel_y,                  \
+                    stride_channel_dst, sample_ratio_fd, stride_sample_x, stride_sample_y,                 \
+                    stride_sample_dst, dims.first, dims.second, 0, ids_stride, stream);                    \
+            } while (0)
 
             if (should_use_small_k(c_ncols_dst)) {
-                launch(std::true_type{},  std::false_type{});
+                MMVQ_LAUNCH_TAGGED(true,  false);
             } else if (should_halve_iters()) {
-                launch(std::false_type{}, std::true_type{});
+                MMVQ_LAUNCH_TAGGED(false, true);
             } else {
-                launch(std::false_type{}, std::false_type{});
+                MMVQ_LAUNCH_TAGGED(false, false);
             }
+#undef MMVQ_LAUNCH_TAGGED
         } break;
         case 2: {
             constexpr int c_ncols_dst = 2;

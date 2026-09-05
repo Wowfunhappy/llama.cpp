@@ -43,14 +43,14 @@ struct no_init {
 
 template <typename dst_t, typename src_t>
 static inline dst_t llama_cast(src_t v) {
-    if (std::is_same_v<src_t, dst_t>) {
+    if (std::is_same<src_t, dst_t >::value) {
         return v;
-    } else if (std::is_same_v<src_t, ggml_fp16_t> && std::is_same_v<dst_t, float>) {
+    } else if (std::is_same<src_t, ggml_fp16_t >::value && std::is_same<dst_t, float >::value) {
         return ggml_fp16_to_fp32(v);
-    } else if (std::is_same_v<src_t, float> && std::is_same_v<dst_t, ggml_fp16_t>) {
+    } else if (std::is_same<src_t, float >::value && std::is_same<dst_t, ggml_fp16_t >::value) {
         return ggml_fp32_to_fp16(v);
     } else {
-        static_assert(std::is_same_v<dst_t, void>, "unsupported type combination");
+        static_assert(std::is_same<dst_t, void >::value, "unsupported type combination");
     }
 }
 

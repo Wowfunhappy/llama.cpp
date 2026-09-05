@@ -88,7 +88,7 @@ static void ggml_compute_forward_dup_flt(
     // case: dst tensor is contiguous
     if (ggml_is_contiguous(dst)) {
         if (nb00 == sizeof(src_t)) {
-            if (std::is_same_v<dst_t, src_t>) {
+            if (std::is_same<dst_t, src_t >::value) {
                 // same type
                 size_t id = 0;
                 const size_t rs = ne00 * nb00;
@@ -156,7 +156,7 @@ static void ggml_compute_forward_dup_flt(
     int64_t i12 = 0;
     int64_t i13 = 0;
 
-    if (std::is_same_v<dst_t, src_t>) {
+    if (std::is_same<dst_t, src_t >::value) {
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
                 i10 += ne00 * ir0;
@@ -5262,11 +5262,11 @@ static void ggml_compute_forward_set_rows_impl(
 
                 GGML_ASSERT(i1 >= 0 && i1 < ne1);
 
-                if (std::is_same_v<src_t, float>) {
+                if (std::is_same<src_t, float >::value) {
                     from_float(
                             (const float *) ((char *) src0->data +  i*nb01 + i02*nb02 + i03*nb03),
                                             ((char *)  dst->data + i1*nb1  + i02*nb2  + i03*nb3), nc);
-                } else if (std::is_same_v<src_t, ggml_fp16_t>) {
+                } else if (std::is_same<src_t, ggml_fp16_t >::value) {
                     if (dst->type == GGML_TYPE_F16) {
                         memcpy(
                                             ((char *)  dst->data + i1*nb1  + i02*nb2  + i03*nb3),
@@ -7410,7 +7410,7 @@ static void ggml_compute_forward_conv_transpose_2d_impl(
                         const float * const src = (float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11);
                         kernel_t * dst_data = wdata_b + i11*ne10*ne12;
                         for (int i10 = 0; i10 < ne10; i10++) {
-                            if (std::is_same_v<kernel_t, ggml_fp16_t>) {
+                            if (std::is_same<kernel_t, ggml_fp16_t >::value) {
                                 dst_data[i10*ne12 + i12] = GGML_CPU_FP32_TO_FP16(src[i10]);
                             } else {
                                 dst_data[i10*ne12 + i12] = src[i10];
@@ -7451,7 +7451,7 @@ static void ggml_compute_forward_conv_transpose_2d_impl(
                     for (int i01 = 0; i01 < ne01; i01++) {
                         for (int i00 = 0; i00 < ne00; i00++) {
                             float v = 0;
-                            if (std::is_same_v<kernel_t, ggml_fp16_t>) {
+                            if (std::is_same<kernel_t, ggml_fp16_t >::value) {
                                 ggml_vec_dot_f16(ne03, &v, 0,
                                         wdata_src_b + i1n, 0,
                                         wdata_kernel + i01*ne00*ne03 + i00*ne03, 0, 1);

@@ -938,7 +938,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
             }
         }
 #elif defined(AMD_WMMA_AVAILABLE) || defined(AMD_MFMA_AVAILABLE)
-        if (std::is_same_v<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne]>) {
+        if (std::is_same<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne] >::value) {
             const half2 KQ_max_scale_h2 = make_half2(KQ_max_scale[0], KQ_max_scale[0]);
 #pragma unroll
             for (int i = 0; i < (DV/2)/T_C_VKQ::J; ++i) {
@@ -948,7 +948,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
                 }
             }
         } else {
-            static_assert(std::is_same_v<decltype(T_C_VKQ::x), float[T_C_VKQ::ne]>, "bad VKQ type");
+            static_assert(std::is_same<decltype(T_C_VKQ::x), float[T_C_VKQ::ne] >::value, "bad VKQ type");
 #pragma unroll
             for (int i = 0; i < DV/T_C_VKQ::J; ++i) {
 #pragma unroll
@@ -1448,7 +1448,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
             }
         }
 #elif defined(AMD_WMMA_AVAILABLE) || defined(AMD_MFMA_AVAILABLE)
-        if (std::is_same_v<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne]>) {
+        if (std::is_same<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne] >::value) {
             const half2 KQ_max_scale_h2 = make_half2(KQ_max_scale[0], KQ_max_scale[0]);
 #pragma unroll
             for (int i = 0; i < (DV/2)/T_C_VKQ::J; ++i) {
@@ -1458,7 +1458,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
                 }
             }
         } else {
-            static_assert(std::is_same_v<decltype(T_C_VKQ::x), float[T_C_VKQ::ne]>, "bad VKQ type");
+            static_assert(std::is_same<decltype(T_C_VKQ::x), float[T_C_VKQ::ne] >::value, "bad VKQ type");
 #pragma unroll
             for (int i = 0; i < DV/T_C_VKQ::J; ++i) {
 #pragma unroll
@@ -1633,7 +1633,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
 #pragma unroll
     for (int k00 = 0; k00 < DV/2; k00 += nbatch_combine) {
         if (cols_per_warp == 8) {
-            static_assert(std::is_same_v<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne]>, "bad VKQ type");
+            static_assert(std::is_same<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne] >::value, "bad VKQ type");
             const int jc_cwd = threadIdx.y*T_B_KQ::I + T_B_KQ::get_i(-1); // jc combine write data
 #pragma unroll
             for (int k1 = 0; k1 < nbatch_combine; k1 += T_B_KQ::J) {
@@ -1648,7 +1648,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
             }
         } else {
             const int j0 = threadIdx.y*cols_per_warp;
-            if (std::is_same_v<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne]>) {
+            if (std::is_same<decltype(T_C_VKQ::x), half2[T_C_VKQ::ne] >::value) {
                 if (T_C_VKQ::dl == DATA_LAYOUT_I_MAJOR) {
 #pragma unroll
                     for (int k1 = 0; k1 < nbatch_combine; k1 += T_C_VKQ::J) {
@@ -1676,7 +1676,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_process_tile(
                     }
                 }
             } else {
-                static_assert(std::is_same_v<decltype(T_C_VKQ::x), float[T_C_VKQ::ne]>, "bad VKQ type");
+                static_assert(std::is_same<decltype(T_C_VKQ::x), float[T_C_VKQ::ne] >::value, "bad VKQ type");
                 half * tile_Q_h = (half *) tile_Q;
 #pragma unroll
                 for (int k1 = 0; k1 < nbatch_combine; k1 += T_C_VKQ::J/2) {

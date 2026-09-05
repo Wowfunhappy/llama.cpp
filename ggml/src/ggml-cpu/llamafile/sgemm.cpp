@@ -448,21 +448,21 @@ template <> inline vfloat32m8_t set_zero() {
 
 #if defined(__riscv_v_intrinsic)
 template <typename T> size_t vlmax() {
-    if (std::is_same_v<T, vfloat32m1_t>) { return  __riscv_vsetvlmax_e32m1(); }
-    else if (std::is_same_v<T, vfloat32m2_t>) { return  __riscv_vsetvlmax_e32m2(); }
-    else if (std::is_same_v<T, vfloat32m4_t>) { return  __riscv_vsetvlmax_e32m4(); }
-    else if (std::is_same_v<T, vfloat32m8_t>) { return  __riscv_vsetvlmax_e32m8(); }
+    if (std::is_same<T, vfloat32m1_t >::value) { return  __riscv_vsetvlmax_e32m1(); }
+    else if (std::is_same<T, vfloat32m2_t >::value) { return  __riscv_vsetvlmax_e32m2(); }
+    else if (std::is_same<T, vfloat32m4_t >::value) { return  __riscv_vsetvlmax_e32m4(); }
+    else if (std::is_same<T, vfloat32m8_t >::value) { return  __riscv_vsetvlmax_e32m8(); }
     #if defined (__riscv_zvfh)
-    else if (std::is_same_v<T, vfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
-    else if (std::is_same_v<T, vfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
-    else if (std::is_same_v<T, vfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
-    else if (std::is_same_v<T, vfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
+    else if (std::is_same<T, vfloat16mf2_t >::value) { return  __riscv_vsetvlmax_e16mf2(); }
+    else if (std::is_same<T, vfloat16m1_t >::value) { return  __riscv_vsetvlmax_e16m1(); }
+    else if (std::is_same<T, vfloat16m2_t >::value) { return  __riscv_vsetvlmax_e16m2(); }
+    else if (std::is_same<T, vfloat16m4_t >::value) { return  __riscv_vsetvlmax_e16m4(); }
     #endif
     #if defined (__riscv_zvfbfwma)
-    else if (std::is_same_v<T, vbfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
-    else if (std::is_same_v<T, vbfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
-    else if (std::is_same_v<T, vbfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
-    else if (std::is_same_v<T, vbfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
+    else if (std::is_same<T, vbfloat16mf2_t >::value) { return  __riscv_vsetvlmax_e16mf2(); }
+    else if (std::is_same<T, vbfloat16m1_t >::value) { return  __riscv_vsetvlmax_e16m1(); }
+    else if (std::is_same<T, vbfloat16m2_t >::value) { return  __riscv_vsetvlmax_e16m2(); }
+    else if (std::is_same<T, vbfloat16m4_t >::value) { return  __riscv_vsetvlmax_e16m4(); }
     #endif
     return 0;
 }
@@ -2965,11 +2965,11 @@ class tinyBLAS_Q0_PPC {
         std::array<int, 4> comparray {};
         vector float fin_res[8] = {0};
         vector float vs[8] = {0};
-        bool isAblock_q4 = std::is_same_v<TA, block_q4_0>;
+        bool isAblock_q4 = std::is_same<TA, block_q4_0 >::value;
         for (int l = 0; l < k; l++) {
             __builtin_mma_xxsetaccz(& acc_0);
             __builtin_mma_xxsetaccz(& acc_1);
-            if (std::is_same_v<TA, block_q4_0>) {
+            if (std::is_same<TA, block_q4_0 >::value) {
                packNormalInt4<4>((A + (ii * lda) + l), lda, 4, 4, (int8_t *)vec_A, comparray);
             } else {
                packNormal<int8_t, vector signed char>((const block_q8_0 *)(A + (ii * lda) + l), lda, 4, 8, (int8_t *)vec_A, false);
@@ -3010,11 +3010,11 @@ class tinyBLAS_Q0_PPC {
         std::array<int, 8> comparray {};
         vector float fin_res[8] = {0};
         vector float vs[8] = {0};
-        bool isAblock_q4 = std::is_same_v<TA, block_q4_0>;
+        bool isAblock_q4 = std::is_same<TA, block_q4_0 >::value;
         for (int l = 0; l < k; l++) {
             __builtin_mma_xxsetaccz(& acc_0);
             __builtin_mma_xxsetaccz(& acc_1);
-            if (std::is_same_v<TA, block_q4_0>) {
+            if (std::is_same<TA, block_q4_0 >::value) {
                packNormalInt4<8>((A + (ii * lda) + l), lda, 8, 4, (int8_t *)vec_A, comparray);
             } else {
                packNormal<int8_t, vector signed char>((const block_q8_0 *)(A + (ii * lda) + l), lda, 8, 8, (int8_t *)vec_A, false);
@@ -3055,13 +3055,13 @@ class tinyBLAS_Q0_PPC {
         std::array<int, 8> comparray {};
         vector float fin_res[16] = {0};
         vector float vs[16] = {0};
-        bool isAblock_q4 = std::is_same_v<TA, block_q4_0>;
+        bool isAblock_q4 = std::is_same<TA, block_q4_0 >::value;
         for (int l = 0; l < k; l++) {
             __builtin_mma_xxsetaccz(& acc_0);
             __builtin_mma_xxsetaccz(& acc_1);
             __builtin_mma_xxsetaccz(& acc_2);
             __builtin_mma_xxsetaccz(& acc_3);
-            if (std::is_same_v<TA, block_q4_0>) {
+            if (std::is_same<TA, block_q4_0 >::value) {
                packNormalInt4<8>((A + (ii * lda) + l), lda, 8, 4, (int8_t *)vec_A, comparray);
             } else {
                packNormal<int8_t, vector signed char>((const block_q8_0 *)(A + (ii * lda) + l), lda, 8, 8, (int8_t *)vec_A, false);
@@ -3158,7 +3158,7 @@ class tinyBLAS_Q0_PPC {
     void matmul_tiled(int64_t m, int64_t n, int64_t mc, int64_t nc, int64_t kc) {
         vec_t A_pack[mc * kc * 4];
         vec_t B_pack[nc * kc * 4];
-        constexpr bool is_Ablock_q4 = std::is_same_v<TA, block_q4_0>;
+        constexpr bool is_Ablock_q4 = std::is_same<TA, block_q4_0 >::value;
         int64_t ytiles = m / mc;
         int64_t xtiles = n / nc;
         int64_t tiles  = xtiles * ytiles;
@@ -3194,7 +3194,7 @@ class tinyBLAS_Q0_PPC {
         vec_t vec_A[8] = {0}, vec_B[8] = {0};
         vector signed int vec_C[4];
         acc_t acc_0;
-        bool isAblock_q4 = std::is_same_v<TA, block_q4_0>;
+        bool isAblock_q4 = std::is_same<TA, block_q4_0 >::value;
 
         if (end > tiles)
             end = tiles;

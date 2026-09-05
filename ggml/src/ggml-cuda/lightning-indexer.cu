@@ -89,7 +89,7 @@ static __global__ void lightning_indexer_kernel_wmma(
             }
         }
     } else {
-        constexpr dequantize_V_t dequantize_k = get_dequantize_V<TYPE_K, half, 4>();
+        const dequantize_V_t dequantize_k = get_dequantize_V<TYPE_K, half, 4>();
 #pragma unroll
         for (int i_k = tid; i_k < n_k; i_k += THREADS_PER_BLOCK) {
             const int i_k_vec = i_k / (N_EMBD / 4);
@@ -286,7 +286,7 @@ static __global__ void lightning_indexer_kernel_vec(
         }
     } else {
         // dequantize remaining types to float
-        constexpr dequantize_V_t dequantize_k = get_dequantize_V<TYPE_K, float, 4>();
+        const dequantize_V_t dequantize_k = get_dequantize_V<TYPE_K, float, 4>();
 #pragma unroll
         for (int k = 0; k < K_VECS_PER_WARP; ++k) {
             int i_kv = start_kv + k;

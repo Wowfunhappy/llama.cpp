@@ -126,7 +126,7 @@ static __global__ void mul_mat_vec_f(
         }
     }
 
-    if (std::is_same_v<T, float>) {
+    if (std::is_same<T, float >::value) {
         const float2 * x2 = (const float2 *) x;
         [[maybe_unused]] const float2 * gate_x2 = nullptr;
         if (has_fusion) {
@@ -158,7 +158,7 @@ static __global__ void mul_mat_vec_f(
                 }
             }
         }
-    } else if (std::is_same_v<T, half>) {
+    } else if (std::is_same<T, half >::value) {
         const half2 * x2 = (const half2 *) x;
         [[maybe_unused]] const half2 * gate_x2 = nullptr;
         if (has_fusion) {
@@ -167,7 +167,7 @@ static __global__ void mul_mat_vec_f(
             }
         }
 
-        if (std::is_same_v<type_acc, float>) {
+        if (std::is_same<type_acc, float >::value) {
             for (int col2 = tid; col2 < ncols2; col2 += block_size) {
                 const float2 tmpx = __half22float2(x2[col2]);
                 float2 tmpx_gate = make_float2(0.0f, 0.0f);
@@ -233,7 +233,7 @@ static __global__ void mul_mat_vec_f(
             NO_DEVICE_CODE;
 #endif // FP16_AVAILABLE
         }
-    } else if (std::is_same_v<T, nv_bfloat16>) {
+    } else if (std::is_same<T, nv_bfloat16 >::value) {
 //TODO: add support for ggml_cuda_mad for hip_bfloat162
 #if defined(GGML_USE_HIP)
         const int * x2 = (const int *) x;
@@ -288,20 +288,20 @@ static __global__ void mul_mat_vec_f(
 #pragma unroll
             for (int j = 0; j < ncols_dst; ++j) {
                 const float2 tmpy = y2[j*stride_col_y2 + col2];
-                ggml_cuda_mad(sumf[j], tmpx.x, tmpy.x);
-                ggml_cuda_mad(sumf[j], tmpx.y, tmpy.y);
+                ggml_cuda_mad(sumf[j], ggml_cuda_cast<float>(tmpx.x), tmpy.x);
+                ggml_cuda_mad(sumf[j], ggml_cuda_cast<float>(tmpx.y), tmpy.y);
 
                 if (has_fusion) {
                     if (use_gate) {
-                        ggml_cuda_mad(sumf_gate[j], tmpx_gate.x, tmpy.x);
-                        ggml_cuda_mad(sumf_gate[j], tmpx_gate.y, tmpy.y);
+                        ggml_cuda_mad(sumf_gate[j], ggml_cuda_cast<float>(tmpx_gate.x), tmpy.x);
+                        ggml_cuda_mad(sumf_gate[j], ggml_cuda_cast<float>(tmpx_gate.y), tmpy.y);
                     }
                 }
             }
         }
 #endif
     } else {
-        static_assert(std::is_same_v<T, void>, "unsupported type");
+        NO_DEVICE_CODE; // unsupported type
     }
 
     ggml_cuda_pdl_lc();
@@ -616,7 +616,7 @@ static void mul_mat_vec_f_cuda(
         const int64_t nsamples_dst, const int64_t stride_sample_x, const int64_t stride_sample_y, const int64_t stride_sample_dst,
         const int64_t ids_stride, enum ggml_prec prec, cudaStream_t stream) {
 
-    if (std::is_same_v<T, half>) {
+    if (std::is_same<T, half >::value) {
         if (prec == GGML_PREC_DEFAULT) {
             mul_mat_vec_f_cuda_switch_ncols_dst<T, half>
                 (x, y, ids, fusion, dst, ncols, nrows, ncols_dst, stride_row, stride_col_y, stride_col_dst,
