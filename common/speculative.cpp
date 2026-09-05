@@ -1889,7 +1889,7 @@ struct common_speculative_impl_ngram_mod : public common_speculative_impl {
         , params(params.ngram_mod)
         , mod(params.ngram_mod.n_match, 4*1024*1024)
         , verbose(std::getenv("LLAMA_TRACE") != nullptr) {
-        static_assert(sizeof(llama_token) == sizeof(common_ngram_mod::entry_t));
+        static_assert(sizeof(llama_token) == sizeof(common_ngram_mod::entry_t), "static assertion failed");
 
         SPC_TRC("%s", "adding speculative implementation 'ngram-mod'\n");
         SPC_TRC("- n_match=%d, n_max=%d, n_min=%d\n",
@@ -2612,7 +2612,7 @@ common_speculative * common_speculative_init(common_params_speculative & params,
         };
 
         // when adding a new type - update here the logic above
-        static_assert(COMMON_SPECULATIVE_TYPE_COUNT == 11);
+        static_assert(COMMON_SPECULATIVE_TYPE_COUNT == 11, "static assertion failed");
 
         // this list here defines the priority of the speculators
         // the one with highest priority are listed first

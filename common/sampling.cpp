@@ -867,7 +867,7 @@ std::vector<common_sampler_type> common_sampler_types_from_names(const std::vect
         alias_name_map.insert({"temp",    COMMON_SAMPLER_TYPE_TEMPERATURE});
         alias_name_map.insert({"typ",     COMMON_SAMPLER_TYPE_TYPICAL_P});
         // include aliases + canonical names in the complete mapping
-        alias_name_map.merge(canonical_name_map);
+        alias_name_map.insert(canonical_name_map.begin(), canonical_name_map.end());
         return alias_name_map;
     }();
 
