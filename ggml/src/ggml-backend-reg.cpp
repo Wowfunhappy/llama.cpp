@@ -4,7 +4,7 @@
 #include "ggml-impl.h"
 #include <algorithm>
 #include <cstring>
-// C++14 compat: filesystem replaced by string-based fs::path in ggml-backend-dl.h
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -86,10 +86,25 @@
 #include "ggml-openvino.h"
 #endif
 
-// fs::path is now just std::string (from ggml-backend-dl.h)
+#ifdef GGML_USE_ET
+#include "ggml-et.h"
+#endif
+
+namespace fs = std::filesystem;
 
 static std::string path_str(const fs::path & path) {
-    return path.string();
+    try {
+#if defined(__cpp_lib_char8_t)
+        // C++20 and later: u8string() returns std::u8string
+        const std::u8string u8str = path.u8string();
+        return std::string(reinterpret_cast<const char *>(u8str.data()), u8str.size());
+#else
+        // C++17: u8string() returns std::string
+        return path.u8string();
+#endif
+    } catch (...) {
+        return std::string();
+    }
 }
 
 struct ggml_backend_reg_entry {
@@ -103,16 +118,7 @@ struct ggml_backend_registry {
 
     ggml_backend_registry() {
 #ifdef GGML_USE_CUDA
-#if defined(__APPLE__)
-        // With weak linking + cuda-stub, check if real CUDA runtime is loaded
-        if (dlsym(RTLD_DEFAULT, "cudaGetDeviceCount") != nullptr) {
-            register_backend(ggml_backend_cuda_reg());
-        } else {
-            GGML_LOG_INFO("%s: CUDA not available, using CPU only\n", __func__);
-        }
-#else
         register_backend(ggml_backend_cuda_reg());
-#endif
 #endif
 #ifdef GGML_USE_METAL
         register_backend(ggml_backend_metal_reg());
@@ -159,6 +165,9 @@ struct ggml_backend_registry {
 #ifdef GGML_USE_OPENVINO
         register_backend(ggml_backend_openvino_reg());
 #endif
+#ifdef GGML_USE_ET
+        register_backend(ggml_backend_et_reg());
+#endif
 #ifdef GGML_USE_CPU
         register_backend(ggml_backend_cpu_reg());
 #endif
@@ -179,6 +188,12 @@ struct ggml_backend_registry {
             return;
         }
 
+        for (auto & entry : backends) {
+            if (entry.reg == reg) {
+                return;
+            }
+        }
+
 #ifndef NDEBUG
         GGML_LOG_DEBUG("%s: registered backend %s (%zu devices)\n",
             __func__, ggml_backend_reg_name(reg), ggml_backend_reg_dev_count(reg));
@@ -190,6 +205,12 @@ struct ggml_backend_registry {
     }
 
     void register_device(ggml_backend_dev_t device) {
+        for (auto & dev : devices) {
+            if (dev == device) {
+                return;
+            }
+        }
+
 #ifndef NDEBUG
         GGML_LOG_DEBUG("%s: registered device %s (%s)\n", __func__, ggml_backend_dev_name(device), ggml_backend_dev_description(device));
 #endif
@@ -469,7 +490,13 @@ static ggml_backend_reg_t ggml_backend_load_best(const char * name, bool silent,
 #endif
         // default search paths: executable directory, current directory
         search_paths.push_back(get_executable_path());
-        search_paths.push_back(fs::current_path());
+        std::error_code cwd_ec;
+        const fs::path cwd = fs::current_path(cwd_ec);
+        if (cwd_ec) {
+            GGML_LOG_DEBUG("%s: current_path() failure, error-message: %s\n", __func__, cwd_ec.message().c_str());
+        } else {
+            search_paths.push_back(cwd);
+        }
     } else {
         search_paths.push_back(fs::u8path(user_search_path));
     }
@@ -487,12 +514,18 @@ static ggml_backend_reg_t ggml_backend_load_best(const char * name, bool silent,
             }
             continue;
         }
-        fs::directory_iterator dir_it(search_path, fs::directory_options::skip_permission_denied);
-        for (const auto & entry : dir_it) {
+        std::error_code dir_ec;
+        fs::directory_iterator dir_it(search_path, fs::directory_options::skip_permission_denied, dir_ec);
+        if (dir_ec) {
+            GGML_LOG_DEBUG("%s: failed to enumerate %s: %s\n", __func__, path_str(search_path).c_str(), dir_ec.message().c_str());
+            continue;
+        }
+        for (const fs::directory_iterator end; dir_it != end; dir_it.increment(dir_ec)) {
+            const auto & entry = *dir_it;
             if (entry.is_regular_file(ec)) {
                 auto filename = entry.path().filename();
                 auto ext = entry.path().extension();
-                if (filename.native().find(file_prefix.native()) == 0 && ext == file_extension) {
+                if (filename.native().find(file_prefix) == 0 && ext == file_extension) {
                     dl_handle_ptr handle { dl_load_library(entry) };
                     if (!handle && !silent) {
                         GGML_LOG_ERROR("%s: failed to load %s: %s\n", __func__, path_str(entry.path()).c_str(), dl_error());
@@ -524,12 +557,11 @@ static ggml_backend_reg_t ggml_backend_load_best(const char * name, bool silent,
         for (const auto & search_path : search_paths) {
             fs::path filename = backend_filename_prefix().native() + name_path.native() + backend_filename_extension().native();
             fs::path path = search_path / filename;
-            {
-                std::error_code ec2;
-                if (fs::exists(path, ec2)) {
-                    return get_reg().load_backend(path, silent);
-                } else if (ec2) {
-                    GGML_LOG_DEBUG("%s: posix_stat(%s) failure, error-message: %s\n", __func__, path_str(path).c_str(), ec2.message().c_str());
+            if (std::error_code ec; fs::exists(path, ec)) {
+                return get_reg().load_backend(path, silent);
+            } else {
+                if (ec) {
+                    GGML_LOG_DEBUG("%s: posix_stat(%s) failure, error-message: %s\n", __func__, path_str(path).c_str(), ec.message().c_str());
                 }
             }
         }
@@ -566,7 +598,7 @@ void ggml_backend_load_all_from_path(const char * dir_path) {
     ggml_backend_load_best("openvino", silent, dir_path);
     ggml_backend_load_best("cpu", silent, dir_path);
     // check the environment variable GGML_BACKEND_PATH to load an out-of-tree backend
-    const char * backend_path = getenv("GGML_BACKEND_PATH");
+    const char * backend_path = std::getenv("GGML_BACKEND_PATH");
     if (backend_path) {
         ggml_backend_load(backend_path);
     }

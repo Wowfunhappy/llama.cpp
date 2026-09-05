@@ -4,13 +4,10 @@
 #include "chat-peg-parser.h"
 #include "chat.h"
 #include "log.h"
-#include "nlohmann/json.hpp"
 #include "peg-parser.h"
 
 #include <cctype>
 #include <numeric>
-
-using json = nlohmann::ordered_json;
 
 std::string trim_whitespace(const std::string & str) {
     size_t start = 0;
@@ -310,6 +307,8 @@ std::vector<segment> prune_whitespace_segments(const std::vector<segment> & segm
 
 namespace autoparser {
 
+static const std::string ERR_TMPL = "#**ERROR**#";
+
 std::string apply_template(const common_chat_template & tmpl, const template_params & params) {
     generation_params tmpl_params;
     tmpl_params.messages              = params.messages;
@@ -317,8 +316,8 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     tmpl_params.add_generation_prompt = params.add_generation_prompt;
     tmpl_params.enable_thinking       = params.enable_thinking;
 
-    if (!params.extra_context.is_null()) {
-        tmpl_params.extra_context = params.extra_context;
+    if (params.extra_context) {
+        tmpl_params.extra_context = *params.extra_context;
     }
     tmpl_params.extra_context["enable_thinking"] = params.enable_thinking;
 
@@ -326,11 +325,11 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
         return common_chat_template_direct_apply(tmpl, tmpl_params);
     } catch (const std::exception & e) {
         LOG_DBG("Template application failed: %s\n", e.what());
-        return "";
+        return ERR_TMPL;
     }
 }
 
-compare_variants_result compare_variants(
+std::optional<compare_variants_result> compare_variants(
     const common_chat_template &                   tmpl,
     const template_params &                        params_A,
     const std::function<void(template_params &)> & params_modifier) {
@@ -346,13 +345,13 @@ compare_variants_result compare_variants(
     std::string output_A = apply_template(tmpl, params_A);
     std::string output_B = apply_template(tmpl, params_B);
 
-    compare_variants_result result;
-    // Check for template application failures - return empty result
-    if (output_A.empty() || output_B.empty()) {
-        return result;
+    // Check for template application failures
+    if (output_A == ERR_TMPL || output_B == ERR_TMPL) {
+        return std::nullopt;
     }
 
     // Calculate diff and return result with both outputs
+    compare_variants_result result;
     result.diff     = calculate_diff_split(output_A, output_B);
     result.output_A = output_A;
     result.output_B = output_B;

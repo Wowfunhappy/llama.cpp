@@ -8,7 +8,7 @@ BUILDDIR=build-manual
 # CUDA compiler
 NVCC=/usr/local/cuda/bin/nvcc
 NVCC_FLAGS="-std=c++11 -arch=sm_35 -expt-extended-lambda --use_fast_math"
-NVCC_DEFINES="-DNDEBUG -DGGML_USE_CUDA -DGGML_CUDA_NO_VMM"
+NVCC_DEFINES="-DNDEBUG -DGGML_USE_CUDA -DGGML_CUDA_NO_VMM -DGGML_CUDA_NO_FATTN_TILE -DGGML_CUDA_NO_FATTN_MMA"
 NVCC_INCLUDES="-I./build-manual -I./ggml/include -I./ggml/src -I./include -I./src"
 
 # Host compiler flags (clang/clang++ on macOS 10.9)
@@ -78,8 +78,7 @@ CU_FILES=$(ls ggml/src/ggml-cuda/*.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-f16-f16.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q4_0-q4_0.cu \
               ggml/src/ggml-cuda/template-instances/fattn-vec-instance-q8_0-q8_0.cu \
-              ggml/src/ggml-cuda/template-instances/fattn-tile-*.cu \
-           | grep -v 'fattn-wmma')
+           | grep -v 'fattn-wmma\|fattn-tile')
 
 for cu_file in $CU_FILES; do
     compile_cu "$cu_file"
@@ -120,6 +119,7 @@ compile_cpp ggml/src/ggml-cpu/unary-ops.cpp
 compile_cpp ggml/src/ggml-cpu/ops.cpp
 compile_cpp ggml/src/ggml-cpu/vec.cpp
 compile_cpp ggml/src/ggml-cpu/traits.cpp
+compile_cpp ggml/src/ggml-cpu/iqp.cpp
 # Skip repack.cpp (references AVX-512/AMX symbols from arch/x86/repack.cpp)
 # compile_cpp ggml/src/ggml-cpu/repack.cpp
 compile_cpp ggml/src/ggml-cpu/hbm.cpp
@@ -140,7 +140,10 @@ for src in \
     llama-chat.cpp llama-context.cpp llama-cparams.cpp llama-grammar.cpp \
     llama-graph.cpp llama-hparams.cpp llama-impl.cpp llama-io.cpp \
     llama-kv-cache.cpp llama-kv-cache-iswa.cpp \
+    llama-kv-cache-dsa.cpp llama-kv-cache-dsa-iswa.cpp \
+    llama-kv-cache-dsv4.cpp llama-kv-cache-msa.cpp \
     llama-memory.cpp llama-memory-hybrid.cpp llama-memory-hybrid-iswa.cpp \
+    llama-memory-hybrid-idx.cpp \
     llama-memory-recurrent.cpp llama-mmap.cpp \
     llama-model-loader.cpp llama-model-saver.cpp llama-model.cpp \
     llama-quant.cpp llama-sampler.cpp llama-vocab.cpp \
@@ -164,11 +167,12 @@ compile_cpp build-manual/hf-cache-stub.cpp "$COMMON_INCLUDES"
 for src in \
     arg.cpp chat-auto-parser-generator.cpp chat-auto-parser-helpers.cpp \
     chat-diff-analyzer.cpp chat-peg-parser.cpp chat.cpp common.cpp \
-    console.cpp debug.cpp download.cpp json-partial.cpp \
+    console.cpp debug.cpp download.cpp fit.cpp \
+    imatrix-loader.cpp json.cpp \
     json-schema-to-grammar.cpp llguidance.cpp log.cpp \
     ngram-cache.cpp ngram-map.cpp ngram-mod.cpp \
-    peg-parser.cpp preset.cpp reasoning-budget.cpp regex-partial.cpp \
-    sampling.cpp speculative.cpp unicode.cpp; do
+    peg-parser.cpp preset.cpp reasoning-budget.cpp \
+    sampling.cpp speculative.cpp subproc.cpp trie.cpp unicode.cpp; do
     compile_cpp "common/${src}" "$COMMON_INCLUDES"
 done
 
@@ -194,12 +198,14 @@ echo "=== Step 8: Compiling server-context library ==="
 SERVER_INCLUDES="-I./tools/server -I./common -I./vendor"
 
 for src in \
-    server-common.cpp server-context.cpp server-http.cpp \
-    server-models.cpp server-queue.cpp server-task.cpp; do
+    server-chat.cpp server-common.cpp server-context.cpp server-http.cpp \
+    server-mcp.cpp server-models.cpp server-queue.cpp server-schema.cpp \
+    server-stream.cpp server-task.cpp; do
     compile_cpp "tools/server/${src}" "$SERVER_INCLUDES"
 done
-# server.cpp has its own main() - compiled separately for llama-server
 compile_cpp tools/server/server.cpp "$SERVER_INCLUDES"
+# main() for llama-server
+compile_cpp tools/server/main.cpp "$SERVER_INCLUDES"
 compile_cpp build-manual/server-tools-stub.cpp "$SERVER_INCLUDES"
 compile_cpp vendor/cpp-httplib/httplib.cpp "-I./vendor"
 
@@ -207,7 +213,9 @@ echo ""
 echo "=== Step 9: Compiling llama-cli ==="
 
 compile_cpp tools/cli/cli.cpp "-I./tools/server -I./common -I./vendor"
+compile_cpp tools/cli/main.cpp "-I./tools/server -I./common -I./vendor"
 compile_cpp tools/completion/completion.cpp
+compile_cpp tools/completion/main.cpp
 compile_cpp examples/simple/simple.cpp
 
 echo ""
@@ -230,7 +238,7 @@ CUDA_LINK="-L/usr/local/cuda/lib -Wl,-rpath,/usr/local/cuda/lib"
 CUDA_LINK="$CUDA_LINK -Wl,-weak-lcudart -Wl,-weak-lcublas"
 
 # llama-cli
-CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_completion_completion\|tools_server_server_cpp')
+CLI_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_completion_completion\|tools_completion_main\|tools_server_server_cpp\|tools_server_main')
 $CXX -o ${BUILDDIR}/llama-cli \
     $CLI_OBJS $CUDA_OBJS \
     -framework Accelerate \
@@ -248,7 +256,7 @@ $CXX -o ${BUILDDIR}/llama-simple \
     -lpthread
 
 # llama-server
-SERVER_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_completion_completion')
+SERVER_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_cli_main\|tools_completion_completion\|tools_completion_main')
 $CXX -o ${BUILDDIR}/llama-server \
     $SERVER_OBJS $CUDA_OBJS \
     -framework Accelerate \
@@ -257,7 +265,7 @@ $CXX -o ${BUILDDIR}/llama-server \
     -lpthread
 
 # llama-completion
-COMPLETION_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_server_server_cpp')
+COMPLETION_OBJS=$(echo "$ALL_HOST" | grep -v 'examples_simple\|tools_cli_cli\|tools_cli_main\|tools_server_server_cpp\|tools_server_main')
 $CXX -o ${BUILDDIR}/llama-completion \
     $COMPLETION_OBJS $CUDA_OBJS \
     -framework Accelerate \
