@@ -5352,17 +5352,17 @@ bool clip_encode(struct clip_ctx * ctx, struct clip_encode_params * params) {
                     const float fy = ((float)y + 0.5f) / sy - 0.5f;
                     int y0 = (int)std::floor(fy);
                     int y1 = y0 + 1;
-                    y0 = std::clamp(y0, 0, n_grid - 1);
-                    y1 = std::clamp(y1, 0, n_grid - 1);
-                    float wy1 = std::clamp(fy - (float)y0, 0.0f, 1.0f);
+                    y0 = std::min(std::max(y0, 0), n_grid - 1);
+                    y1 = std::min(std::max(y1, 0), n_grid - 1);
+                    float wy1 = std::min(std::max(fy - (float)y0, 0.0f), 1.0f);
                     const float wy0 = 1.0f - wy1;
                     for (int x = 0; x < out_w; ++x) {
                         const float fx = ((float)x + 0.5f) / sx - 0.5f;
                         int x0 = (int)std::floor(fx);
                         int x1 = x0 + 1;
-                        x0 = std::clamp(x0, 0, n_grid - 1);
-                        x1 = std::clamp(x1, 0, n_grid - 1);
-                        float wx1 = std::clamp(fx - (float)x0, 0.0f, 1.0f);
+                        x0 = std::min(std::max(x0, 0), n_grid - 1);
+                        x1 = std::min(std::max(x1, 0), n_grid - 1);
+                        float wx1 = std::min(std::max(fx - (float)x0, 0.0f), 1.0f);
                         const float wx0 = 1.0f - wx1;
 
                         const float w00 = wy0 * wx0;
