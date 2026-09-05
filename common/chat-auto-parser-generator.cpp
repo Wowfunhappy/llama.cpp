@@ -335,7 +335,10 @@ common_peg_parser analyze_tools::build_tool_parser_tag_json(parser_build_context
             args_parser = args_parser + p.literal(arguments.end);
         }
 
-        auto atomic_peek = !arguments.start.empty() ? common_optional(p.peek(p.literal(arguments.start))) : common_nullopt;
+        common_optional<common_peg_parser> atomic_peek;
+        if (!arguments.start.empty()) {
+            atomic_peek = p.peek(p.literal(arguments.start));
+        }
         auto func_parser = build_func_parser(p, name, call_id_section, have_call_id, args_parser, atomic_peek);
         tool_choice |= p.rule("tool-" + name, func_parser);
     });
@@ -465,8 +468,10 @@ common_peg_parser analyze_tools::build_tool_parser_tag_tagged(parser_build_conte
 
         // Only peek for an arg tag when there are required args that must follow.
         // When all args are optional, the model may emit no arg tags at all (#20650).
-        auto atomic_peek = (!arguments.name_prefix.empty() && !required_parsers.empty()) ?
-            common_optional(p.peek(p.literal(arguments.name_prefix))) : common_nullopt;
+        common_optional<common_peg_parser> atomic_peek;
+        if (!arguments.name_prefix.empty() && !required_parsers.empty()) {
+            atomic_peek = p.peek(p.literal(arguments.name_prefix));
+        }
         auto func_parser = build_func_parser(p, name, call_id_section, have_call_id, args_seq, atomic_peek);
         tool_choice |= p.rule("tool-" + name, func_parser);
     });
