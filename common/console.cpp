@@ -1031,9 +1031,9 @@ namespace console {
 
         if (!end_of_stream && !line.empty()) {
             // remove the trailing newline for history storage
-            const std::string & hline = line;
-            if (!line.empty() && line.back() == '\n') {
-                hline.remove_suffix(1);
+            std::string hline = line;
+            if (!hline.empty() && hline.back() == '\n') {
+                hline.erase(hline.size() - 1);
             }
             // TODO: maybe support multiline history entries?
             history.add(hline);
