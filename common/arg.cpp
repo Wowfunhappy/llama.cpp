@@ -27,7 +27,7 @@
 #include <climits>
 #include <cmath>
 #include <cstdarg>
-#include <filesystem>
+#include "compat-filesystem.h"
 #include <fstream>
 #include <list>
 #include <numeric>
@@ -737,7 +737,7 @@ static void common_params_apply_system_config(common_params & params, llama_exam
     std::vector<std::string> found;
     for (const auto & path : paths) {
         std::error_code ec;
-        if (std::filesystem::exists(path, ec)) {
+        if (compat_fs::exists(path, ec)) {
             found.push_back(path);
         }
     }
@@ -3907,7 +3907,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, const std::string & value) {
             params.path_prompts_log_dir = value;
             std::error_code ec;
-            std::filesystem::create_directories(value, ec);
+            compat_fs::create_directories(value, ec);
             if (ec) {
                 fprintf(stderr, "warning: failed to create prompts-log-dir '%s': %s\n", value.c_str(), ec.message().c_str());
             }
