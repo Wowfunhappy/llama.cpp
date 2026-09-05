@@ -119,7 +119,7 @@ static __global__ void ggml_cuda_ar_kernel(
     // Vector unit for the wire type, sized to the arch's widest single-instruction
     // copy (16 B on Volta+).  Each phase-1 iter writes one vector to host memory;
     // each phase-3 iter reads one and produces ELEMS_PER_VEC sums.
-    constexpr int ELEMS_PER_VEC = ggml_cuda_get_max_cpy_bytes() / sizeof(T_wire);
+    constexpr int ELEMS_PER_VEC = GGML_CUDA_MAX_CPY_BYTES / sizeof(T_wire);
     constexpr int ARRIVAL_INTS  = (int)(GGML_CUDA_AR_ARRIVAL_STRIDE / sizeof(int));
 
     const int tid       = threadIdx.x;
@@ -897,7 +897,9 @@ bool ggml_cuda_ar_allreduce(
             const size_t chunk_elems = remaining_elems < max_chunk_elems ? remaining_elems : max_chunk_elems;
             const size_t chunk_dst_bytes  = chunk_elems * input_type_size;
 
-            const auto [slot, token] = ggml_cuda_ar_acquire_slot(p);
+            const ggml_cuda_ar_slot_info slot_info = ggml_cuda_ar_acquire_slot(p);
+            const int slot  = slot_info.slot;
+            const int token = slot_info.token;
             const bool last_chunk = chunk_start + (int64_t) chunk_elems == ne;
 
             for (int i = 0; i < n; ++i) {

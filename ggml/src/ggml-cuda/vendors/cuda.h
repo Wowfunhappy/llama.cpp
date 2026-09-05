@@ -36,6 +36,11 @@
 #define __ballot_sync(mask, predicate) __ballot((predicate))
 static __device__ __forceinline__ void __syncwarp(unsigned mask = 0xFFFFFFFF) { (void)mask; /* implicit on Kepler */ }
 
+/* cudaStreamWaitEvent gained a default for its flags argument in CUDA 11 */
+static inline cudaError_t cudaStreamWaitEvent(cudaStream_t stream, cudaEvent_t event) {
+    return cudaStreamWaitEvent(stream, event, 0);
+}
+
 /* CUBLAS_TENSOR_OP_MATH and cublasSetMathMode don't exist before CUDA 9.0 */
 #define CUBLAS_TENSOR_OP_MATH 0
 #define CUBLAS_TF32_TENSOR_OP_MATH 0

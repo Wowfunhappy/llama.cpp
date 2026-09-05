@@ -9,7 +9,7 @@ using namespace ggml_cuda_mma;
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q4_0_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -34,7 +34,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
                 int u[2*VDR_Q4_0_Q8_1_MMQ];
 
-                constexpr int max_cpy = ggml_cuda_get_max_cpy_bytes();
+                constexpr int max_cpy = GGML_CUDA_MAX_CPY_BYTES;
                 constexpr int mcpy_int = max_cpy / sizeof(int);
                 static_assert(VDR_Q4_0_Q8_1_MMQ == 4, "bad VDR_Q4_0_Q8_1_MMQ");
 
@@ -59,7 +59,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q4_1_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -84,7 +84,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
                 int u[2*VDR_Q4_1_Q8_1_MMQ];
 
-                constexpr int max_cpy = ggml_cuda_get_max_cpy_bytes();
+                constexpr int max_cpy = GGML_CUDA_MAX_CPY_BYTES;
                 constexpr int mcpy_int = max_cpy / sizeof(int);
                 static_assert(VDR_Q4_0_Q8_1_MMQ == 4, "bad VDR_Q4_0_Q8_1_MMQ");
 
@@ -109,7 +109,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q8_0_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -280,7 +280,7 @@ static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q8_0_q8_1_mma(
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q8_1_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -441,7 +441,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 // Used for NVFP4, Q3_K, IQ2_S, and IQ2_XS
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q8_0_16_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -609,7 +609,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q2_K_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -869,7 +869,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q3_K_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -904,7 +904,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q4_K_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -939,7 +939,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q5_K_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -974,7 +974,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
 
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_vec_dot_q6_K_q8_1_dp4a(
         const int * __restrict__ x, const int * __restrict__ y, float * __restrict__ sum, const int k00) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 

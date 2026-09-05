@@ -2,9 +2,9 @@
 #include "fwht.cuh"
 
 template <int N>
-__launch_bounds__(4*ggml_cuda_get_physical_warp_size(), 1)
+__launch_bounds__(4*GGML_CUDA_PHYSICAL_WARP_SIZE, 1)
 __global__ void fwht_cuda(const float * src, float * dst, const int64_t n_rows, const float scale) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
 
     const int64_t r = (int64_t) blockIdx.x * blockDim.y + threadIdx.y;
 
@@ -15,7 +15,7 @@ __global__ void fwht_cuda(const float * src, float * dst, const int64_t n_rows, 
     src += r * N;
     dst += r * N;
 
-    static constexpr int el_w = N / warp_size;
+    constexpr int el_w = N / warp_size;
     float     reg[el_w];
     const int lane = threadIdx.x;
 

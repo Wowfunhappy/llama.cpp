@@ -448,21 +448,21 @@ template <> inline vfloat32m8_t set_zero() {
 
 #if defined(__riscv_v_intrinsic)
 template <typename T> size_t vlmax() {
-    if constexpr (std::is_same_v<T, vfloat32m1_t>) { return  __riscv_vsetvlmax_e32m1(); }
-    else if constexpr (std::is_same_v<T, vfloat32m2_t>) { return  __riscv_vsetvlmax_e32m2(); }
-    else if constexpr (std::is_same_v<T, vfloat32m4_t>) { return  __riscv_vsetvlmax_e32m4(); }
-    else if constexpr (std::is_same_v<T, vfloat32m8_t>) { return  __riscv_vsetvlmax_e32m8(); }
+    if (std::is_same_v<T, vfloat32m1_t>) { return  __riscv_vsetvlmax_e32m1(); }
+    else if (std::is_same_v<T, vfloat32m2_t>) { return  __riscv_vsetvlmax_e32m2(); }
+    else if (std::is_same_v<T, vfloat32m4_t>) { return  __riscv_vsetvlmax_e32m4(); }
+    else if (std::is_same_v<T, vfloat32m8_t>) { return  __riscv_vsetvlmax_e32m8(); }
     #if defined (__riscv_zvfh)
-    else if constexpr (std::is_same_v<T, vfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
-    else if constexpr (std::is_same_v<T, vfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
-    else if constexpr (std::is_same_v<T, vfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
-    else if constexpr (std::is_same_v<T, vfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
+    else if (std::is_same_v<T, vfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
+    else if (std::is_same_v<T, vfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
+    else if (std::is_same_v<T, vfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
+    else if (std::is_same_v<T, vfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
     #endif
     #if defined (__riscv_zvfbfwma)
-    else if constexpr (std::is_same_v<T, vbfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
-    else if constexpr (std::is_same_v<T, vbfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
-    else if constexpr (std::is_same_v<T, vbfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
-    else if constexpr (std::is_same_v<T, vbfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
+    else if (std::is_same_v<T, vbfloat16mf2_t>) { return  __riscv_vsetvlmax_e16mf2(); }
+    else if (std::is_same_v<T, vbfloat16m1_t>) { return  __riscv_vsetvlmax_e16m1(); }
+    else if (std::is_same_v<T, vbfloat16m2_t>) { return  __riscv_vsetvlmax_e16m2(); }
+    else if (std::is_same_v<T, vbfloat16m4_t>) { return  __riscv_vsetvlmax_e16m4(); }
     #endif
     return 0;
 }
@@ -537,7 +537,7 @@ class tinyBLAS {
         if (SIZE_N == RN) {
             return gemm<RM, RN, BM>(m, n, BN);
         }
-        if constexpr (RN > 1) {
+        if (RN > 1) {
             return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
         } else {
             GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
@@ -550,7 +550,7 @@ class tinyBLAS {
         D Cv[RN][RM] = {};
         for (int64_t l = 0; l < k; l += KN) {
             // help compiler for op order.
-            if constexpr (RM <= RN) {
+            if (RM <= RN) {
                 V Av[RM];
                 for (int64_t i = 0; i < RM; ++i) {
                     Av[i] = load<V>(A + lda * (ii + i) + l);
@@ -616,7 +616,7 @@ class tinyBLAS {
                 for (; jj < jj1; jj += RN) {
                     gemm_bloc<RM, RN>(ii + bi, jj);
                 }
-                if constexpr (RN > 1) {
+                if (RN > 1) {
                     for (; jj < jj2; jj += RN - 1) {
                         gemm_bloc<RM, RN-1>(ii + bi, jj);
                     }
@@ -715,7 +715,7 @@ class tinyBLAS_RVV {
         if (SIZE_N == RN) {
             return gemm<RM, RN, BM>(m, n, BN);
         }
-        if constexpr (RN > 1) {
+        if (RN > 1) {
             return mnpack<RM, RN-1, BM>(m, n, SIZE_N, BN);
         } else {
             GGML_LOG_ERROR("mnpack<%d, %d> block size not supported\n", RM, (int)SIZE_N);
@@ -1132,16 +1132,16 @@ class tinyBLAS_RVV {
 
     template <int RM, int RN>
     inline void gemm_bloc(int64_t ii, int64_t jj) {
-        if constexpr (RM == 4) {
-            if constexpr (RN == 6) { return gemm_bloc_4x6(ii, jj); }
-            if constexpr (RN == 5) { return gemm_bloc_4x5(ii, jj); }
-            if constexpr (RN == 4) { return gemm_bloc_4x4(ii, jj); }
-            if constexpr (RN == 3) { return gemm_bloc_4x3(ii, jj); }
-            if constexpr (RN == 2) { return gemm_bloc_4x2(ii, jj); }
-            if constexpr (RN == 1) { return gemm_bloc_4x1(ii, jj); }
-        } else if constexpr (RM == 2) {
-            if constexpr (RN == 2) { return gemm_bloc_2x2(ii, jj); }
-            if constexpr (RN == 1) { return gemm_bloc_2x1(ii, jj); }
+        if (RM == 4) {
+            if (RN == 6) { return gemm_bloc_4x6(ii, jj); }
+            if (RN == 5) { return gemm_bloc_4x5(ii, jj); }
+            if (RN == 4) { return gemm_bloc_4x4(ii, jj); }
+            if (RN == 3) { return gemm_bloc_4x3(ii, jj); }
+            if (RN == 2) { return gemm_bloc_4x2(ii, jj); }
+            if (RN == 1) { return gemm_bloc_4x1(ii, jj); }
+        } else if (RM == 2) {
+            if (RN == 2) { return gemm_bloc_2x2(ii, jj); }
+            if (RN == 1) { return gemm_bloc_2x1(ii, jj); }
         }
     }
 
@@ -1182,7 +1182,7 @@ class tinyBLAS_RVV {
                 for (; jj < jj1; jj += RN) {
                     gemm_bloc<RM, RN>(ii + bi, jj);
                 }
-                if constexpr (RN > 1) {
+                if (RN > 1) {
                     for (; jj < jj2; jj += RN - 1) {
                         gemm_bloc<RM, RN-1>(ii + bi, jj);
                     }
@@ -2353,11 +2353,11 @@ class tinyBLAS_HP16_PPC {
 
     template<int RM, int RN>
     inline void kernel(int64_t ii, int64_t jj) {
-       if constexpr(RM == 4 && RN == 8) {
+       if (RM == 4 && RN == 8) {
           KERNEL_4x8(ii,jj);
-       } else if constexpr(RM == 8 && RN == 8) {
+       } else if (RM == 8 && RN == 8) {
           KERNEL_8x8(ii,jj);
-       } else if constexpr(RM == 8 && RN == 4) {
+       } else if (RM == 8 && RN == 4) {
           KERNEL_8x4(ii,jj);
        } else {
           assert(false && "RN/RM values not supported");
@@ -2659,7 +2659,7 @@ class tinyBLAS_Q0_PPC {
                     convert_and_scale_q8(c[1], v_scale, hp_res[r][2], hp_res[r][3]);
                 }
                 for (int col = 0; col < 4; col++) {
-                    if constexpr (chunk_size == 8) {
+                    if (chunk_size == 8) {
                         vec_t t[8];
                         t[0] = vec_perm((vec_t)hp_res[0][col], (vec_t)hp_res[1][col], swiz1);
                         t[1] = vec_perm((vec_t)hp_res[0][col], (vec_t)hp_res[1][col], swiz2);
@@ -3173,7 +3173,7 @@ class tinyBLAS_Q0_PPC {
             int64_t jj = (job % xtiles) * nc;
             for (int64_t kk = 0; kk < k; kk += kc) {
                 int64_t k_cur = MIN(kc, k - kk);
-                if constexpr(is_Ablock_q4) {
+                if (is_Ablock_q4) {
                     packNormal_q4_fp16(A + ii * lda + kk, lda, mc, k_cur, (uint8_t *)A_pack);
                 } else {
                     packNormal_q8_fp16(A + ii * lda + kk, lda, mc, k_cur, (uint8_t *)A_pack);
@@ -3254,11 +3254,11 @@ class tinyBLAS_Q0_PPC {
 
     template<int RM, int RN>
     inline void kernel(int64_t ii, int64_t jj) {
-        if constexpr(RM == 4 && RN == 8) {
+        if (RM == 4 && RN == 8) {
             KERNEL_4x8(ii,jj);
-        } else if constexpr(RM == 8 && RN == 4) {
+        } else if (RM == 8 && RN == 4) {
             KERNEL_8x4(ii,jj);
-        } else if constexpr(RM == 8 && RN == 8) {
+        } else if (RM == 8 && RN == 8) {
             KERNEL_8x8(ii,jj);
         } else {
             assert(false && "RN/RM values not supported");
@@ -3729,13 +3729,13 @@ class tinyBLAS_PPC {
 
     template<int RM, int RN>
     inline void kernel(int64_t ii, int64_t jj) {
-        if constexpr(RM == 4 && RN == 4) {
+        if (RM == 4 && RN == 4) {
             KERNEL_4x4(ii, jj);
-        } else if constexpr(RM == 4 && RN == 8) {
+        } else if (RM == 4 && RN == 8) {
             KERNEL_4x8(ii, jj);
-        } else if constexpr(RM == 8 && RN == 4) {
+        } else if (RM == 8 && RN == 4) {
             KERNEL_8x4(ii, jj);
-        } else if constexpr(RM == 8 && RN == 8) {
+        } else if (RM == 8 && RN == 8) {
             KERNEL_8x8(ii, jj);
         } else {
             static_assert(false, "RN/RM values not supported");

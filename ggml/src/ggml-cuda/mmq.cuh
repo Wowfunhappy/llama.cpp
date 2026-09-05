@@ -104,6 +104,9 @@ struct tile_x_sizes {
     int qs;
     int dm;
     int sc;
+
+    // nvcc 7.5 mis-lowers brace-initialized aggregates inside conditional expressions.
+    constexpr tile_x_sizes(int qs_ = 0, int dm_ = 0, int sc_ = 0) : qs(qs_), dm(dm_), sc(sc_) {}
 };
 
 // Decouple shared memory tile sizes from WARP_SIZE to allow for different warp sizes.
@@ -130,24 +133,14 @@ enum ggml_cuda_mmq_sram_layout {
 };
 
 static constexpr __host__ __device__ int ggml_cuda_mmq_get_sram_stride(ggml_cuda_mmq_sram_layout sram_layout) {
-    switch (sram_layout) {
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_Q8_0:
-            return 2*MMQ_TILE_NE_K + 2*MMQ_TILE_NE_K/QI8_0 + 4;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_Q8_1:
-            return 2*MMQ_TILE_NE_K + 2*MMQ_TILE_NE_K/QI8_1 + 4;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_Q2_K:
-            return 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K         + 4;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_Q3_K:
-            return 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/2       + 4;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_Q6_K:
-            return 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/QI6_K   + MMQ_TILE_NE_K/8 + 7;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_FP4:
-            return 2*MMQ_TILE_NE_K + 8                     + 4;
-        case GGML_CUDA_MMQ_SRAM_LAYOUT_NVFP4:
-            return 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/2       + 4;
-        default:
-            return -1;
-    }
+        return sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_Q8_0 ? 2*MMQ_TILE_NE_K + 2*MMQ_TILE_NE_K/QI8_0 + 4 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_Q8_1 ? 2*MMQ_TILE_NE_K + 2*MMQ_TILE_NE_K/QI8_1 + 4 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_Q2_K ? 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K         + 4 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_Q3_K ? 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/2       + 4 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_Q6_K ? 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/QI6_K   + MMQ_TILE_NE_K/8 + 7 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_FP4 ? 2*MMQ_TILE_NE_K + 8                     + 4 :
+           sram_layout == GGML_CUDA_MMQ_SRAM_LAYOUT_NVFP4 ? 2*MMQ_TILE_NE_K + MMQ_TILE_NE_K/2       + 4 :
+           -1;
 }
 
 static_assert(ggml_cuda_mmq_get_sram_stride(GGML_CUDA_MMQ_SRAM_LAYOUT_Q8_0)  % 8 == 4, "Wrong padding.");
@@ -203,15 +196,35 @@ struct ggml_cuda_mmq_config {
 
 };
 
-#define CASE(type_, nthreads_, occupancy_, I_, J_, sram_layout_, K_vram_, stream_k_, fallback_)                                           \
-    if (type == (type_) && J == (J_) && fallback == (fallback_)) {                                                                        \
-        static_assert((nthreads_) %  32 == 0 && (nthreads_)       <= 512, "bad nthreads");                                                \
-        static_assert(                          (occupancy_)      <=   8, "bad occupancy");                                               \
-        static_assert((I_)        %  32 == 0,                             "bad I");                                                       \
-        static_assert((J_)        %   8 == 0,                             "bad J");                                                       \
-        static_assert((K_vram_)   % 256 == 0,                             "bad K_vram");                                                  \
-        return ggml_cuda_mmq_config((type_), (nthreads_), (occupancy_), (I_), (J_), (sram_layout_), (K_vram_), (stream_k_), (fallback_)); \
-    }                                                                                                                                     \
+// nvcc 7.5 cannot evaluate a long constexpr conditional chain over class values, so the
+// tables carry packed integers and the config is unpacked once at the lookup.
+#define MMQ_CFG_PACK(type_, nthreads_, occupancy_, I_, J_, sram_layout_, K_vram_, stream_k_, fallback_) \
+    ( (((uint64_t) (type_))        <<  0) | \
+      (((uint64_t) (nthreads_))    <<  8) | \
+      (((uint64_t) (occupancy_))   << 18) | \
+      (((uint64_t) (I_))           << 22) | \
+      (((uint64_t) (J_))           << 31) | \
+      (((uint64_t) (sram_layout_)) << 40) | \
+      (((uint64_t) (K_vram_))      << 43) | \
+      (((uint64_t) (stream_k_))    << 59) | \
+      (((uint64_t) (fallback_))    << 60) )
+
+static constexpr __host__ __device__ ggml_cuda_mmq_config ggml_cuda_mmq_config_unpack(uint64_t p) {
+    return ggml_cuda_mmq_config(
+        (ggml_type)                ((p >>  0) & 0xFFull),
+        (int)                      ((p >>  8) & 0x3FFull),
+        (int)                      ((p >> 18) & 0xFull),
+        (int)                      ((p >> 22) & 0x1FFull),
+        (int)                      ((p >> 31) & 0x1FFull),
+        (ggml_cuda_mmq_sram_layout)((p >> 40) & 0x7ull),
+        (int)                      ((p >> 43) & 0xFFFFull),
+        (bool)                     ((p >> 59) & 0x1ull),
+        (bool)                     ((p >> 60) & 0x1ull));
+}
+
+#define CASE(type_, nthreads_, occupancy_, I_, J_, sram_layout_, K_vram_, stream_k_, fallback_) \
+    (type == (type_) && J == (J_) && fallback == (fallback_)) ?                                 \
+        MMQ_CFG_PACK(type_, nthreads_, occupancy_, I_, J_, sram_layout_, K_vram_, stream_k_, fallback_) :
 
 #include "mmq-config-pascal-older.cuh"
 #include "mmq-config-pascal-dp4a.cuh"
@@ -226,60 +239,69 @@ struct ggml_cuda_mmq_config {
 
 #undef CASE
 
-static __host__ ggml_cuda_mmq_config ggml_cuda_mmq_get_config(const ggml_type type, const int J, const bool fallback, const int cc) {
+static __host__ uint64_t ggml_cuda_mmq_get_config_packed(const ggml_type type, const int J, const bool fallback, const int cc) {
     if (GGML_CUDA_CC_IS_AMD(cc)) {
         if (GGML_CUDA_CC_IS_CDNA(cc)) {
-            return ggml_cuda_mmq_get_config_cdna(type, J, fallback);
+            return ggml_cuda_mmq_get_config_packed_cdna(type, J, fallback);
         }
         if (GGML_CUDA_CC_IS_RDNA4(cc)) {
-            return ggml_cuda_mmq_get_config_rdna4(type, J, fallback);
+            return ggml_cuda_mmq_get_config_packed_rdna4(type, J, fallback);
         }
         if (GGML_CUDA_CC_IS_RDNA3_5(cc)) {
-            return ggml_cuda_mmq_get_config_rdna3_5(type, J, fallback);
+            return ggml_cuda_mmq_get_config_packed_rdna3_5(type, J, fallback);
         }
         if (GGML_CUDA_CC_IS_RDNA3(cc)) {  // covers RDNA 3.0
-            return ggml_cuda_mmq_get_config_rdna3(type, J, fallback);
+            return ggml_cuda_mmq_get_config_packed_rdna3(type, J, fallback);
         }
-        return ggml_cuda_mmq_get_config_rdna2(type, J, fallback);
+        return ggml_cuda_mmq_get_config_packed_rdna2(type, J, fallback);
     }
     if (blackwell_mma_available(cc)) {
-        return ggml_cuda_mmq_get_config_blackwell(type, J, fallback);
+        return ggml_cuda_mmq_get_config_packed_blackwell(type, J, fallback);
     }
     if (ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA) {
-        return ggml_cuda_mmq_get_config_ampere(type, J, fallback);
+        return ggml_cuda_mmq_get_config_packed_ampere(type, J, fallback);
     }
     if (ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_DP4A) {
-        return ggml_cuda_mmq_get_config_pascal_dp4a(type, J, fallback);
+        return ggml_cuda_mmq_get_config_packed_pascal_dp4a(type, J, fallback);
     }
-    return ggml_cuda_mmq_get_config_pascal_older(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_pascal_older(type, J, fallback);
 }
 
-static constexpr __device__ ggml_cuda_mmq_config ggml_cuda_mmq_get_config(ggml_type type, int J, bool fallback) {
+static __host__ ggml_cuda_mmq_config ggml_cuda_mmq_get_config(const ggml_type type, const int J, const bool fallback, const int cc) {
+    return ggml_cuda_mmq_config_unpack(ggml_cuda_mmq_get_config_packed(type, J, fallback, cc));
+}
+
+
+static constexpr __device__ uint64_t ggml_cuda_mmq_get_config_packed(ggml_type type, int J, bool fallback) {
 #ifdef GGML_USE_HIP
 #ifdef CDNA
-    return ggml_cuda_mmq_get_config_cdna(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_cdna(type, J, fallback);
 #elif defined(RDNA4)
-    return ggml_cuda_mmq_get_config_rdna4(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_rdna4(type, J, fallback);
 #elif defined(RDNA3_5)
-    return ggml_cuda_mmq_get_config_rdna3_5(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_rdna3_5(type, J, fallback);
 #elif defined(RDNA3)
-    return ggml_cuda_mmq_get_config_rdna3(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_rdna3(type, J, fallback);
 #else
-    return ggml_cuda_mmq_get_config_rdna2(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_rdna2(type, J, fallback);
 #endif // CDNA
 #else
 #ifdef BLACKWELL_MMA_AVAILABLE
-    return ggml_cuda_mmq_get_config_blackwell(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_blackwell(type, J, fallback);
 #elif __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
-    return ggml_cuda_mmq_get_config_ampere(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_ampere(type, J, fallback);
 #elif __CUDA_ARCH__ >= GGML_CUDA_CC_DP4A
-    return ggml_cuda_mmq_get_config_pascal_dp4a(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_pascal_dp4a(type, J, fallback);
 #else
-    return ggml_cuda_mmq_get_config_pascal_older(type, J, fallback);
+    return ggml_cuda_mmq_get_config_packed_pascal_older(type, J, fallback);
 #endif // BLACKWELL_MMA_AVAILABLE
 #endif // GGML_USE_HIP
-    GGML_UNUSED_VARS(type, J, fallback);
 }
+
+static constexpr __device__ ggml_cuda_mmq_config ggml_cuda_mmq_get_config(ggml_type type, int J, bool fallback) {
+    return ggml_cuda_mmq_config_unpack(ggml_cuda_mmq_get_config_packed(type, J, fallback));
+}
+
 
 static __host__ int ggml_cuda_mmq_get_type(const ggml_type type, const int J, const bool fallback, const int cc) {
     return ggml_cuda_mmq_get_config(type, J, fallback, cc).type;
@@ -390,31 +412,29 @@ static constexpr __device__ int ggml_cuda_mmq_get_rows_per_warp(ggml_type type, 
 #define MMQ_DP4A_TXS_Q6_K    tile_x_sizes{I*MMQ_TILE_NE_K*2 + I, I*MMQ_TILE_NE_K/QI6_K   + I/QI6_K,     I*MMQ_TILE_NE_K/8 + I/8}
 
 static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml_type type, int I) {
-    switch (type) {
-        case GGML_TYPE_Q1_0:    return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_Q2_0:    return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_Q4_0:    return MMQ_DP4A_TXS_Q4_0;
-        case GGML_TYPE_Q4_1:    return MMQ_DP4A_TXS_Q4_1;
-        case GGML_TYPE_Q5_0:    return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_Q5_1:    return MMQ_DP4A_TXS_Q8_1;
-        case GGML_TYPE_Q8_0:    return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_MXFP4:   return MMQ_DP4A_TXS_Q8_1;
-        case GGML_TYPE_NVFP4:   return MMQ_DP4A_TXS_Q8_0_16;
-        case GGML_TYPE_Q2_K:    return MMQ_DP4A_TXS_Q2_K;
-        case GGML_TYPE_Q3_K:    return MMQ_DP4A_TXS_Q3_K;
-        case GGML_TYPE_Q4_K:    return MMQ_DP4A_TXS_Q4_K;
-        case GGML_TYPE_Q5_K:    return MMQ_DP4A_TXS_Q5_K;
-        case GGML_TYPE_Q6_K:    return MMQ_DP4A_TXS_Q6_K;
-        case GGML_TYPE_IQ2_XXS: return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_IQ2_XS:  return MMQ_DP4A_TXS_Q8_0_16;
-        case GGML_TYPE_IQ2_S:   return MMQ_DP4A_TXS_Q8_0_16;
-        case GGML_TYPE_IQ3_XXS: return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_IQ3_S:   return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_IQ1_S:   return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_IQ4_XS:  return MMQ_DP4A_TXS_Q8_0;
-        case GGML_TYPE_IQ4_NL:  return MMQ_DP4A_TXS_Q8_0;
-        default:                return tile_x_sizes{0, 0, 0};
-    }
+        return type == GGML_TYPE_Q1_0 ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_Q2_0 ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_Q4_0 ? MMQ_DP4A_TXS_Q4_0 :
+           type == GGML_TYPE_Q4_1 ? MMQ_DP4A_TXS_Q4_1 :
+           type == GGML_TYPE_Q5_0 ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_Q5_1 ? MMQ_DP4A_TXS_Q8_1 :
+           type == GGML_TYPE_Q8_0 ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_MXFP4 ? MMQ_DP4A_TXS_Q8_1 :
+           type == GGML_TYPE_NVFP4 ? MMQ_DP4A_TXS_Q8_0_16 :
+           type == GGML_TYPE_Q2_K ? MMQ_DP4A_TXS_Q2_K :
+           type == GGML_TYPE_Q3_K ? MMQ_DP4A_TXS_Q3_K :
+           type == GGML_TYPE_Q4_K ? MMQ_DP4A_TXS_Q4_K :
+           type == GGML_TYPE_Q5_K ? MMQ_DP4A_TXS_Q5_K :
+           type == GGML_TYPE_Q6_K ? MMQ_DP4A_TXS_Q6_K :
+           type == GGML_TYPE_IQ2_XXS ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_IQ2_XS ? MMQ_DP4A_TXS_Q8_0_16 :
+           type == GGML_TYPE_IQ2_S ? MMQ_DP4A_TXS_Q8_0_16 :
+           type == GGML_TYPE_IQ3_XXS ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_IQ3_S ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_IQ1_S ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_IQ4_XS ? MMQ_DP4A_TXS_Q8_0 :
+           type == GGML_TYPE_IQ4_NL ? MMQ_DP4A_TXS_Q8_0 :
+           tile_x_sizes{0, 0, 0};
 }
 
 // FIXME temporary until all combinations of data types and GPUs can use the MMA data layout
@@ -434,7 +454,7 @@ static __host__ int ggml_cuda_mmq_get_nbytes_shared_x(const ggml_cuda_mmq_config
 template <ggml_type type, int J, bool fallback> static __device__ __forceinline__ void ggml_cuda_mmq_write_back_dp4a(
         const float * __restrict__ sum, const int32_t * __restrict__ ids_dst, float * __restrict__ dst,
         const float * __restrict__ y_scale, const int stride, const int i_max, const int j_max) {
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
 
@@ -456,7 +476,7 @@ template <ggml_type type, int J, bool fallback> static __device__ __forceinline_
                 continue;
             }
 
-            if constexpr (type == GGML_TYPE_NVFP4) {
+            if (type == GGML_TYPE_NVFP4) {
                 if (y_scale_used) {
                     dst[ids_dst[j]*stride + i] = y_scale[j] * sum[(j0/nwarps) * (I/warp_size) + i0/warp_size];
                 } else {
@@ -506,7 +526,7 @@ static __device__ __forceinline__ void ggml_cuda_mmq_write_back_mma(
                     continue;
                 }
 
-                if constexpr (type == GGML_TYPE_NVFP4) {
+                if (type == GGML_TYPE_NVFP4) {
                     if (y_scale_used) {
                         dst[ids_dst[j]*stride + i] = y_scale[j] * sum[(j0/tile_C::J + n)*tile_C::ne + l];
                     } else {
@@ -536,7 +556,7 @@ struct ggml_cuda_mmq_util_funcs {
 };
 
 template <ggml_type type, int J, bool fallback>
-static constexpr __device__ ggml_cuda_mmq_util_funcs ggml_cuda_mmq_get_util_funcs() {
+static __device__ ggml_cuda_mmq_util_funcs ggml_cuda_mmq_get_util_funcs() {
     if (!ggml_cuda_mmq_get_config(type, J, fallback).use_mma_data_layout()) {
         switch (type) {
             case GGML_TYPE_Q1_0:
@@ -844,22 +864,22 @@ static constexpr __device__ ggml_cuda_mmq_util_funcs ggml_cuda_mmq_get_util_func
 }
 
 template <ggml_type type, int J, bool fallback>
-static constexpr __device__ int ggml_cuda_mmq_get_vdr() {
+static __device__ int ggml_cuda_mmq_get_vdr() {
     return ggml_cuda_mmq_get_util_funcs<type, J, fallback>().vdr;
 }
 
 template <ggml_type type, int J, bool fallback>
-static constexpr __device__ ggml_cuda_mmq_load_tiles_t ggml_cuda_mmq_get_load_tiles() {
+static __device__ ggml_cuda_mmq_load_tiles_t ggml_cuda_mmq_get_load_tiles() {
     return ggml_cuda_mmq_get_util_funcs<type, J, fallback>().load_tiles;
 }
 
 template <ggml_type type, int J, bool fallback>
-static constexpr __device__ ggml_cuda_mmq_vec_dot_t ggml_cuda_mmq_get_vec_dot() {
+static __device__ ggml_cuda_mmq_vec_dot_t ggml_cuda_mmq_get_vec_dot() {
     return ggml_cuda_mmq_get_util_funcs<type, J, fallback>().vec_dot;
 }
 
 template <ggml_type type, int J, bool fallback>
-static constexpr __device__ ggml_cuda_mmq_write_back_t ggml_cuda_mmq_get_write_back() {
+static __device__ ggml_cuda_mmq_write_back_t ggml_cuda_mmq_get_write_back() {
     return ggml_cuda_mmq_get_util_funcs<type, J, fallback>().write_back;
 }
 
@@ -873,13 +893,13 @@ static __device__ __forceinline__ void mul_mat_q_process_tile(
         const int stride_row_x, const int ncols_y, const int stride_col_dst,
         const int tile_x_max_i, const int tile_y_max_j, const int kb0_start, const int kb0_stop) {
 
-    constexpr int              warp_size  = ggml_cuda_get_physical_warp_size();
+    constexpr int              warp_size  = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int              nwarps     = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int              qk         = ggml_cuda_type_traits<type>::qk;
     constexpr int              I          = ggml_cuda_mmq_get_I(type, J, fallback);
-    constexpr ggml_cuda_mmq_load_tiles_t load_tiles = ggml_cuda_mmq_get_load_tiles<type, J, fallback>();
-    constexpr ggml_cuda_mmq_vec_dot_t    vec_dot    = ggml_cuda_mmq_get_vec_dot<type, J, fallback>();
-    constexpr ggml_cuda_mmq_write_back_t write_back = ggml_cuda_mmq_get_write_back<type, J, fallback>();
+    const ggml_cuda_mmq_load_tiles_t load_tiles = ggml_cuda_mmq_get_load_tiles<type, J, fallback>();
+    const ggml_cuda_mmq_vec_dot_t    vec_dot    = ggml_cuda_mmq_get_vec_dot<type, J, fallback>();
+    const ggml_cuda_mmq_write_back_t write_back = ggml_cuda_mmq_get_write_back<type, J, fallback>();
 
     extern __shared__ int data_mul_mat_q[];
     int * tile_y = data_mul_mat_q + J;
@@ -961,7 +981,7 @@ static __global__ void mul_mat_q(
         return;
     }
 
-    constexpr int warp_size = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps    = ggml_cuda_mmq_get_nthreads(type, J, fallback) / warp_size;
     constexpr int qk        = ggml_cuda_type_traits<type>::qk;
     constexpr int I         = ggml_cuda_mmq_get_I(type, J, fallback);
@@ -984,7 +1004,7 @@ static __global__ void mul_mat_q(
     }
     __syncthreads();
 
-    if constexpr (!ggml_cuda_mmq_get_stream_k(type, J, fallback)) {
+    if (!ggml_cuda_mmq_get_stream_k(type, J, fallback)) {
         const uint2 tmp2 = fast_div_modulo(blockIdx.z, nchannels_y);
         const int wt = tmp2.x;
         const int zt = tmp2.y;
@@ -998,7 +1018,7 @@ static __global__ void mul_mat_q(
         int offset_y       = wt*stride_sample_y   + zt*stride_channel_y;
         int offset_dst     = wt*stride_sample_dst + zt*stride_channel_dst + jt*J*stride_col_dst;
         int offset_y_scale;
-        if constexpr (type == GGML_TYPE_NVFP4) {
+        if (type == GGML_TYPE_NVFP4) {
             offset_y_scale = wt*nchannels_y.z*ncols_y + zt*ncols_y;
         } else {
             GGML_UNUSED(offset_y_scale);
@@ -1011,7 +1031,7 @@ static __global__ void mul_mat_q(
 
             offset_y   = 0;
             offset_dst = 0;
-            if constexpr (type == GGML_TYPE_NVFP4) {
+            if (type == GGML_TYPE_NVFP4) {
                 offset_y_scale = 0;
             }
 
@@ -1036,7 +1056,7 @@ static __global__ void mul_mat_q(
         offset_y   += (col_low + jt*J)*(sizeof(block_q8_1_mmq)/sizeof(int));
         offset_dst += it*I;
         const float * y_scale_tile = nullptr;
-        if constexpr (type == GGML_TYPE_NVFP4) {
+        if (type == GGML_TYPE_NVFP4) {
             offset_y_scale += col_low + jt*J;
             y_scale_tile = y_scale ? y_scale + offset_y_scale : nullptr;
         }
@@ -1086,7 +1106,7 @@ static __global__ void mul_mat_q(
         int offset_y       = wt*stride_sample_y   + zt*stride_channel_y;
         int offset_dst     = wt*stride_sample_dst + zt*stride_channel_dst + jt*J*stride_col_dst;
         int offset_y_scale;
-        if constexpr (type == GGML_TYPE_NVFP4) {
+        if (type == GGML_TYPE_NVFP4) {
             offset_y_scale = wt*nchannels_y.z*ncols_y + zt*ncols_y;
         } else {
             GGML_UNUSED(offset_y_scale);
@@ -1099,7 +1119,7 @@ static __global__ void mul_mat_q(
 
             offset_y   = 0;
             offset_dst = 0;
-            if constexpr (type == GGML_TYPE_NVFP4) {
+            if (type == GGML_TYPE_NVFP4) {
                 offset_y_scale = 0;
             }
 
@@ -1130,7 +1150,7 @@ static __global__ void mul_mat_q(
         offset_y += (col_low + jt * J) * (sizeof(block_q8_1_mmq) / sizeof(int));
         offset_dst += it*I;
         const float * y_scale_tile = nullptr;
-        if constexpr (type == GGML_TYPE_NVFP4) {
+        if (type == GGML_TYPE_NVFP4) {
             offset_y_scale += col_low + jt * J;
             y_scale_tile = y_scale ? y_scale + offset_y_scale : nullptr;
         }
@@ -1175,7 +1195,7 @@ static __global__ void mul_mat_q(
     int offset_y       = wt*stride_sample_y   + zt*stride_channel_y;
     int offset_dst     = wt*stride_sample_dst + zt*stride_channel_dst + jt*J*stride_col_dst;
     int offset_y_scale;
-    if constexpr (type == GGML_TYPE_NVFP4) {
+    if (type == GGML_TYPE_NVFP4) {
         offset_y_scale = wt*nchannels_y.z*ncols_y + zt*ncols_y;
     } else {
         GGML_UNUSED(offset_y_scale);
@@ -1188,7 +1208,7 @@ static __global__ void mul_mat_q(
 
         offset_y   = 0;
         offset_dst = 0;
-        if constexpr (type == GGML_TYPE_NVFP4) {
+        if (type == GGML_TYPE_NVFP4) {
             offset_y_scale = 0;
         }
 
@@ -1214,7 +1234,7 @@ static __global__ void mul_mat_q(
     offset_y += (col_low + jt * J) * (sizeof(block_q8_1_mmq) / sizeof(int));
     offset_dst += it*I;
     const float * y_scale_tile = nullptr;
-    if constexpr (type == GGML_TYPE_NVFP4) {
+    if (type == GGML_TYPE_NVFP4) {
         offset_y_scale += col_low + jt * J;
         y_scale_tile = y_scale ? y_scale + offset_y_scale : nullptr;
     }
@@ -1238,7 +1258,7 @@ static __global__ void mul_mat_q_stream_k_fixup(
         float * __restrict__ tmp_last_tile, const uint3 blocks_per_ne00, const int nrows_x, const int ncols_dst,
         const int stride_col_dst, const uint3 nchannels_y, const int stride_channel_dst, const uint3 nsamples_y,
         const int stride_sample_dst, const uint3 ntx) {
-    constexpr int warp_size       = ggml_cuda_get_physical_warp_size();
+    constexpr int warp_size       = GGML_CUDA_PHYSICAL_WARP_SIZE;
     constexpr int nwarps          = (ggml_cuda_mmq_get_nthreads(type, J, fallback) / 2) / warp_size;
     constexpr int I               = ggml_cuda_mmq_get_I(type, J, fallback);
     constexpr int qk              = ggml_cuda_type_traits<type>::qk;

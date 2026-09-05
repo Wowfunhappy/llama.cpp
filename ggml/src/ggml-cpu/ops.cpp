@@ -88,7 +88,7 @@ static void ggml_compute_forward_dup_flt(
     // case: dst tensor is contiguous
     if (ggml_is_contiguous(dst)) {
         if (nb00 == sizeof(src_t)) {
-            if constexpr (std::is_same_v<dst_t, src_t>) {
+            if (std::is_same_v<dst_t, src_t>) {
                 // same type
                 size_t id = 0;
                 const size_t rs = ne00 * nb00;
@@ -156,7 +156,7 @@ static void ggml_compute_forward_dup_flt(
     int64_t i12 = 0;
     int64_t i13 = 0;
 
-    if constexpr (std::is_same_v<dst_t, src_t>) {
+    if (std::is_same_v<dst_t, src_t>) {
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
                 i10 += ne00 * ir0;
@@ -3930,7 +3930,7 @@ static void ggml_compute_forward_rms_norm_f32(
     const ggml_tensor * src1 = nullptr;
     ggml_tensor       * dst  = dst_rms_norm;
 
-    if constexpr (FUSE_OP == GGML_RMS_NORM_FUSE_OP_MUL) {
+    if (FUSE_OP == GGML_RMS_NORM_FUSE_OP_MUL) {
         src1 = (dst_fused->src[0] == dst_rms_norm) ? dst_fused->src[1] : dst_fused->src[0];
         dst  = dst_fused;
     }
@@ -3968,7 +3968,7 @@ static void ggml_compute_forward_rms_norm_f32(
 
                 float * y = (float *) ((char *) dst->data + i01*nb1 + i02*nb2 + i03*nb3);
 
-                if constexpr (FUSE_OP == GGML_RMS_NORM_FUSE_OP_MUL) {
+                if (FUSE_OP == GGML_RMS_NORM_FUSE_OP_MUL) {
                     const int64_t i11 = i01 % ne11;
                     const int64_t i12 = i02 % ne12;
                     const int64_t i13 = i03 % ne13;
@@ -5262,11 +5262,11 @@ static void ggml_compute_forward_set_rows_impl(
 
                 GGML_ASSERT(i1 >= 0 && i1 < ne1);
 
-                if constexpr (std::is_same_v<src_t, float>) {
+                if (std::is_same_v<src_t, float>) {
                     from_float(
                             (const float *) ((char *) src0->data +  i*nb01 + i02*nb02 + i03*nb03),
                                             ((char *)  dst->data + i1*nb1  + i02*nb2  + i03*nb3), nc);
-                } else if constexpr (std::is_same_v<src_t, ggml_fp16_t>) {
+                } else if (std::is_same_v<src_t, ggml_fp16_t>) {
                     if (dst->type == GGML_TYPE_F16) {
                         memcpy(
                                             ((char *)  dst->data + i1*nb1  + i02*nb2  + i03*nb3),
@@ -7410,7 +7410,7 @@ static void ggml_compute_forward_conv_transpose_2d_impl(
                         const float * const src = (float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11);
                         kernel_t * dst_data = wdata_b + i11*ne10*ne12;
                         for (int i10 = 0; i10 < ne10; i10++) {
-                            if constexpr (std::is_same_v<kernel_t, ggml_fp16_t>) {
+                            if (std::is_same_v<kernel_t, ggml_fp16_t>) {
                                 dst_data[i10*ne12 + i12] = GGML_CPU_FP32_TO_FP16(src[i10]);
                             } else {
                                 dst_data[i10*ne12 + i12] = src[i10];
@@ -7451,7 +7451,7 @@ static void ggml_compute_forward_conv_transpose_2d_impl(
                     for (int i01 = 0; i01 < ne01; i01++) {
                         for (int i00 = 0; i00 < ne00; i00++) {
                             float v = 0;
-                            if constexpr (std::is_same_v<kernel_t, ggml_fp16_t>) {
+                            if (std::is_same_v<kernel_t, ggml_fp16_t>) {
                                 ggml_vec_dot_f16(ne03, &v, 0,
                                         wdata_src_b + i1n, 0,
                                         wdata_kernel + i01*ne00*ne03 + i00*ne03, 0, 1);
@@ -8223,7 +8223,7 @@ static void ggml_compute_forward_pad_f32(
             for (int64_t i0 = 0; i0 < ne0; ++i0) {
                 for (int64_t i3 = 0; i3 < ne3; ++i3) {
                     // circular means wrap around on a torus, so x and y loop around
-                    if constexpr (circular_t) {
+                    if (circular_t) {
                         const int64_t dst_idx = i3*(ne0*ne1*ne2) + i2*(ne0*ne1) + i1*ne0 + i0;
                         const int64_t src_i0 = ggml_wrap_around(i0 - lp0, ne00);
                         const int64_t src_i1 = ggml_wrap_around(i1 - lp1, ne01);
@@ -8478,7 +8478,7 @@ template<enum ggml_sort_order order>
 struct cmp_argsort {
     const float * data;
     bool operator()(int32_t a, int32_t b) const {
-        if constexpr (order == GGML_SORT_ORDER_ASC) {
+        if (order == GGML_SORT_ORDER_ASC) {
             return data[a] < data[b];
         } else {
             return data[a] > data[b];

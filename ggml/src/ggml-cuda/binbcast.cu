@@ -23,7 +23,7 @@ using std::make_index_sequence;
 template<typename T, size_t>
 using type_for_index = T;
 
-static __device__ __forceinline__ float op_repeat(const float a, const float b) {
+__device__ __forceinline__ float op_repeat(const float a, const float b) {
     return b;
     GGML_UNUSED(a);
 }

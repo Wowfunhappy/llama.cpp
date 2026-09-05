@@ -94,7 +94,7 @@ llama_model_mellum::graph<iswa>::graph(const llama_model & model, const llm_grap
     using inp_attn_type = std::conditional_t<iswa, llm_graph_input_attn_kv_iswa, llm_graph_input_attn_kv>;
     inp_attn_type * inp_attn = nullptr;
 
-    if constexpr (iswa) {
+    if (iswa) {
         inp_attn = build_attn_inp_kv_iswa();
     } else {
         inp_attn = build_attn_inp_kv();

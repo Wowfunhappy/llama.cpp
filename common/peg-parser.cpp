@@ -842,15 +842,15 @@ void common_peg_arena::resolve_refs() {
         std::visit([this](auto & p) {
             using T = std::decay_t<decltype(p)>;
 
-            if constexpr (std::is_same_v<T, common_peg_sequence_parser>) {
+            if (std::is_same_v<T, common_peg_sequence_parser>) {
                 for (auto & child : p.children) {
                     child = resolve_ref(child);
                 }
-            } else if constexpr (std::is_same_v<T, common_peg_choice_parser>) {
+            } else if (std::is_same_v<T, common_peg_choice_parser>) {
                 for (auto & child : p.children) {
                     child = resolve_ref(child);
                 }
-            } else if constexpr (std::is_same_v<T, common_peg_repetition_parser> ||
+            } else if (std::is_same_v<T, common_peg_repetition_parser> ||
                                  std::is_same_v<T, common_peg_and_parser> ||
                                  std::is_same_v<T, common_peg_not_parser> ||
                                  std::is_same_v<T, common_peg_tag_parser> ||
@@ -858,11 +858,11 @@ void common_peg_arena::resolve_refs() {
                                  std::is_same_v<T, common_peg_gbnf_parser> ||
                                  std::is_same_v<T, common_peg_ac_parser>) {
                 p.child = resolve_ref(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_rule_parser>) {
+            } else if (std::is_same_v<T, common_peg_rule_parser>) {
                 p.child = resolve_ref(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_schema_parser>) {
+            } else if (std::is_same_v<T, common_peg_schema_parser>) {
                 p.child = resolve_ref(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_epsilon_parser> ||
+            } else if (std::is_same_v<T, common_peg_epsilon_parser> ||
                                  std::is_same_v<T, common_peg_start_parser> ||
                                  std::is_same_v<T, common_peg_end_parser> ||
                                  std::is_same_v<T, common_peg_ref_parser> ||
@@ -903,64 +903,64 @@ std::string common_peg_arena::dump_impl(common_peg_parser_id                    
     return std::visit([this, &visited](const auto & p) -> std::string {
         using T = std::decay_t<decltype(p)>;
 
-        if constexpr (std::is_same_v<T, common_peg_epsilon_parser>) {
+        if (std::is_same_v<T, common_peg_epsilon_parser>) {
             return "Epsilon";
-        } else if constexpr (std::is_same_v<T, common_peg_start_parser>) {
+        } else if (std::is_same_v<T, common_peg_start_parser>) {
             return "Start";
-        } else if constexpr (std::is_same_v<T, common_peg_end_parser>) {
+        } else if (std::is_same_v<T, common_peg_end_parser>) {
             return "End";
-        } else if constexpr (std::is_same_v<T, common_peg_literal_parser>) {
+        } else if (std::is_same_v<T, common_peg_literal_parser>) {
             return "Literal(" + p.literal + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_sequence_parser>) {
+        } else if (std::is_same_v<T, common_peg_sequence_parser>) {
             std::vector<std::string> parts;
             for (const auto & child : p.children) {
                 parts.push_back(dump_impl(child, visited));
             }
             return "Sequence(" + string_join(parts, ", ") + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_choice_parser>) {
+        } else if (std::is_same_v<T, common_peg_choice_parser>) {
             std::vector<std::string> parts;
             for (const auto & child : p.children) {
                 parts.push_back(dump_impl(child, visited));
             }
             return "Choice(" + string_join(parts, ", ") + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_repetition_parser>) {
+        } else if (std::is_same_v<T, common_peg_repetition_parser>) {
             if (p.max_count == -1) {
                 return "Repetition(" + dump_impl(p.child, visited) + ", " + std::to_string(p.min_count) +
                         ", unbounded)";
             }
             return "Repetition(" + dump_impl(p.child, visited) + ", " + std::to_string(p.min_count) + ", " + std::to_string(p.max_count) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_and_parser>) {
+        } else if (std::is_same_v<T, common_peg_and_parser>) {
             return "And(" + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_not_parser>) {
+        } else if (std::is_same_v<T, common_peg_not_parser>) {
             return "Not(" + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_atomic_parser>) {
+        } else if (std::is_same_v<T, common_peg_atomic_parser>) {
             return "Atomic(" + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_gbnf_parser>) {
+        } else if (std::is_same_v<T, common_peg_gbnf_parser>) {
             return "Gbnf(" + p.grammar + ", " + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_ac_parser>) {
+        } else if (std::is_same_v<T, common_peg_ac_parser>) {
             return "Ac(" + string_join(p.delimiters, " | ") + ", " + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_any_parser>) {
+        } else if (std::is_same_v<T, common_peg_any_parser>) {
             return "Any";
-        } else if constexpr (std::is_same_v<T, common_peg_space_parser>) {
+        } else if (std::is_same_v<T, common_peg_space_parser>) {
             return "Space";
-        } else if constexpr (std::is_same_v<T, common_peg_chars_parser>) {
+        } else if (std::is_same_v<T, common_peg_chars_parser>) {
             if (p.max_count == -1) {
                 return "CharRepeat(" + p.pattern + ", " + std::to_string(p.min_count) + ", unbounded)";
             }
             return "CharRepeat(" + p.pattern + ", " + std::to_string(p.min_count) + ", " + std::to_string(p.max_count) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_string_parser>) {
+        } else if (std::is_same_v<T, common_peg_string_parser>) {
             return "String(" + std::string(1, p.delimiter) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_until_parser>) {
+        } else if (std::is_same_v<T, common_peg_until_parser>) {
             return "Until(" + string_join(p.delimiters, " | ") + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_schema_parser>) {
+        } else if (std::is_same_v<T, common_peg_schema_parser>) {
             return "Schema(" + dump_impl(p.child, visited) + ", " + (p.schema ? p.schema->dump() : "null") + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_rule_parser>) {
+        } else if (std::is_same_v<T, common_peg_rule_parser>) {
             return "Rule(" + p.name + ", " + dump_impl(p.child, visited) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_ref_parser>) {
+        } else if (std::is_same_v<T, common_peg_ref_parser>) {
             return "Ref(" + p.name + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_tag_parser>) {
+        } else if (std::is_same_v<T, common_peg_tag_parser>) {
             return "Tag(" + p.tag + ", " + dump(p.child) + ")";
-        } else if constexpr (std::is_same_v<T, common_peg_atomic_parser>) {
+        } else if (std::is_same_v<T, common_peg_atomic_parser>) {
             return "Atomic(" + dump(p.child) + ")";
         } else {
             return "Unknown";
@@ -1524,7 +1524,7 @@ static std::set<std::string> collect_reachable_rules(
         std::visit([&](const auto & p) {
             using T = std::decay_t<decltype(p)>;
 
-            if constexpr (std::is_same_v<T, common_peg_epsilon_parser> ||
+            if (std::is_same_v<T, common_peg_epsilon_parser> ||
                           std::is_same_v<T, common_peg_start_parser> ||
                           std::is_same_v<T, common_peg_end_parser> ||
                           std::is_same_v<T, common_peg_until_parser> ||
@@ -1534,15 +1534,15 @@ static std::set<std::string> collect_reachable_rules(
                           std::is_same_v<T, common_peg_any_parser> ||
                           std::is_same_v<T, common_peg_string_parser>) {
                 // These parsers do not have any children
-            } else if constexpr (std::is_same_v<T, common_peg_sequence_parser>) {
+            } else if (std::is_same_v<T, common_peg_sequence_parser>) {
                 for (auto child : p.children) {
                     visit(child);
                 }
-            } else if constexpr (std::is_same_v<T, common_peg_choice_parser>) {
+            } else if (std::is_same_v<T, common_peg_choice_parser>) {
                 for (auto child : p.children) {
                     visit(child);
                 }
-            } else if constexpr (std::is_same_v<T, common_peg_repetition_parser> ||
+            } else if (std::is_same_v<T, common_peg_repetition_parser> ||
                                  std::is_same_v<T, common_peg_and_parser> ||
                                  std::is_same_v<T, common_peg_not_parser> ||
                                  std::is_same_v<T, common_peg_tag_parser> ||
@@ -1551,13 +1551,13 @@ static std::set<std::string> collect_reachable_rules(
                                  std::is_same_v<T, common_peg_ac_parser> ||
                                  std::is_same_v<T, common_peg_schema_parser>) {
                 visit(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_rule_parser>) {
+            } else if (std::is_same_v<T, common_peg_rule_parser>) {
                 if (visited.find(p.name) == visited.end()) {
                     visited.insert(p.name);
                     reachable.insert(p.name);
                     visit(p.child);
                 }
-            } else if constexpr (std::is_same_v<T, common_peg_ref_parser>) {
+            } else if (std::is_same_v<T, common_peg_ref_parser>) {
                 // Traverse rules so we pick up everything
                 auto referenced_rule = arena.get_rule(p.name);
                 visit(referenced_rule);
@@ -1626,13 +1626,13 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
         return std::visit([&](const auto & p) -> std::string {
             using T = std::decay_t<decltype(p)>;
 
-            if constexpr (std::is_same_v<T, common_peg_epsilon_parser> ||
+            if (std::is_same_v<T, common_peg_epsilon_parser> ||
                           std::is_same_v<T, common_peg_start_parser> ||
                           std::is_same_v<T, common_peg_end_parser>) {
                 return "";
-            } else if constexpr (std::is_same_v<T, common_peg_literal_parser>) {
+            } else if (std::is_same_v<T, common_peg_literal_parser>) {
                 return gbnf_format_literal(p.literal);
-            } else if constexpr (std::is_same_v<T, common_peg_sequence_parser>) {
+            } else if (std::is_same_v<T, common_peg_sequence_parser>) {
                 std::string s;
                 for (const auto & child : p.children) {
                     auto child_gbnf = to_gbnf(child);
@@ -1651,7 +1651,7 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
                     }
                 }
                 return s;
-            } else if constexpr (std::is_same_v<T, common_peg_choice_parser>) {
+            } else if (std::is_same_v<T, common_peg_choice_parser>) {
                 std::string s;
                 for (const auto & child : p.children) {
                     if (!s.empty()) {
@@ -1666,7 +1666,7 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
                     }
                 }
                 return s;
-            } else if constexpr (std::is_same_v<T, common_peg_repetition_parser>) {
+            } else if (std::is_same_v<T, common_peg_repetition_parser>) {
                 auto child_gbnf = to_gbnf(p.child);
                 const auto & child_parser = effective_parser(p.child);
                 if (std::holds_alternative<common_peg_choice_parser>(child_parser) ||
@@ -1692,13 +1692,13 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
                     return child_gbnf + "{" + std::to_string(p.min_count) + "}";
                 }
                 return child_gbnf + "{" + std::to_string(p.min_count) + "," + std::to_string(p.max_count) + "}";
-            } else if constexpr (std::is_same_v<T, common_peg_and_parser> || std::is_same_v<T, common_peg_not_parser>) {
+            } else if (std::is_same_v<T, common_peg_and_parser> || std::is_same_v<T, common_peg_not_parser>) {
                 return "";  // Lookahead not supported in GBNF
-            } else if constexpr (std::is_same_v<T, common_peg_any_parser>) {
+            } else if (std::is_same_v<T, common_peg_any_parser>) {
                 return ".";
-            } else if constexpr (std::is_same_v<T, common_peg_space_parser>) {
+            } else if (std::is_same_v<T, common_peg_space_parser>) {
                 return "space";
-            } else if constexpr (std::is_same_v<T, common_peg_chars_parser>) {
+            } else if (std::is_same_v<T, common_peg_chars_parser>) {
                 std::string result = p.pattern;
                 if (p.min_count == 0 && p.max_count == 1) {
                     return result + "?";
@@ -1719,31 +1719,31 @@ void common_peg_arena::build_grammar(const common_grammar_builder & builder, boo
                     return result + "{" + std::to_string(p.min_count) + "}";
                 }
                 return result + "{" + std::to_string(p.min_count) + "," + std::to_string(p.max_count) + "}";
-            } else if constexpr (std::is_same_v<T, common_peg_string_parser>) {
+            } else if (std::is_same_v<T, common_peg_string_parser>) {
                 const std::string delim(1, p.delimiter);
                 return R"(( [^)" + delim + R"(\\] | "\\" ( [)" + delim + R"(\\/ bfnrt] | "u" [0-9a-fA-F]{4} ) )*)";
-            } else if constexpr (std::is_same_v<T, common_peg_until_parser>) {
+            } else if (std::is_same_v<T, common_peg_until_parser>) {
                 if (p.delimiters.empty()) {
                     return ".*";
                 }
                 return gbnf_excluding_grammar(builder, "until-" + std::to_string(id), p.delimiters);
-            } else if constexpr (std::is_same_v<T, common_peg_schema_parser>) {
+            } else if (std::is_same_v<T, common_peg_schema_parser>) {
                 if (schema_delegates(p)) {
                     return to_gbnf(p.child);
                 }
                 return builder.add_schema(p.name, *p.schema);
-            } else if constexpr (std::is_same_v<T, common_peg_rule_parser>) {
+            } else if (std::is_same_v<T, common_peg_rule_parser>) {
                 return p.name;
-            } else if constexpr (std::is_same_v<T, common_peg_ref_parser>) {
+            } else if (std::is_same_v<T, common_peg_ref_parser>) {
                 // Refs should not exist after flattening, but kept just in case
                 return p.name;
-            } else if constexpr (std::is_same_v<T, common_peg_tag_parser>) {
+            } else if (std::is_same_v<T, common_peg_tag_parser>) {
                 return to_gbnf(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_atomic_parser>) {
+            } else if (std::is_same_v<T, common_peg_atomic_parser>) {
                 return to_gbnf(p.child);
-            } else if constexpr (std::is_same_v<T, common_peg_gbnf_parser>) {
+            } else if (std::is_same_v<T, common_peg_gbnf_parser>) {
                 return p.grammar;
-            } else if constexpr (std::is_same_v<T, common_peg_ac_parser>) {
+            } else if (std::is_same_v<T, common_peg_ac_parser>) {
                 return gbnf_including_grammar(builder, "ac-" + std::to_string(id), p.delimiters);
             } else {
                 static_assert(is_always_false_v<T>);
@@ -1810,34 +1810,34 @@ static common_json serialize_parser_variant(const common_peg_parser_variant & va
     return std::visit([](const auto & p) -> json {
         using T = std::decay_t<decltype(p)>;
 
-        if constexpr (std::is_same_v<T, common_peg_epsilon_parser>) {
+        if (std::is_same_v<T, common_peg_epsilon_parser>) {
             return json{{"type", "epsilon"}};
-        } else if constexpr (std::is_same_v<T, common_peg_start_parser>) {
+        } else if (std::is_same_v<T, common_peg_start_parser>) {
             return json{{"type", "start"}};
-        } else if constexpr (std::is_same_v<T, common_peg_end_parser>) {
+        } else if (std::is_same_v<T, common_peg_end_parser>) {
             return json{{"type", "end"}};
-        } else if constexpr (std::is_same_v<T, common_peg_literal_parser>) {
+        } else if (std::is_same_v<T, common_peg_literal_parser>) {
             return json{{"type", "literal"}, {"literal", p.literal}};
-        } else if constexpr (std::is_same_v<T, common_peg_sequence_parser>) {
+        } else if (std::is_same_v<T, common_peg_sequence_parser>) {
             return json{{"type", "sequence"}, {"children", p.children}};
-        } else if constexpr (std::is_same_v<T, common_peg_choice_parser>) {
+        } else if (std::is_same_v<T, common_peg_choice_parser>) {
             return json{{"type", "choice"}, {"children", p.children}};
-        } else if constexpr (std::is_same_v<T, common_peg_repetition_parser>) {
+        } else if (std::is_same_v<T, common_peg_repetition_parser>) {
             return json{
                 {"type", "repetition"},
                 {"child", p.child},
                 {"min_count", p.min_count},
                 {"max_count", p.max_count}
             };
-        } else if constexpr (std::is_same_v<T, common_peg_and_parser>) {
+        } else if (std::is_same_v<T, common_peg_and_parser>) {
             return json{{"type", "and"}, {"child", p.child}};
-        } else if constexpr (std::is_same_v<T, common_peg_not_parser>) {
+        } else if (std::is_same_v<T, common_peg_not_parser>) {
             return json{{"type", "not"}, {"child", p.child}};
-        } else if constexpr (std::is_same_v<T, common_peg_any_parser>) {
+        } else if (std::is_same_v<T, common_peg_any_parser>) {
             return json{{"type", "any"}};
-        } else if constexpr (std::is_same_v<T, common_peg_space_parser>) {
+        } else if (std::is_same_v<T, common_peg_space_parser>) {
             return json{{"type", "space"}};
-        } else if constexpr (std::is_same_v<T, common_peg_chars_parser>) {
+        } else if (std::is_same_v<T, common_peg_chars_parser>) {
             json ranges = json::array();
             for (const auto & range : p.ranges) {
                 ranges.push_back({{"start", range.start}, {"end", range.end}});
@@ -1850,11 +1850,11 @@ static common_json serialize_parser_variant(const common_peg_parser_variant & va
                 {"min_count", p.min_count},
                 {"max_count", p.max_count}
             };
-        } else if constexpr (std::is_same_v<T, common_peg_string_parser>) {
+        } else if (std::is_same_v<T, common_peg_string_parser>) {
             return json{{"type", "string"}, {"delimiter", std::string(1, p.delimiter)}};
-        } else if constexpr (std::is_same_v<T, common_peg_until_parser>) {
+        } else if (std::is_same_v<T, common_peg_until_parser>) {
             return json{{"type", "until"}, {"delimiters", p.delimiters}};
-        } else if constexpr (std::is_same_v<T, common_peg_schema_parser>) {
+        } else if (std::is_same_v<T, common_peg_schema_parser>) {
             return json{
                 {"type", "schema"},
                 {"child", p.child},
@@ -1862,26 +1862,26 @@ static common_json serialize_parser_variant(const common_peg_parser_variant & va
                 {"schema", p.schema ? *p.schema : json(nullptr)},
                 {"raw", p.raw}
             };
-        } else if constexpr (std::is_same_v<T, common_peg_rule_parser>) {
+        } else if (std::is_same_v<T, common_peg_rule_parser>) {
             return json{
                 {"type", "rule"},
                 {"name", p.name},
                 {"child", p.child},
                 {"trigger", p.trigger}
             };
-        } else if constexpr (std::is_same_v<T, common_peg_ref_parser>) {
+        } else if (std::is_same_v<T, common_peg_ref_parser>) {
             return json{{"type", "ref"}, {"name", p.name}};
-        } else if constexpr (std::is_same_v<T, common_peg_atomic_parser>) {
+        } else if (std::is_same_v<T, common_peg_atomic_parser>) {
             return json{{"type", "atomic"}, {"child", p.child}};
-        } else if constexpr (std::is_same_v<T, common_peg_tag_parser>) {
+        } else if (std::is_same_v<T, common_peg_tag_parser>) {
             return json{
                 {"type", "tag"},
                 {"child", p.child},
                 {"tag", p.tag}
             };
-        } else if constexpr (std::is_same_v<T, common_peg_gbnf_parser>) {
+        } else if (std::is_same_v<T, common_peg_gbnf_parser>) {
             return json{{"type", "gbnf"}, {"child", p.child}, {"grammar", p.grammar}};
-        } else if constexpr (std::is_same_v<T, common_peg_ac_parser>) {
+        } else if (std::is_same_v<T, common_peg_ac_parser>) {
             return json{{"type", "ac"}, {"child", p.child}, {"delimiters", p.delimiters}};
         }
     }, variant);

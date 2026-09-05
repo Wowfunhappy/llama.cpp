@@ -1,7 +1,7 @@
 #include "common.cuh"
 #include "convert.cuh"
 
-static __device__ __forceinline__ void dequantize_q1_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
+__device__ __forceinline__ void dequantize_q1_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
     const block_q1_0 * x = (const block_q1_0 *) vx;
 
     const float d = x[ib].d;
@@ -23,7 +23,7 @@ static __device__ __forceinline__ void dequantize_q1_0(const void * vx, const in
     v.y = (2*bit_1 - 1) * d;
 }
 
-static __device__ __forceinline__ void dequantize_q2_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
+__device__ __forceinline__ void dequantize_q2_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
     const block_q2_0 * x = (const block_q2_0 *) vx;
 
     const float d = x[ib].d;
@@ -125,7 +125,7 @@ __device__ __forceinline__ void dequantize_q8_0(const void * vx, const int64_t i
 // thread layout of the caller: 32 threads for q4_K, 64 threads otherwise.
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_q2_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_q2_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
     const block_q2_K * x = (const block_q2_K *) vx;
 
     const int64_t n   = tid/32;
@@ -144,7 +144,7 @@ static __device__ __forceinline__ void dequantize_q2_K(const void * vx, const in
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_q3_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_q3_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
     const block_q3_K * x = (const block_q3_K *) vx;
 
     const int64_t r = tid/4;
@@ -184,7 +184,7 @@ static inline __device__ void get_scale_min_k4(int j, const uint8_t * q, uint8_t
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_q4_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_q4_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
     const block_q4_K * x = (const block_q4_K *) vx;
 
     // assume 32 threads
@@ -212,7 +212,7 @@ static __device__ __forceinline__ void dequantize_q4_K(const void * vx, const in
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_q5_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_q5_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
     const block_q5_K * x = (const block_q5_K *) vx;
 
     // assume 64 threads - this is very slightly better than the one below
@@ -243,7 +243,7 @@ static __device__ __forceinline__ void dequantize_q5_K(const void * vx, const in
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_q6_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_q6_K(const void * vx, const int64_t ib, dst_t * yy, const int tid) {
     const block_q6_K * x = (const block_q6_K *) vx;
 
     // assume 64 threads - this is very slightly better than the one below
@@ -271,7 +271,7 @@ static __device__ __forceinline__ void dequantize_q6_K(const void * vx, const in
 // threads; iq4_nl packs QK_K/QK4_NL sub-blocks per super-block.
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq2_xxs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq2_xxs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq2_xxs * x = (const block_iq2_xxs  *) vx;
 
@@ -290,7 +290,7 @@ static __device__ __forceinline__ void dequantize_iq2_xxs(const void * vx, const
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq2_xs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq2_xs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq2_xs * x = (const block_iq2_xs *) vx;
 
@@ -307,7 +307,7 @@ static __device__ __forceinline__ void dequantize_iq2_xs(const void * vx, const 
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq2_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq2_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq2_s * x = (const block_iq2_s *) vx;
 
@@ -323,7 +323,7 @@ static __device__ __forceinline__ void dequantize_iq2_s(const void * vx, const i
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq3_xxs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq3_xxs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq3_xxs * x = (const block_iq3_xxs  *) vx;
 
@@ -344,7 +344,7 @@ static __device__ __forceinline__ void dequantize_iq3_xxs(const void * vx, const
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq3_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq3_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq3_s * x = (const block_iq3_s *) vx;
 
@@ -363,7 +363,7 @@ static __device__ __forceinline__ void dequantize_iq3_s(const void * vx, const i
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq1_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq1_s(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq1_s * x = (const block_iq1_s  *) vx;
 
@@ -382,7 +382,7 @@ static __device__ __forceinline__ void dequantize_iq1_s(const void * vx, const i
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq1_m(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq1_m(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq1_m * x = (const block_iq1_m  *) vx;
 
@@ -405,7 +405,7 @@ static __device__ __forceinline__ void dequantize_iq1_m(const void * vx, const i
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq4_nl(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq4_nl(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_iq4_nl * x = (const block_iq4_nl *) vx + ibs*(QK_K/QK4_NL);
 
@@ -421,7 +421,7 @@ static __device__ __forceinline__ void dequantize_iq4_nl(const void * vx, const 
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_iq4_xs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_iq4_xs(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
     const block_iq4_xs * x = (const block_iq4_xs *)vx;
 
     const int64_t il = tid/8; // 0...3
@@ -436,7 +436,7 @@ static __device__ __forceinline__ void dequantize_iq4_xs(const void * vx, const 
 }
 
 template<typename dst_t>
-static __device__ __forceinline__ void dequantize_mxfp4(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
+__device__ __forceinline__ void dequantize_mxfp4(const void * vx, const int64_t ibs, dst_t * yy, const int tid) {
 
     const block_mxfp4 * x = (const block_mxfp4 *) vx + ibs*(QK_K/QK_MXFP4);
 

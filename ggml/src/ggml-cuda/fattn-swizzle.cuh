@@ -16,8 +16,7 @@ static __device__ constexpr bool enabled(const int nbatch_2) {
 #if defined(TURING_MMA_AVAILABLE)
     return bank_aligned(nbatch_2);
 #else
-    GGML_UNUSED(nbatch_2);
-    return false;
+    return (void) nbatch_2, false;
 #endif // defined(TURING_MMA_AVAILABLE)
 }
 
@@ -84,8 +83,8 @@ static __device__ __forceinline__ const half2 * lane_addr(
 template<int stride_h2, bool swz, typename TileT>
 static __device__ __forceinline__ void load_ldmatrix(
         TileT & t, const half2 * tile_base, const int base_row, const int base_col_h2) {
-    if constexpr (swz) {
-        static_assert(std::is_same_v<TileT, ggml_cuda_mma::tile<16, 8, half2>>,
+    if (swz) {
+        static_assert(std::is_same<TileT, ggml_cuda_mma::tile<16, 8, half2> >::value,
             "the swizzled layout is only supported for tile<16, 8, half2>");
         ldmatrix_x4((int *) t.x, lane_addr<stride_h2>(tile_base, base_row, base_col_h2, TileT::I, TileT::J));
     } else {
@@ -95,7 +94,7 @@ static __device__ __forceinline__ void load_ldmatrix(
 
 template<int stride_h2, bool swz, typename TileT>
 static __device__ __forceinline__ void load_ldmatrix(TileT & t, const half2 * tile_base, const int off_h2) {
-    if constexpr (swz) {
+    if (swz) {
         load_ldmatrix<stride_h2, swz>(t, tile_base, off_h2 / stride_h2, off_h2 % stride_h2);
     } else {
         ggml_cuda_mma::load_ldmatrix(t, tile_base + off_h2, stride_h2);
@@ -105,8 +104,8 @@ static __device__ __forceinline__ void load_ldmatrix(TileT & t, const half2 * ti
 template<int stride_h2, bool swz, typename TileT>
 static __device__ __forceinline__ void load_ldmatrix_trans(
         TileT & t, const half2 * tile_base, const int base_row, const int base_col_h2) {
-    if constexpr (swz) {
-        static_assert(std::is_same_v<TileT, ggml_cuda_mma::tile<16, 8, half2>>,
+    if (swz) {
+        static_assert(std::is_same<TileT, ggml_cuda_mma::tile<16, 8, half2> >::value,
             "the swizzled layout is only supported for tile<16, 8, half2>");
         ldmatrix_x4_trans((int *) t.x, lane_addr<stride_h2>(tile_base, base_row, base_col_h2, TileT::I, TileT::J));
     } else {
@@ -116,7 +115,7 @@ static __device__ __forceinline__ void load_ldmatrix_trans(
 
 template<int stride_h2, bool swz, typename TileT>
 static __device__ __forceinline__ void load_ldmatrix_trans(TileT & t, const half2 * tile_base, const int off_h2) {
-    if constexpr (swz) {
+    if (swz) {
         load_ldmatrix_trans<stride_h2, swz>(t, tile_base, off_h2 / stride_h2, off_h2 % stride_h2);
     } else {
         ggml_cuda_mma::load_ldmatrix_trans(t, tile_base + off_h2, stride_h2);

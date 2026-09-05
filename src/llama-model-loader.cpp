@@ -331,7 +331,7 @@ namespace GGUFMeta {
             throw std::runtime_error(format("%s has wrong array element type %s", key.c_str(), gguf_type_name(arr_info.gt)));
         }
 
-        if constexpr (std::is_same<T, std::string>::value) {
+        if (std::is_same<T, std::string>::value) {
             const size_t n_items = gguf_get_arr_n(ctx, kid);
             result.clear();
 
@@ -382,7 +382,7 @@ namespace GGUFMeta {
             throw std::runtime_error(format("array length %u for key %s exceeds max %u", (uint32_t) arr_info.length, key.c_str(), (uint32_t) N_MAX));
         }
 
-        if constexpr (std::is_same<T, std::string>::value) {
+        if (std::is_same<T, std::string>::value) {
             const size_t n_items = gguf_get_arr_n(ctx, kid);
 
             for (size_t i = 0; i < n_items; i++) {
