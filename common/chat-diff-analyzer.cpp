@@ -366,12 +366,12 @@ std::string autoparser::detect_assistant_start_marker(const common_chat_template
         }
     );
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed, skipping assistant start detection\n" ANSI_RESET, __func__);
         return "";
     }
 
-    auto usermsg = comparison->diff.right;
+    auto usermsg = comparison.diff.right;
     if (usermsg.find(ASSISTANT_MSG) == std::string::npos) {
         LOG_DBG(ANSI_ORANGE "%s: Did not find assistant message in assistant message block, skipping detection\n" ANSI_RESET, __func__);
     }
@@ -413,7 +413,7 @@ std::string autoparser::detect_user_start_marker(const common_chat_template & tm
         }
     );
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed, unsupported empty messages? trying complex variant\n" ANSI_RESET, __func__);
         params.messages = json::array({ user_msg_two, assistant });
         comparison = compare_variants(
@@ -421,13 +421,13 @@ std::string autoparser::detect_user_start_marker(const common_chat_template & tm
                 p.messages = json::array({ user_msg_two, assistant, user_msg });
             }
         );
-        if (!comparison) {
+        if (comparison.output_A.empty()) {
             LOG_DBG(ANSI_ORANGE "%s: Template application failed for reserve variant, aborting\n" ANSI_RESET, __func__);
             return "";
         }
     }
 
-    auto usermsg = comparison->diff.right;
+    auto usermsg = comparison.diff.right;
     if (usermsg.find(USER_MSG) == std::string::npos) {
         LOG_DBG(ANSI_ORANGE "%s: Did not find user message in user message block, aborting detection\n" ANSI_RESET, __func__);
     }
@@ -907,12 +907,12 @@ void analyze_tools::analyze_json_native_parallel_calls() {
     auto comparison = compare_variants(
         *tmpl, params, [&](template_params & p) { p.messages = json::array({ user_msg, assistant_two_tools }); });
 
-    if (!comparison) {
+    if (comparison.output_A.empty()) {
         LOG_DBG(ANSI_ORANGE "%s: Template application failed\n" ANSI_RESET, __func__);
         return;
     }
 
-    std::string & second_call = comparison->diff.right;
+    std::string & second_call = comparison.diff.right;
     if (!format.section_start.empty() && second_call.find(format.section_start) != std::string::npos) {
         format.per_call_start = format.section_start;
         format.per_call_end = format.section_end;
@@ -1091,8 +1091,8 @@ void analyze_tools::check_per_call_markers() {
             }
             return count;
         };
-        size_t calls_one = count_occurrences(one_vs_two->output_A, format.per_call_end);
-        size_t calls_two = count_occurrences(one_vs_two->output_B, format.per_call_end);
+        size_t calls_one = count_occurrences(one_vs_two.output_A, format.per_call_end);
+        size_t calls_two = count_occurrences(one_vs_two.output_B, format.per_call_end);
         if (calls_one > 0 && calls_one == calls_two) {
             format.section_end = format.per_call_end;
             format.per_call_end.clear();
