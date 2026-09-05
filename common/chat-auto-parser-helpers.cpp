@@ -317,9 +317,7 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     tmpl_params.add_generation_prompt = params.add_generation_prompt;
     tmpl_params.enable_thinking       = params.enable_thinking;
 
-    if (params.extra_context) {
-        tmpl_params.extra_context = *params.extra_context;
-    }
+    tmpl_params.extra_context = params.extra_context;
     tmpl_params.extra_context["enable_thinking"] = params.enable_thinking;
 
     try {
@@ -330,7 +328,7 @@ std::string apply_template(const common_chat_template & tmpl, const template_par
     }
 }
 
-common_optional<compare_variants_result> compare_variants(
+compare_variants_result compare_variants(
     const common_chat_template &                   tmpl,
     const template_params &                        params_A,
     const std::function<void(template_params &)> & params_modifier) {
@@ -348,7 +346,8 @@ common_optional<compare_variants_result> compare_variants(
 
     // Check for template application failures
     if (output_A == ERR_TMPL || output_B == ERR_TMPL) {
-        return common_nullopt;
+        // the header signals failure with an empty diff prefix
+        return compare_variants_result();
     }
 
     // Calculate diff and return result with both outputs
