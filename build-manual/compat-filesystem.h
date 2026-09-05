@@ -114,4 +114,9 @@ inline bool remove(const std::string & p, std::error_code & ec) {
     return false;
 }
 
+inline bool is_directory(const std::string & p) {
+    struct stat st;
+    return stat(p.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+}
+
 } // namespace compat_fs
