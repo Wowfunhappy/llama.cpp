@@ -295,9 +295,9 @@ static int common_download_file_single_online(const std::string & url,
         return 304; // 304 Not Modified - fake cached response
     }
 
-    Noneauto _cli_parts = common_http_client(url);
-    Noneauto & cli = _cli_parts.first;
-    Noneauto & parts = _cli_parts.second;
+    auto _cli_parts = common_http_client(url);
+    auto & cli = _cli_parts.first;
+    auto & parts = _cli_parts.second;
 
     httplib::Headers headers;
     for (const auto & h : opts.headers) {
@@ -436,9 +436,9 @@ static int common_download_file_single_online(const std::string & url,
 
 std::pair<long, std::vector<char>> common_remote_get_content(const std::string          & url,
                                                              const common_remote_params & params) {
-    Noneauto _cli_parts = common_http_client(url);
-    Noneauto & cli = _cli_parts.first;
-    Noneauto & parts = _cli_parts.second;
+    auto _cli_parts = common_http_client(url);
+    auto & cli = _cli_parts.first;
+    auto & parts = _cli_parts.second;
 
     httplib::Headers headers;
     for (const auto & h : params.headers) {
@@ -606,10 +606,10 @@ static hf_cache::hf_file find_best_sibling(const hf_cache::hf_files & files,
         auto sib_parts = string_split<std::string>(f.path, '/');
         auto sib_dir = sib_parts.end() - 1;
 
-        Noneauto ___dir = std::mismatch(model_parts.begin(), model_dir,
+        auto ___dir = std::mismatch(model_parts.begin(), model_dir,
                                       sib_parts.begin(), sib_dir);
-        Noneauto & _ = ___dir.first;
-        Noneauto & dir = ___dir.second;
+        auto & _ = ___dir.first;
+        auto & dir = ___dir.second;
         if (dir != sib_dir) {
             continue;
         }
@@ -738,9 +738,9 @@ common_download_hf_plan common_download_get_hf_plan(const common_params_model & 
     common_download_hf_plan plan;
     hf_cache::hf_files all;
 
-    Noneauto _repo_tag = common_download_split_repo_tag(model.hf_repo);
-    Noneauto & repo = _repo_tag.first;
-    Noneauto & tag = _repo_tag.second;
+    auto _repo_tag = common_download_split_repo_tag(model.hf_repo);
+    auto & repo = _repo_tag.first;
+    auto & tag = _repo_tag.second;
 
     if (!opts.offline) {
         all = hf_cache::get_repo_files(repo, opts.bearer_token);
@@ -997,9 +997,9 @@ std::vector<common_cached_model_info> common_list_cached_models() {
 }
 
 std::string common_download_resolve_path(const std::string & hf_repo_with_tag, const std::string & hf_file) {
-    Noneauto _repo_tag = common_download_split_repo_tag(hf_repo_with_tag);
-    Noneauto & repo = _repo_tag.first;
-    Noneauto & tag = _repo_tag.second;
+    auto _repo_tag = common_download_split_repo_tag(hf_repo_with_tag);
+    auto & repo = _repo_tag.first;
+    auto & tag = _repo_tag.second;
 
     auto files = hf_cache::get_cached_files(repo);
     if (files.empty()) {
@@ -1021,9 +1021,9 @@ std::string common_download_resolve_path(const std::string & hf_repo_with_tag, c
 bool common_download_remove(const std::string & hf_repo_with_tag) {
     namespace fs = std::filesystem;
 
-    Noneauto _repo_id_tag = common_download_split_repo_tag(hf_repo_with_tag);
-    Noneauto & repo_id = _repo_id_tag.first;
-    Noneauto & tag = _repo_id_tag.second;
+    auto _repo_id_tag = common_download_split_repo_tag(hf_repo_with_tag);
+    auto & repo_id = _repo_id_tag.first;
+    auto & tag = _repo_id_tag.second;
 
     if (tag.empty()) {
         return hf_cache::remove_cached_repo(repo_id);

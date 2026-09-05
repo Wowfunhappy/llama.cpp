@@ -9,7 +9,8 @@
 // const std::string & is C++17
 #include <functional>
 #include <vector>
-#include <variant>
+// std::variant is C++17
+#include <cassert>
 
 struct common_grammar_builder;
 
@@ -77,7 +78,7 @@ struct common_peg_ast_node {
     std::string tag;
     size_t start;
     size_t end;
-    const std::string & text;
+    std::string text;
     std::vector<common_peg_ast_id> children;
 
     bool is_partial = false;
@@ -280,30 +281,216 @@ struct common_peg_ac_parser {
     std::vector<std::string> delimiters;
 };
 
-// Variant holding all parser types
-using common_peg_parser_variant = std::variant<
-    common_peg_epsilon_parser,
-    common_peg_start_parser,
-    common_peg_end_parser,
-    common_peg_literal_parser,
-    common_peg_sequence_parser,
-    common_peg_choice_parser,
-    common_peg_repetition_parser,
-    common_peg_and_parser,
-    common_peg_not_parser,
-    common_peg_any_parser,
-    common_peg_space_parser,
-    common_peg_chars_parser,
-    common_peg_string_parser,
-    common_peg_until_parser,
-    common_peg_schema_parser,
-    common_peg_rule_parser,
-    common_peg_ref_parser,
-    common_peg_atomic_parser,
-    common_peg_tag_parser,
-    common_peg_gbnf_parser,
-    common_peg_ac_parser
->;
+// Tag enum for parser types (C++14-compatible variant replacement)
+enum common_peg_parser_tag {
+    PEG_TAG_EPSILON,
+    PEG_TAG_START,
+    PEG_TAG_END,
+    PEG_TAG_LITERAL,
+    PEG_TAG_SEQUENCE,
+    PEG_TAG_CHOICE,
+    PEG_TAG_REPETITION,
+    PEG_TAG_AND,
+    PEG_TAG_NOT,
+    PEG_TAG_ANY,
+    PEG_TAG_SPACE,
+    PEG_TAG_CHARS,
+    PEG_TAG_STRING,
+    PEG_TAG_UNTIL,
+    PEG_TAG_SCHEMA,
+    PEG_TAG_RULE,
+    PEG_TAG_REF,
+    PEG_TAG_ATOMIC,
+    PEG_TAG_TAG,
+    PEG_TAG_GBNF,
+    PEG_TAG_AC,
+};
+
+// Type trait to map parser struct -> tag
+template <typename T> struct peg_parser_tag;
+template <> struct peg_parser_tag<common_peg_epsilon_parser>    { static const common_peg_parser_tag value = PEG_TAG_EPSILON; };
+template <> struct peg_parser_tag<common_peg_start_parser>      { static const common_peg_parser_tag value = PEG_TAG_START; };
+template <> struct peg_parser_tag<common_peg_end_parser>        { static const common_peg_parser_tag value = PEG_TAG_END; };
+template <> struct peg_parser_tag<common_peg_literal_parser>    { static const common_peg_parser_tag value = PEG_TAG_LITERAL; };
+template <> struct peg_parser_tag<common_peg_sequence_parser>   { static const common_peg_parser_tag value = PEG_TAG_SEQUENCE; };
+template <> struct peg_parser_tag<common_peg_choice_parser>     { static const common_peg_parser_tag value = PEG_TAG_CHOICE; };
+template <> struct peg_parser_tag<common_peg_repetition_parser> { static const common_peg_parser_tag value = PEG_TAG_REPETITION; };
+template <> struct peg_parser_tag<common_peg_and_parser>        { static const common_peg_parser_tag value = PEG_TAG_AND; };
+template <> struct peg_parser_tag<common_peg_not_parser>        { static const common_peg_parser_tag value = PEG_TAG_NOT; };
+template <> struct peg_parser_tag<common_peg_any_parser>        { static const common_peg_parser_tag value = PEG_TAG_ANY; };
+template <> struct peg_parser_tag<common_peg_space_parser>      { static const common_peg_parser_tag value = PEG_TAG_SPACE; };
+template <> struct peg_parser_tag<common_peg_chars_parser>      { static const common_peg_parser_tag value = PEG_TAG_CHARS; };
+template <> struct peg_parser_tag<common_peg_string_parser>     { static const common_peg_parser_tag value = PEG_TAG_STRING; };
+template <> struct peg_parser_tag<common_peg_until_parser>      { static const common_peg_parser_tag value = PEG_TAG_UNTIL; };
+template <> struct peg_parser_tag<common_peg_schema_parser>     { static const common_peg_parser_tag value = PEG_TAG_SCHEMA; };
+template <> struct peg_parser_tag<common_peg_rule_parser>       { static const common_peg_parser_tag value = PEG_TAG_RULE; };
+template <> struct peg_parser_tag<common_peg_ref_parser>        { static const common_peg_parser_tag value = PEG_TAG_REF; };
+template <> struct peg_parser_tag<common_peg_atomic_parser>     { static const common_peg_parser_tag value = PEG_TAG_ATOMIC; };
+template <> struct peg_parser_tag<common_peg_tag_parser>        { static const common_peg_parser_tag value = PEG_TAG_TAG; };
+template <> struct peg_parser_tag<common_peg_gbnf_parser>       { static const common_peg_parser_tag value = PEG_TAG_GBNF; };
+template <> struct peg_parser_tag<common_peg_ac_parser>         { static const common_peg_parser_tag value = PEG_TAG_AC; };
+
+// C++14-compatible variant for parser types using type-erased storage
+class common_peg_parser_variant {
+    struct holder_base {
+        virtual ~holder_base() {}
+        virtual holder_base * clone() const = 0;
+    };
+
+    template <typename T>
+    struct holder : holder_base {
+        T value;
+        holder(const T & v) : value(v) {}
+        holder(T && v) : value(std::move(v)) {}
+        holder_base * clone() const override { return new holder<T>(value); }
+    };
+
+    common_peg_parser_tag tag_;
+    holder_base * data_;
+
+public:
+    common_peg_parser_variant() : tag_(PEG_TAG_EPSILON), data_(new holder<common_peg_epsilon_parser>(common_peg_epsilon_parser{})) {}
+
+    template <typename T,
+        typename std::enable_if<!std::is_same<typename std::decay<T>::type, common_peg_parser_variant>::value, int>::type = 0>
+    common_peg_parser_variant(const T & v)
+        : tag_(peg_parser_tag<typename std::decay<T>::type>::value)
+        , data_(new holder<typename std::decay<T>::type>(v)) {}
+
+    template <typename T>
+    common_peg_parser_variant(T && v,
+        typename std::enable_if<!std::is_same<typename std::decay<T>::type, common_peg_parser_variant>::value>::type * = nullptr)
+        : tag_(peg_parser_tag<typename std::decay<T>::type>::value)
+        , data_(new holder<typename std::decay<T>::type>(std::forward<T>(v))) {}
+
+    common_peg_parser_variant(const common_peg_parser_variant & other)
+        : tag_(other.tag_), data_(other.data_ ? other.data_->clone() : nullptr) {}
+
+    common_peg_parser_variant(common_peg_parser_variant && other) noexcept
+        : tag_(other.tag_), data_(other.data_) { other.data_ = nullptr; }
+
+    common_peg_parser_variant & operator=(const common_peg_parser_variant & other) {
+        if (this != &other) {
+            delete data_;
+            tag_ = other.tag_;
+            data_ = other.data_ ? other.data_->clone() : nullptr;
+        }
+        return *this;
+    }
+
+    common_peg_parser_variant & operator=(common_peg_parser_variant && other) noexcept {
+        if (this != &other) {
+            delete data_;
+            tag_ = other.tag_;
+            data_ = other.data_;
+            other.data_ = nullptr;
+        }
+        return *this;
+    }
+
+    ~common_peg_parser_variant() { delete data_; }
+
+    common_peg_parser_tag tag() const { return tag_; }
+
+    template <typename T>
+    T * get_if() {
+        if (tag_ == peg_parser_tag<T>::value) {
+            return &static_cast<holder<T>*>(data_)->value;
+        }
+        return nullptr;
+    }
+
+    template <typename T>
+    const T * get_if() const {
+        if (tag_ == peg_parser_tag<T>::value) {
+            return &static_cast<const holder<T>*>(data_)->value;
+        }
+        return nullptr;
+    }
+
+    template <typename T>
+    bool holds() const {
+        return tag_ == peg_parser_tag<T>::value;
+    }
+};
+
+// Free-function helpers matching std:: API patterns
+template <typename T>
+T * peg_get_if(common_peg_parser_variant * v) {
+    return v ? v->get_if<T>() : nullptr;
+}
+
+template <typename T>
+const T * peg_get_if(const common_peg_parser_variant * v) {
+    return v ? v->get_if<T>() : nullptr;
+}
+
+template <typename T>
+bool peg_holds_alternative(const common_peg_parser_variant & v) {
+    return v.holds<T>();
+}
+
+// Visitor dispatch for common_peg_parser_variant (C++14-compatible)
+template <typename Visitor>
+auto peg_visit(Visitor && vis, common_peg_parser_variant & v)
+    -> decltype(vis(*(common_peg_epsilon_parser*)nullptr))
+{
+    switch (v.tag()) {
+        case PEG_TAG_EPSILON:    return vis(*v.get_if<common_peg_epsilon_parser>());
+        case PEG_TAG_START:      return vis(*v.get_if<common_peg_start_parser>());
+        case PEG_TAG_END:        return vis(*v.get_if<common_peg_end_parser>());
+        case PEG_TAG_LITERAL:    return vis(*v.get_if<common_peg_literal_parser>());
+        case PEG_TAG_SEQUENCE:   return vis(*v.get_if<common_peg_sequence_parser>());
+        case PEG_TAG_CHOICE:     return vis(*v.get_if<common_peg_choice_parser>());
+        case PEG_TAG_REPETITION: return vis(*v.get_if<common_peg_repetition_parser>());
+        case PEG_TAG_AND:        return vis(*v.get_if<common_peg_and_parser>());
+        case PEG_TAG_NOT:        return vis(*v.get_if<common_peg_not_parser>());
+        case PEG_TAG_ANY:        return vis(*v.get_if<common_peg_any_parser>());
+        case PEG_TAG_SPACE:      return vis(*v.get_if<common_peg_space_parser>());
+        case PEG_TAG_CHARS:      return vis(*v.get_if<common_peg_chars_parser>());
+        case PEG_TAG_STRING:     return vis(*v.get_if<common_peg_string_parser>());
+        case PEG_TAG_UNTIL:      return vis(*v.get_if<common_peg_until_parser>());
+        case PEG_TAG_SCHEMA:     return vis(*v.get_if<common_peg_schema_parser>());
+        case PEG_TAG_RULE:       return vis(*v.get_if<common_peg_rule_parser>());
+        case PEG_TAG_REF:        return vis(*v.get_if<common_peg_ref_parser>());
+        case PEG_TAG_ATOMIC:     return vis(*v.get_if<common_peg_atomic_parser>());
+        case PEG_TAG_TAG:        return vis(*v.get_if<common_peg_tag_parser>());
+        case PEG_TAG_GBNF:       return vis(*v.get_if<common_peg_gbnf_parser>());
+        case PEG_TAG_AC:         return vis(*v.get_if<common_peg_ac_parser>());
+        default: assert(false && "Unknown parser tag"); return vis(*v.get_if<common_peg_epsilon_parser>());
+    }
+}
+
+template <typename Visitor>
+auto peg_visit(Visitor && vis, const common_peg_parser_variant & v)
+    -> decltype(vis(*(const common_peg_epsilon_parser*)nullptr))
+{
+    switch (v.tag()) {
+        case PEG_TAG_EPSILON:    return vis(*v.get_if<common_peg_epsilon_parser>());
+        case PEG_TAG_START:      return vis(*v.get_if<common_peg_start_parser>());
+        case PEG_TAG_END:        return vis(*v.get_if<common_peg_end_parser>());
+        case PEG_TAG_LITERAL:    return vis(*v.get_if<common_peg_literal_parser>());
+        case PEG_TAG_SEQUENCE:   return vis(*v.get_if<common_peg_sequence_parser>());
+        case PEG_TAG_CHOICE:     return vis(*v.get_if<common_peg_choice_parser>());
+        case PEG_TAG_REPETITION: return vis(*v.get_if<common_peg_repetition_parser>());
+        case PEG_TAG_AND:        return vis(*v.get_if<common_peg_and_parser>());
+        case PEG_TAG_NOT:        return vis(*v.get_if<common_peg_not_parser>());
+        case PEG_TAG_ANY:        return vis(*v.get_if<common_peg_any_parser>());
+        case PEG_TAG_SPACE:      return vis(*v.get_if<common_peg_space_parser>());
+        case PEG_TAG_CHARS:      return vis(*v.get_if<common_peg_chars_parser>());
+        case PEG_TAG_STRING:     return vis(*v.get_if<common_peg_string_parser>());
+        case PEG_TAG_UNTIL:      return vis(*v.get_if<common_peg_until_parser>());
+        case PEG_TAG_SCHEMA:     return vis(*v.get_if<common_peg_schema_parser>());
+        case PEG_TAG_RULE:       return vis(*v.get_if<common_peg_rule_parser>());
+        case PEG_TAG_REF:        return vis(*v.get_if<common_peg_ref_parser>());
+        case PEG_TAG_ATOMIC:     return vis(*v.get_if<common_peg_atomic_parser>());
+        case PEG_TAG_TAG:        return vis(*v.get_if<common_peg_tag_parser>());
+        case PEG_TAG_GBNF:       return vis(*v.get_if<common_peg_gbnf_parser>());
+        case PEG_TAG_AC:         return vis(*v.get_if<common_peg_ac_parser>());
+        default: assert(false && "Unknown parser tag"); return vis(*v.get_if<common_peg_epsilon_parser>());
+    }
+}
+
 
 class common_peg_arena {
     std::vector<common_peg_parser_variant> parsers_;

@@ -65,8 +65,6 @@ struct common_json_value {
     common_json_value(std::nullptr_t = nullptr) : type(VAL_NULL) {}
     common_json_value(bool val) : type(VAL_BOOL), val_bool(val) {}
     common_json_value(std::string val) : type(VAL_STRING), val_string(std::move(val)) {}
-    // without this a string_view lands on the common_json ctor below and recurses
-    common_json_value(const std::string & val) : type(VAL_STRING), val_string(val) {}
     common_json_value(const char * val);
     common_json_value(const common_json & val);
     common_json_value(common_json && val);
