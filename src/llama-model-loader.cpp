@@ -336,8 +336,8 @@ namespace GGUFMeta {
             result.clear();
 
             for (size_t i = 0; i < n_items; i++) {
-                const T value = gguf_get_arr_str(ctx, kid, i);
-                result.emplace_back(value);
+                result.resize(i + 1);
+                *reinterpret_cast<std::string *>(&result[i]) = gguf_get_arr_str(ctx, kid, i);
             }
         } else {
             result.resize(arr_info.length);
@@ -386,8 +386,7 @@ namespace GGUFMeta {
             const size_t n_items = gguf_get_arr_n(ctx, kid);
 
             for (size_t i = 0; i < n_items; i++) {
-                const T value = gguf_get_arr_str(ctx, kid, i);
-                result[i] = value;
+                *reinterpret_cast<std::string *>(&result[i]) = gguf_get_arr_str(ctx, kid, i);
             }
         } else {
             if (arr_info.gt == GGUF_TYPE_BOOL) {
@@ -1137,7 +1136,7 @@ struct ggml_tensor * llama_model_loader::create_tensor(
                 throw std::runtime_error(format("failed to create ggml context"));
             }
 
-            ctx_map.emplace(key, ctx);
+            ctx_map.insert(std::make_pair(key, ggml_context_ptr(ctx)));
 
             return ctx;
         }

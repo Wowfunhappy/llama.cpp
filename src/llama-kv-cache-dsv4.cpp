@@ -995,7 +995,7 @@ llama_dsv4_comp_state::llama_dsv4_comp_state(
         LLAMA_LOG_INFO("%s: %10s DSV4 %s state buffer size = %8.2f MiB\n",
                 __func__, ggml_backend_buffer_name(buf), name, ggml_backend_buffer_get_size(buf)/1024.0/1024.0);
 
-        ctxs_bufs.emplace_back(std::move(ctx), buf);
+        ctxs_bufs.push_back(std::make_pair(std::move(ctx), ggml_backend_buffer_ptr(buf)));
     }
 
     LLAMA_LOG_INFO("%s: %s ratio = %u, state = %u x %u, streams = %u, rs_seq = %u, layers = %zu, size = %7.2f MiB\n",
@@ -2192,7 +2192,7 @@ const llama_dsv4_comp_state * llama_kv_cache_dsv4_context::get_lid_state() const
 const llama_kv_cache_dsv4_context::comp_plan & llama_kv_cache_dsv4_context::get_csa_plan() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 
-    static const comp_plan empty;
+    static const comp_plan empty = comp_plan();
     if (plans_csa.empty()) {
         return empty;
     }
@@ -2203,7 +2203,7 @@ const llama_kv_cache_dsv4_context::comp_plan & llama_kv_cache_dsv4_context::get_
 const llama_kv_cache_dsv4_context::comp_plan & llama_kv_cache_dsv4_context::get_hca_plan() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 
-    static const comp_plan empty;
+    static const comp_plan empty = comp_plan();
     if (plans_hca.empty()) {
         return empty;
     }
@@ -2214,7 +2214,7 @@ const llama_kv_cache_dsv4_context::comp_plan & llama_kv_cache_dsv4_context::get_
 const llama_kv_cache_dsv4_context::comp_plan & llama_kv_cache_dsv4_context::get_lid_plan() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 
-    static const comp_plan empty;
+    static const comp_plan empty = comp_plan();
     if (plans_lid.empty()) {
         return empty;
     }

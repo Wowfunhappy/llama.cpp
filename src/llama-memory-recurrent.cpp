@@ -124,7 +124,7 @@ llama_memory_recurrent::llama_memory_recurrent(
         }
         ggml_backend_buffer_clear(buf, 0);
         LLAMA_LOG_INFO("%s: %10s RS buffer size = %8.2f MiB\n", __func__, ggml_backend_buffer_name(buf), ggml_backend_buffer_get_size(buf)/1024.0/1024.0);
-        ctxs_bufs.emplace_back(std::move(ctx), ggml_backend_buffer_ptr(buf));
+        ctxs_bufs.push_back(std::make_pair(std::move(ctx), ggml_backend_buffer_ptr(buf)));
     }
 
     {
