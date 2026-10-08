@@ -940,7 +940,8 @@ static std::string common_chat_template_direct_apply_impl(
     const autoparser::generation_params & inputs,
     const common_optional<json> & messages_override = common_nullopt,
     const common_optional<json> & tools_override = common_nullopt,
-    const common_optional<json> & additional_context = common_nullopt) {
+    const common_optional<json> & additional_context = common_nullopt,
+    size_t * last_input_end = nullptr) {
     jinja::context ctx(tmpl.source());
 
     // messages_override is already built for this template, do not touch its content parts
@@ -994,12 +995,27 @@ static std::string common_chat_template_direct_apply_impl(
 
     std::string result = parts->as_string().str();
 
+    size_t input_end = std::string::npos;
+    size_t offset    = 0;
+    for (const auto & part : parts->val_str.parts) {
+        offset += part.val.size();
+        if (part.is_input) {
+            input_end = offset;
+        }
+    }
+
     // TODO: improve this later
     if (inputs.add_bos && string_starts_with(result, tmpl.bos_token())) {
         result = result.substr(tmpl.bos_token().size());
+        if (input_end != std::string::npos) {
+            input_end -= std::min(input_end, tmpl.bos_token().size());
+        }
     }
     if (inputs.add_eos && string_ends_with(result, tmpl.eos_token())) {
         result = result.substr(0, result.size() - tmpl.eos_token().size());
+    }
+    if (last_input_end) {
+        *last_input_end = input_end == std::string::npos ? input_end : std::min(input_end, result.size());
     }
     return result;
 }
@@ -1036,6 +1052,42 @@ std::string common_chat_template_generation_prompt(
     const common_chat_template & tmpl,
     const autoparser::generation_params & inputs) {
     return common_chat_template_generation_prompt_impl(tmpl, inputs, common_nullopt, common_nullopt, common_nullopt);
+}
+
+static bool common_chat_template_content_continuation_prompt_impl(
+        const common_chat_template & tmpl,
+        const autoparser::generation_params & inputs,
+        std::string & prompt,
+        std::string & generation_prompt) {
+    if (inputs.continue_final_message != COMMON_CHAT_CONTINUATION_CONTENT || inputs.continue_msg.empty()) {
+        return false;
+    }
+
+    // Render the complete trailing assistant message with the model's own template, then remove
+    // only the template-authored suffix after its last input fragment. This leaves generation at
+    // the end of the supplied content without guessing the model's assistant or reasoning syntax.
+    autoparser::generation_params base_params = inputs;
+    base_params.add_generation_prompt         = false;
+    base_params.continue_final_message        = COMMON_CHAT_CONTINUATION_NONE;
+
+    const std::string base_prompt = common_chat_template_direct_apply_impl(tmpl, base_params);
+
+    autoparser::generation_params full_params = base_params;
+    json continuation = json::array({inputs.continue_msg.to_json_oaicompat(/* concat_typed_text = */ false)});
+    continuation = messages_inp_normalizer(tmpl.original_caps()).normalize(continuation);
+    full_params.messages.push_back(std::move(continuation.at(0)));
+
+    size_t input_end = std::string::npos;
+    std::string full_prompt = common_chat_template_direct_apply_impl(
+        tmpl, full_params, common_nullopt, common_nullopt, common_nullopt, &input_end);
+    if (input_end == std::string::npos || !string_starts_with(full_prompt, base_prompt)) {
+        return false;
+    }
+
+    full_prompt.resize(input_end);
+    prompt            = std::move(full_prompt);
+    generation_prompt = prompt.substr(base_prompt.size());
+    return true;
 }
 
 static common_chat_params common_chat_params_init_ministral_3(const common_chat_template &    tmpl,
@@ -3736,8 +3788,21 @@ static common_chat_params common_chat_templates_apply_jinja(const struct common_
         return data;
     }
 
+    auto apply_template_content_continuation = [&](common_chat_params data) {
+        std::string prompt;
+        std::string generation_prompt;
+        // With thinking disabled, the template is authoritative about whether an empty reasoning
+        // envelope belongs before content. Format-specific continuation builders cannot infer it.
+        if (!params.enable_thinking && common_chat_template_content_continuation_prompt_impl(
+                tmpl, params, prompt, generation_prompt)) {
+            data.prompt            = std::move(prompt);
+            data.generation_prompt = std::move(generation_prompt);
+        }
+        return data;
+    };
+
     if (auto result = common_chat_try_specialized_template(tmpl, src, params)) {
-        return *result;
+        return apply_template_content_continuation(std::move(*result));
     }
 
     try {
@@ -3767,7 +3832,7 @@ static common_chat_params common_chat_templates_apply_jinja(const struct common_
         common_peg_arena arena;
         arena.load(auto_params.parser);
         LOG_DBG("%s: generated parser:\n%s\n\nparser generation prompt: %s\n", __func__, arena.dump(arena.root()).c_str(), auto_params.generation_prompt.c_str());
-        return auto_params;
+        return apply_template_content_continuation(std::move(auto_params));
     } catch (const std::exception & e) {
         throw std::invalid_argument(std::string("Unable to generate parser for this template. Automatic parser generation failed: ") + e.what());
     }

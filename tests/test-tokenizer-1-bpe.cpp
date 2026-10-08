@@ -80,6 +80,37 @@ int main(int argc, char **argv) {
 
     const int n_vocab = llama_vocab_n_tokens(vocab);
 
+    // Regression test for fragment lifetime while splitting multiple special tokens.
+    // Gemma 4 prompts exercise this path heavily, especially during continuation.
+    {
+        const std::string specials[] = {
+            "<bos>", "<|turn>", "<turn|>", "<|channel>", "<channel|>",
+        };
+        bool has_gemma4_specials = true;
+        for (const auto & special : specials) {
+            bool found = false;
+            for (int i = 0; i < n_vocab; ++i) {
+                if (special == llama_vocab_get_text(vocab, i)) {
+                    found = true;
+                    break;
+                }
+            }
+            has_gemma4_specials = has_gemma4_specials && found;
+        }
+        if (has_gemma4_specials) {
+            const std::string prompt =
+                "<bos><|turn>user\nWrite a poem.<turn|>\n<|turn>model\n"
+                "<|channel>thought\n<channel|>Silver rain";
+            const auto tokens = common_tokenize(ctx, prompt, false, true);
+            const auto check  = common_detokenize(ctx, tokens, true);
+            if (check != prompt) {
+                fprintf(stderr, "%s : special-token prompt detokenized to '%s' instead of '%s'\n",
+                        __func__, check.c_str(), prompt.c_str());
+                return 4;
+            }
+        }
+    }
+
     for (int i = 0; i < n_vocab; ++i) {
         std::string str = common_detokenize(ctx, std::vector<int>(1, i));
         try {

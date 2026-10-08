@@ -1774,7 +1774,7 @@ struct fragment_buffer_variant {
     const FRAGMENT_BUFFER_VARIANT_TYPE type;
     const llama_token token;
     const std::string _dummy;
-    std::string raw_text;
+    const std::string & raw_text;
     const uint64_t offset;
     const uint64_t length;
 };

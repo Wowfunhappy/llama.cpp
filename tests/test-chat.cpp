@@ -6553,6 +6553,13 @@ static void test_template_generation_prompt() {
         return opts;
     };
 
+    auto continuation_content_no_thinking = [&]() {
+        auto opts             = continuation_content();
+        opts.messages         = { system_msg, message_user, simple_assist_msg("Hello, ") };
+        opts.enable_thinking  = false;
+        return opts;
+    };
+
     auto check = [&](const common_chat_templates_ptr & tmpls,
                      const test_case_options & opts,
                      const std::string & expected_generation_prompt) {
@@ -6575,6 +6582,7 @@ static void test_template_generation_prompt() {
         check(tmpls, basic(),                  "<|im_start|>assistant\n<think>\n");
         check(tmpls, continuation_content(),   "<|im_start|>assistant\n<think>\nI'm thinking\n</think>\n\nHello, ");
         check(tmpls, continuation_reasoning(), "<|im_start|>assistant\n<think>\nI'm");
+        check(tmpls, continuation_content_no_thinking(), "<|im_start|>assistant\n<think>\n\n</think>\n\nHello, ");
     }
 
     {
@@ -6582,6 +6590,7 @@ static void test_template_generation_prompt() {
         check(tmpls, basic(),                  "<|start|>assistant");
         check(tmpls, continuation_content(),   "<|start|>assistant<|channel|>analysis<|message|>I'm thinking<|end|><|start|>assistant<|channel|>final<|message|>Hello, ");
         check(tmpls, continuation_reasoning(), "<|start|>assistant<|channel|>analysis<|message|>I'm");
+        check(tmpls, continuation_content_no_thinking(), "<|start|>assistant<|channel|>final<|message|>Hello, ");
     }
 
     {
@@ -6589,6 +6598,7 @@ static void test_template_generation_prompt() {
         check(tmpls, basic(),                  "");
         check(tmpls, continuation_content(),   "[THINK]I'm thinking[/THINK]Hello, ");
         check(tmpls, continuation_reasoning(), "[THINK]I'm");
+        check(tmpls, continuation_content_no_thinking(), "Hello, ");
     }
 
     {
@@ -6596,6 +6606,8 @@ static void test_template_generation_prompt() {
         check(tmpls, basic(),                  "<|turn>model\n");
         check(tmpls, continuation_content(),   "<|turn>model\n<|channel>thought\nI'm thinking<channel|>Hello, ");
         check(tmpls, continuation_reasoning(), "<|turn>model\n<|channel>thought\nI'm");
+
+        check(tmpls, continuation_content_no_thinking(), "<|turn>model\nHello, ");
 
         // Special case when last message is a tool response
         test_case_options after_tool_call = continuation_reasoning();
@@ -6633,6 +6645,7 @@ static void test_template_generation_prompt() {
         check(tmpls, basic(),                  "<|im_start|>assistant\n");
         check(tmpls, continuation_content(),   "<|im_start|>assistant\n<think>I'm thinking</think>Hello, ");
         check(tmpls, continuation_reasoning(), "<|im_start|>assistant\n<think>I'm");
+        check(tmpls, continuation_content_no_thinking(), "<|im_start|>assistant\nHello, ");
     }
 
     {
